@@ -1,0 +1,94 @@
+{
+  "routerMap": [
+    {
+      "name": "ThreadPostList",
+      "pageSourceFile": "src/main/ets/pages/NavDest/ThreadPostList.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "UserSpace",
+      "pageSourceFile": "src/main/ets/pages/NavDest/UserSpace.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "Preferences",
+      "pageSourceFile": "src/main/ets/pages/NavDest/Preferences.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "ViewHistory",
+      "pageSourceFile": "src/main/ets/pages/NavDest/ViewHistory.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "FavoriteList",
+      "pageSourceFile": "src/main/ets/pages/NavDest/FavoriteList.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "PostRatingDetail",
+      "pageSourceFile": "src/main/ets/pages/NavDest/PostRatingDetail.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "PollDetail",
+      "pageSourceFile": "src/main/ets/pages/NavDest/PollDetail.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "WriteReply",
+      "pageSourceFile": "src/main/ets/pages/NavDest/WriteReply.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "SearchPage",
+      "pageSourceFile": "src/main/ets/pages/NavDest/SearchPage.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "UserThread",
+      "pageSourceFile": "src/main/ets/pages/NavDest/UserThread.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "DraftPage",
+      "pageSourceFile": "src/main/ets/pages/NavDest/DraftPage.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "PrivateMessage",
+      "pageSourceFile": "src/main/ets/pages/NavDest/PrivateMessage.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "PmDetail",
+      "pageSourceFile": "src/main/ets/pages/NavDest/PrivateMessageDetail.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "NoteList",
+      "pageSourceFile": "src/main/ets/pages/NavDest/NoteList.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "BlockList",
+      "pageSourceFile": "src/main/ets/pages/NavDest/BlockList.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "AboutApp",
+      "pageSourceFile": "src/main/ets/pages/NavDest/AboutApp.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "SplitModeShortcut",
+      "pageSourceFile": "src/main/ets/pages/NavDest/SplitModeShortcut.ets",
+      "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "UserGuide",
+      "pageSourceFile": "src/main/ets/pages/NavDest/UserGuide.ets",
+      "buildFunction": "RegisterBuilder"
+    }
+  ]
+}
