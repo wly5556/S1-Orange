@@ -1,5 +1,3 @@
-const DOMAIN = 'saraba1st.com'
-
 export enum URL {
   DOMAIN = 'saraba1st.com',
   DOMAIN_APP = 'app.saraba1st.com',

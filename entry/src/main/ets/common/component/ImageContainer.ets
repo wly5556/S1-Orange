@@ -100,7 +100,7 @@ export struct ImageContainer {
           imageKnifeOption: {
             headerOption: [{
               key: 'cookie',
-              value: this.imageUrl.includes(URL.DOMAIN) ? userCookieString : ''
+              value: this.imageUrl.match(/^https:\/\/([a-zA-Z0-9-]+\.)?saraba1st\.com(\/.*)?$/) ? userCookieString : ''
             }],
             loadSrc: this.imageUrl,
             objectFit: ImageFit.Contain,
