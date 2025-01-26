@@ -721,7 +721,7 @@ function extractQuoteInfo(xmlString: string): Quote | null {
   const postInfo = postInfoMatch ? postInfoMatch[1] : ''
   const message = messageMatch ? messageMatch[1].trim() : ''
 
-  if (!encodedUserId || !quoteMessage || !postInfo || !message) {
+  if (!encodedUserId || !quoteMessage || !postInfo) {
     return null
   }
 
