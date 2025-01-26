@@ -51,5 +51,6 @@ export enum URL {
   NOTELIST = 'index.php?module=mynotelist&view=mypost&type=post&version=3',
   BLOCKLIST_WEB = 'home.php?mod=space&do=friend&view=blacklist',
   BLOCK_ACTION = 'home.php?mod=spacecp&ac=friend&op=blacklist',
-  ATTENDANCE_WEB = 'study_daily_attendance-daily_attendance.html?inajax=1&version=1'
+  ATTENDANCE_WEB = 'study_daily_attendance-daily_attendance.html?inajax=1&version=1',
+  ATTACHMENT_DOWNLOAD = 'forum.php?mod=attachment&aid='
 }

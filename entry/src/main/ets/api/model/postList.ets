@@ -64,14 +64,16 @@ export interface Post {
 }
 
 export interface Attachment {
+  aid: string
+  aidencode: string
   url: string
   dateline: string
   filename: string
   filesize: string
   attachment: string
   isimage: string
-  width: string // may be zero
-  height: string // may be zero
+  width: string
+  height: string
   attachicon: string
   attachsize: string
   downloads: string

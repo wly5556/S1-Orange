@@ -1,6 +1,6 @@
 import { URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
-import { PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
+import { Attachment, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefreshStage } from '../../common/component/PullToRefresh'
@@ -57,6 +57,7 @@ import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { HiddenPostDisplay } from '../../config/v1/default'
 import { LengthUnit } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
+import { DownloadFile } from '../../api/download'
 
 interface PostViewModel {
   node: UIRootNode[]
@@ -425,6 +426,7 @@ struct SinglePostPage {
     allowvote: SpecialPollAllowVote.ALLOW
   }
   @Provide postRatingInfo: Map<string, ThreadRatingInfo | undefined> = new Map
+  @State postAttachment: Map<string, Attachment[]> = new Map
   pullUpStartOffset: number = 0
   pullUpLoadingTs: number = 0
 
@@ -475,6 +477,17 @@ struct SinglePostPage {
       }
       const newPostFloorNumber: string[] = []
       rawPostList.forEach((p, i) => {
+        if (p.attachments) {
+          Object.values(p.attachments).forEach(attach => {
+            if (attach.isimage === '0') {
+              if (!this.postAttachment.has(p.pid)) {
+                this.postAttachment.set(p.pid, [])
+              }
+              const attachList = this.postAttachment.get(p.pid)
+              attachList!.push(attach)
+            }
+          })
+        }
         if (p.groupid === '4') {
           parseXML([p]).forEach((root) => {
             const post = PostContentParser(root, [])
@@ -883,6 +896,39 @@ struct SinglePostPage {
                     compTransitionId: 'Vote' + this.generateSinglePageKey() + this.pageParam.tid
                   })
                 }
+
+                if (this.postAttachment.has(post.pid)) {
+                  ForEach(this.postAttachment.get(post.pid), (attach: Attachment) => {
+                    Row({ space: 12 }) {
+                      Image($r('app.media.arrow_right_folder_circle')).width(26).height(26)
+                        .fillColor(this.appTheme.fontEmphasize)
+                      Column({ space: 6 }) {
+                        Text(attach.filename)
+                          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                          .wordBreak(WordBreak.BREAK_ALL)
+                        Text(`${attach.attachsize}   ${attach.downloads}次下载`)
+                          .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                          .opacity(.7)
+                      }.flexGrow(100)
+                      .flexShrink(1)
+                      .alignItems(HorizontalAlign.Start)
+
+                      Button('下载')
+                        .buttonStyle(ButtonStyleMode.NORMAL)
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                        .onClick(() => {
+                          DownloadFile(this.context, attach.filename, URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
+                        })
+                    }
+                    .backgroundColor(this.appTheme.backgroundTertiary)
+                    .padding(12)
+                    .borderRadius(12)
+                    .alignItems(VerticalAlign.Center)
+                    .width('100%')
+                    .margin({ top: 8 })
+                  }, (attach: Attachment) => attach.aid)
+                }
+
                 if (this.postRatingInfo.has(post.pid)) {
                   Divider().margin({ top: 20 })
                   PostRating({
