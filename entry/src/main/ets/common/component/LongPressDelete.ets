@@ -28,6 +28,7 @@ export struct LongPressDelete {
       }
       .flexGrow(1)
       .flexShrink(1)
+      .enabled(this.deleteButtonShow ? false : true)
 
       Row() {
         if (this.doingDelete) {
@@ -57,7 +58,6 @@ export struct LongPressDelete {
     .width(`calc(100% + ${DELETE_AREA_WIDTH}vp)`)
     .animation(Spring035s)
     .clickEffect({ level: ClickEffectLevel.HEAVY })
-    .hitTestBehavior(this.deleteButtonShow ? HitTestMode.Block : HitTestMode.Default)
     .onClick(e => {
       if (this.deleteButtonShow) {
         this.deleteButtonShow = false
