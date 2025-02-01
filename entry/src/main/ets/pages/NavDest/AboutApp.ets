@@ -13,8 +13,12 @@ import { openInBrowser } from '../../common/WantUitl'
 import { PropKey } from '../../common/Constants'
 import { openUserGuide } from './UserGuide'
 import { openThreadPost, ThreadPostParam } from './ThreadPostList'
+import { CacheStrategy, ImageKnife } from '@ohos/imageknife'
+import { OpacityTransition } from '../../common/Animation'
 
 export interface AboutAppParam {}
+
+const RELEASE_BADGE = 'https://raster.shields.io/github/v/release/wly5556/S1-Orange?style=for-the-badge&label=' // image暂未支持svg text标签,只能用图片版本的
 
 @Component
 export struct AboutApp {
@@ -24,6 +28,20 @@ export struct AboutApp {
   @State pageParam: AboutAppParam = {}
   @Consume appState: PreferenceState
   @State settingRow: SettingRow = new SettingRow(FontSizeEnum[this.appState.fontSize])
+  @State releaseBadge: string | PixelMap | undefined = undefined
+
+  async aboutToAppear() {
+    const knife = ImageKnife.getInstance()
+    await knife.preLoadCache({
+      loadSrc: RELEASE_BADGE,
+      writeCacheStrategy: CacheStrategy.Memory
+    })
+    const badge = await knife.getCacheImage(RELEASE_BADGE, CacheStrategy.Memory)
+    knife.removeMemoryCache(RELEASE_BADGE)
+    if (badge) {
+      this.releaseBadge = badge.source
+    }
+  }
 
   @LocalBuilder
   TextPrimary(text: string) {
@@ -72,8 +90,11 @@ export struct AboutApp {
                   Text($r('app.string.app_name'))
                     .fontSize(FontSizeEnum[this.appState.fontSize].vp20)
                     .fontWeight(FontWeight.Bold)
-                  Text(BuildProfile.VERSION_NAME).fontSize(FontSizeEnum[this.appState.fontSize].vp16).opacity(.8)
-                  Text('检查更新').fontSize(FontSizeEnum[this.appState.fontSize].vp14).opacity(.8)
+                  Text(){
+                    Span('当前版本 ')
+                    Span(BuildProfile.VERSION_NAME).fontWeight(FontWeight.Bold)
+                  }.fontSize(FontSizeEnum[this.appState.fontSize].vp16).opacity(.8)
+                  Text('查看版本说明').fontSize(FontSizeEnum[this.appState.fontSize].vp14).opacity(.8)
                 }.alignItems(HorizontalAlign.End)
                 .height(80)
               }.width('100%')
@@ -91,6 +112,35 @@ export struct AboutApp {
               }
               openThreadPost(param, this.pathStack)
             })
+
+            SettingGroupHeader({
+              text: '版本',
+              fontSizeIndex: this.appState.fontSize
+            })
+            Column() {
+              Row({ space: 12 }) {
+                if (this.releaseBadge) {
+                  this.TextPrimary('最新版本')
+                  Image(this.releaseBadge)
+                    .height(FontSizeEnum[this.appState.fontSize].vp32)
+                    .interpolation(ImageInterpolation.High)
+                    .borderRadius(12)
+                  Blank()
+                  Image($r('app.media.github_mark'))
+                    .width(FontSizeEnum[this.appState.fontSize].vp32)
+                    .height(FontSizeEnum[this.appState.fontSize].vp32)
+                  this.ShareIcon()
+                } else {
+                  this.TextPrimary('正在获取最新版本...')
+                }
+              }.alignItems(VerticalAlign.Center)
+              .justifyContent(FlexAlign.SpaceBetween)
+              .attributeModifier(this.settingRow)
+              .transition(OpacityTransition)
+              .onClick(() => {
+                openInBrowser(this.context, 'https://github.com/wly5556/S1-Orange/release')
+              })
+            }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
             SettingGroupHeader({
               text: '反馈及说明',
@@ -163,6 +213,7 @@ export struct AboutApp {
               })
 
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
+
             SettingGroupHeader({
               text: '构建',
               fontSizeIndex: this.appState.fontSize
