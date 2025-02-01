@@ -73,8 +73,12 @@ export struct SwipePageViewer {
   }
 
   allContentReload() {
-    this.contentReady = {}
-    this.dataControlCounter += 1
+    if (this.maxPage > 0) {
+      this.contentReady = {}
+      this.dataControlCounter += 1
+    } else {
+      this.maxPage = 1
+    }
   }
 
   @Builder
@@ -114,7 +118,7 @@ export struct SwipePageViewer {
       }, (page: number) => page.toString())
     }
     .cachedCount(this.cacheCount)
-    .disableSwipe(this.swiperDisabled || this.maxPage == 1)
+    .disableSwipe(this.swiperDisabled || this.maxPage <= 1)
     .indicator(false)
     .loop(false)
     .effectMode(EdgeEffect.None)

@@ -154,12 +154,11 @@ struct SingleNotePage {
       .param('page', this.pageToLoad.toString())
       .get()
       .then(v => {
-        if (v.Variables.list != null && v.Variables.count != null && v.Variables.perpage != null) {
-
+        if (v.Variables && v.Variables.list != null && v.Variables.count != null && v.Variables.perpage != null) {
           animateTo(Spring035s, () => {
             this.totalPage = Math.ceil(parseInt(v.Variables.count!) / parseInt(v.Variables.perpage!))
             this.noteItem = v.Variables.list!.map(note => {
-              const item = extractNoteItem(note.note);
+              const item = extractNoteItem(note.note)
 
               const itemVM: NoteItemVM = {
                 id: note.id,
