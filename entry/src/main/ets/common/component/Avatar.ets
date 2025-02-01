@@ -75,7 +75,7 @@ export function initAvatarCacheState() {
 export struct Avatar {
   @State imageSrc: string = ''
   avatarUrl: string = ''
-  @State imageLoadSucceed: boolean = false
+  @State hideDefaultAvatar: boolean = false
   @Prop @Watch('uidChanged') uid: string = ''
   avatarSize: number = 40
   transitionIndex: string = ''
@@ -91,6 +91,7 @@ export struct Avatar {
 
   uidChanged() {
     this.load()
+    this.imageSrc = this.avatarUrl
   }
 
   async load(removeCache: boolean = false) {
@@ -105,21 +106,20 @@ export struct Avatar {
       }
       this.cacheInfo = undefined
       this.imageSrc = ''
-      this.imageLoadSucceed = false
+      this.hideDefaultAvatar = false
       await waitFor(50)
     }
     if (this.uid.length > 0) {
       if (this.cacheInfo == undefined) {
         this.avatarUrl = avatarPath(this.uid)
-        if (removeCache)
-          this.imageSrc = this.avatarUrl
+        this.hideDefaultAvatar = false
       } else {
         if (this.cacheInfo.type == AvatarType.NO_AVATAR) {
           this.avatarUrl = ''
-          this.imageLoadSucceed = false
+          this.hideDefaultAvatar = false
         } else if (this.cacheInfo.type = AvatarType.CACHED) {
-          this.imageLoadSucceed = true
-          this.imageSrc = this.avatarUrl = avatarPath(this.uid)
+          this.avatarUrl = avatarPath(this.uid)
+          this.hideDefaultAvatar = true
         }
       }
     }
@@ -137,7 +137,7 @@ export struct Avatar {
           },
           onLoadListener: {
             onLoadSuccess: () => {
-              this.imageLoadSucceed = true
+              this.hideDefaultAvatar = true
               this.avatarLoaded(this.imageSrc)
               putCacheInfo(this.uid, AvatarType.CACHED)
             },
@@ -151,11 +151,11 @@ export struct Avatar {
       })
         .height(this.avatarSize)
         .width(this.avatarSize)
-        .opacity(this.imageLoadSucceed ? 1 : 0)
+        .opacity(this.hideDefaultAvatar ? 1 : 0)
         .animation({ duration: 100 })
         .draggable(false)
-      if (!this.imageLoadSucceed) {
-        Image($r('app.media.avatar_base2'))
+      if (!this.hideDefaultAvatar) {
+        Image($r("app.media.avatar_base"))
           .height(this.avatarSize)
           .width(this.avatarSize)
           .borderRadius(this.avatarSize / 2)
