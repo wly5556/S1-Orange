@@ -1089,7 +1089,7 @@ async function resolveS1ThreadRedirectLink(href: string | undefined,
     if (href.includes(URL.DOMAIN_APP)) {
       href = href.replace(URL.DOMAIN_APP, URL.DOMAIN_WEB)
     }
-    new request<string>(href, undefined)
+    new request<string>(href, '')
       .redirectLocation()
       .get()
       .then(location => {

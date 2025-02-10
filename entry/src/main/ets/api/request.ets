@@ -69,7 +69,7 @@ export default class request<T> {
   sessionConfig: rcp.SessionConfiguration
   private responseCookie: rcp.ResponseCookie[] | undefined;
 
-  constructor(path: URL | string, base = URL.BASE) {
+  constructor(path: URL | string, base: URL | '' = URL.BASE) {
     this.base = base
     this.path = path
     this.sessionConfig = {
@@ -322,7 +322,7 @@ export default class request<T> {
       if (typeof content == 'string') {
         content += `&sid=${userAppToken}`
       } else {
-        (content as Record<string, string>)['sid'] = userAppToken!
+        (content as Record<string, string>)['sid'] = userAppToken || ''
       }
     }
     let payload: rcp.RequestContent | string
