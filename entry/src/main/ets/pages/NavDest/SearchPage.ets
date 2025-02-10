@@ -200,7 +200,7 @@ struct SearchResultPage {
   requestPageData() {
     if (this.directSearchUrl && this.directSearchUrl != '') {
       this.loadingIcon?.show(this.pageToLoad)
-      new request<string>(this.directSearchUrl, URL.WEB_BASE)
+      new request<string>(this.directSearchUrl, '')
         .param('page', this.pageToLoad.toString())
         .toText()
         .get()
