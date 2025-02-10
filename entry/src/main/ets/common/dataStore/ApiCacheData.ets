@@ -20,7 +20,8 @@ enum COLUMN {
 let currentUid: string = ''
 let cacheDb: relationalStore.RdbStore | undefined = undefined
 
-let cacheDbInitFinished: () => void = () => {}
+let cacheDbInitFinished: () => void = () => {
+}
 let cacheDbInitPromise: Promise<void> = new Promise(resolve => cacheDbInitFinished = resolve)
 
 function userTableName(uid = currentUid) {
@@ -28,14 +29,14 @@ function userTableName(uid = currentUid) {
 }
 
 function createUserTableSQL(name = userTableName()) {
-  return `
+  return [`
   CREATE TABLE IF NOT EXISTS ${name} (
     ${COLUMN.key} TEXT PRIMARY KEY,
     ${COLUMN.lru} INTEGER,
     ${COLUMN.data} TEXT
-  ) WITHOUT ROWID;
+  ) WITHOUT ROWID`, `
   CREATE INDEX IF NOT EXISTS idx_${name}_lru
-  ON ${name}(${COLUMN.lru});`
+  ON ${name}(${COLUMN.lru});`]
 }
 
 let storageDatabase: string = ''
@@ -43,13 +44,15 @@ let storageDatabase: string = ''
 export function CacheDbInit(context: Context) {
   if (!cacheDb) {
     storageDatabase = context.databaseDir
-    relationalStore.getRdbStore(context, CACHE_STORE_CONFIG, (err, store) => {
+    relationalStore.getRdbStore(context, CACHE_STORE_CONFIG, async (err, store) => {
       if (err) {
         console.error(`Failed to init cache DB. Code:${err.code}, message:${err.message}`)
         return
       }
       try {
-        store.executeSync(createUserTableSQL(GLOBAL_TABLE_NAME))
+        for (const sql of createUserTableSQL(GLOBAL_TABLE_NAME)) {
+          await store.executeSql(sql)
+        }
       } catch (e) {
         console.error('Create global table failed:', e)
       }
@@ -64,7 +67,9 @@ export async function CacheDbSetUser(uid: string = 'default') {
   currentUid = uid
 
   try {
-    cacheDb?.executeSync(createUserTableSQL())
+    for (const sql of createUserTableSQL()) {
+      await cacheDb?.executeSql(sql)
+    }
   } catch (err) {
     console.error(`Create user table failed. Code:${err.code}, message:${err.message}`)
   }
@@ -105,7 +110,9 @@ export async function getCache(key: string): Promise<Object> {
       .equalTo(COLUMN.key, FORUM_GROUP_CACHE_KEY)
 
     const result = await cacheDb!.query(predicates, [COLUMN.data])
-    if (result.rowCount === 0) return Promise.reject()
+    if (result.rowCount === 0) {
+      return Promise.reject()
+    }
 
     result.goToFirstRow()
     const data = JSON.parse(result.getString(result.getColumnIndex(COLUMN.data))) as Object
@@ -117,7 +124,9 @@ export async function getCache(key: string): Promise<Object> {
     .equalTo(COLUMN.key, key)
 
   const result = await cacheDb!.query(predicates, [COLUMN.data])
-  if (result.rowCount === 0) return Promise.reject()
+  if (result.rowCount === 0) {
+    return Promise.reject()
+  }
 
   result.goToFirstRow()
   const data = JSON.parse(result.getString(result.getColumnIndex(COLUMN.data))) as Object
@@ -135,7 +144,9 @@ export async function clearApiCache(uid?: string) {
 }
 
 export async function ApiCacheSetUser(uid = '') {
-  if (currentUid === uid) return
+  if (currentUid === uid) {
+    return
+  }
   await CacheDbSetUser(uid)
   try {
     const count = await getCacheCount()

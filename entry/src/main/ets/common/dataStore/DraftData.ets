@@ -28,7 +28,7 @@ function tableNameForUser(uid = CURR_USER) {
 }
 
 function createTableSQL() {
-  return `
+  return [`
   CREATE TABLE IF NOT EXISTS ${tableNameForUser()} (
       ${COLUMN.id} TEXT PRIMARY KEY,
       ${COLUMN.date} INTEGER,
@@ -36,9 +36,8 @@ function createTableSQL() {
       ${COLUMN.content} TEXT,
       ${COLUMN.new_subject} TEXT,
       ${COLUMN.thread_subject} TEXT
-      );
-      CREATE INDEX IF NOT EXISTS idx_${tableNameForUser()}_date ON ${tableNameForUser()}(${COLUMN.date});
-  `
+      )`, `
+      CREATE INDEX IF NOT EXISTS idx_${tableNameForUser()}_date ON ${tableNameForUser()}(${COLUMN.date})`]
 }
 
 let dbInitFinished: () => void = () => {
@@ -67,7 +66,9 @@ export async function DraftDbSetUser(username: string) {
   try {
     if (username != CURR_USER && username != '') {
       CURR_USER = username
-      dbEngine?.executeSync(createTableSQL())
+      for (const sql of createTableSQL()) {
+        await dbEngine?.executeSql(sql)
+      }
     }
   } catch (err) {
     console.error(`Failed to create table. Code:${err.code}, message:${err.message}`);
