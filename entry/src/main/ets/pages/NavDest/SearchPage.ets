@@ -129,7 +129,7 @@ export struct SearchPage {
                       encodeURIComponent(this.searchRequestKeyword)
                     })
                     .then(location => {
-                      this.getSearchResult(location, searchType)
+                      this.getSearchResult(URL.WEB_BASE + location, searchType)
                     })
                 })
             }
