@@ -239,11 +239,13 @@ export struct UserSpace {
                     Text('好友').fontColor(this.appTheme.fontSecondary)
                   }.flexGrow(1).flexBasis(1)
                   .onClick(() => {
-                    const param: SearchPageParam = {
-                      targetUid: this.pageParam.uid,
-                      type: SearchType.Friend
+                    if (parseInt(this.userSpace.friends) > 0) {
+                      const param: SearchPageParam = {
+                        targetUid: this.pageParam.uid,
+                        type: SearchType.Friend
+                      }
+                      openSearchPage(this.pathStack, param)
                     }
-                    openSearchPage(this.pathStack, param)
                   }).clickEffect(HeavyClickEffect)
 
                   Divider().vertical(true).height(64)
