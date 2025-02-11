@@ -6,7 +6,6 @@ import { BottomSafeArea } from './BottomSafeArea'
 import { ColorGridPicker, ColorGridPickerItem } from './preference/ThemeSelect'
 
 @Component
-  // 本想用半模态，但是用了半模态之后发现状态变量不能刷新，很奇怪
 export struct FontColorPicker {
   @Consume appTheme: AppThemeColor
   @State pickedColor: number = 0

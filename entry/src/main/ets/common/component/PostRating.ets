@@ -43,7 +43,7 @@ export struct PostRating {
   }
 
   build() {
-    if (this.totalRating > 0) {
+    if (this.userCount > 0) {
       PostRatingPanel({
         appTheme: this.appTheme,
         appState: this.appState,
