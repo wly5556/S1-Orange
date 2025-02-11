@@ -608,7 +608,7 @@ class RipUploader extends Uploader {
   override async remove(id: string): Promise<boolean> {
     const img = this.imgs.get(id)
     if (img) {
-      new request<string>(img.delete_url, undefined)
+      new request<string>(img.delete_url, '')
         .get()
       this.imgs.delete(id)
     }
@@ -620,7 +620,7 @@ class RipUploader extends Uploader {
     if (mime === '') {
       return ''
     }
-    const uploader = new request<RipImageUpload>('https://p.sda1.dev/api/v1/upload_external_noform?', undefined)
+    const uploader = new request<RipImageUpload>('https://p.sda1.dev/api/v1/upload_external_noform?', '')
     try {
       const img = await uploader
         .param('filename', name)

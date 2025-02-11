@@ -138,7 +138,7 @@ export struct AboutApp {
               .attributeModifier(this.settingRow)
               .transition(OpacityTransition)
               .onClick(() => {
-                openInBrowser(this.context, 'https://github.com/wly5556/S1-Orange/release')
+                openInBrowser(this.context, 'https://github.com/wly5556/S1-Orange/releases')
               })
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
