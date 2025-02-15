@@ -4,36 +4,16 @@ import { ClickDarkenEffect, HeavyClickEffect } from '../Animation';
 import { BasicDataSource } from '../BasicDataSource';
 import { AppThemeColor } from '../theme/basic/basic';
 import { BottomSafeArea } from './BottomSafeArea';
-import { ImageSmily } from './ImageSmily';
 import { common } from '@kit.AbilityKit';
 import { readJson, writeJson } from '../dataStore/JsonPersist';
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage';
+import { ImageSmilyLazy } from './ImageSmilyLazy';
+import { promptAction } from '@kit.ArkUI';
 
 const SMILY_COL_NUM = 8
 
-class SmilySource extends BasicDataSource<Smily[]> {
-  private smiles: Smily[] = []
-
-  constructor() {
-    super()
-  }
-
-  public totalCount(): number {
-    return Math.ceil(this.smiles.length / SMILY_COL_NUM)
-  }
-
-  public getData(index: number): Smily[] {
-    return this.smiles.slice(index * SMILY_COL_NUM, index * SMILY_COL_NUM + SMILY_COL_NUM)
-  }
-
-  public load(smiles: Smily[]) {
-    this.smiles = smiles
-    this.notifyDataReload()
-  }
-}
-
-class SmilyGroupSource extends BasicDataSource<SmilySource> {
-  private group: SmilySource[] = []
+class SmilyGroupSource extends BasicDataSource<Smily[]> {
+  private group: Smily[][] = []
 
   constructor() {
     super();
@@ -43,16 +23,12 @@ class SmilyGroupSource extends BasicDataSource<SmilySource> {
     return this.group.length
   }
 
-  public getData(index: number): SmilySource {
+  public getData(index: number): Smily[] {
     return this.group[index]
   }
 
   public load(smiles: Smily[][]) {
-    smiles.forEach(s => {
-      const item = new SmilySource()
-      item.load(s)
-      this.group.push(item)
-    })
+    this.group = smiles
     this.notifyDataReload()
   }
 }
@@ -122,7 +98,7 @@ export struct SmilyPicker {
 
   aboutToAppear(): void {
     loadCache(() => {
-      this.getUIContext().getPromptAction().showToast({
+      promptAction.showToast({
         message: '表情包功能初次加载，耗时较长'
       })
     }).then(cache => {
@@ -157,31 +133,29 @@ export struct SmilyPicker {
         .scrollable(false)
         .height('auto')
         Swiper(this.controller) {
-          LazyForEach(this.smilyGroupSource, (group: SmilyGroupSource, groupIndex: number) => {
-            List() {
-              LazyForEach(group, (item: Smily[]) => {
-                ListItem() {
-                  GridRow({
-                    columns: SMILY_COL_NUM
-                  }) {
-                    ForEach(item, (smily: Smily) => {
-                      GridCol() {
-                        ImageSmily({
-                          src: getSmilyUrl(smily, this.smilyGroup[groupIndex])
-                        })
-                      }.onClick(() => {
-                        this.onPicked(smily.text)
-                      }).padding({ top: 8, bottom: 8 })
-                      .clickEffect(HeavyClickEffect)
-                      .attributeModifier(this.clickEffectModifier)
-                      .borderRadius(8)
-                    })
-                  }
+          LazyForEach(this.smilyGroupSource, (group: Smily[], groupIndex: number) => {
+            Scroll() {
+              Column() {
+                GridRow({
+                  columns: SMILY_COL_NUM
+                }) {
+                  ForEach(group, (smily: Smily) => {
+                    GridCol() {
+                      ImageSmilyLazy({
+                        src: getSmilyUrl(smily, this.smilyGroup[groupIndex])
+                      })
+                    }.onClick(() => {
+                      this.onPicked(smily.text)
+                    }).padding({ top: 8, bottom: 8 })
+                    .clickEffect(HeavyClickEffect)
+                    .attributeModifier(this.clickEffectModifier)
+                    .borderRadius(8)
+                  })
                 }
-              })
-              ListItem() {
                 BottomSafeArea()
-              }
+              }.constraintSize({
+                minHeight: '100%'
+              })
             }
             .width('100%')
             .height('100%')
@@ -197,7 +171,7 @@ export struct SmilyPicker {
         .width('100%')
         .height('100%')
         .loop(false)
-        .cachedCount(0)
+        .cachedCount(this.smilyGroup.length)
         .indicator(false)
         .onAnimationStart((index, target) => {
           this.tabBarIndex = target
