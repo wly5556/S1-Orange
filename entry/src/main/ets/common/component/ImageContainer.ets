@@ -1,5 +1,5 @@
 import { ImageKnifeComponent } from '@ohos/imageknife'
-import { URL } from '../../api/base'
+import { DomainRegex } from '../../api/base'
 import { userCookieString } from '../../api/request'
 import { openInBrowser } from '../WantUitl'
 import { common } from '@kit.AbilityKit'
@@ -100,7 +100,7 @@ export struct ImageContainer {
           imageKnifeOption: {
             headerOption: [{
               key: 'cookie',
-              value: this.imageUrl.match(/^https:\/\/([a-zA-Z0-9-]+\.)?saraba1st\.com(\/.*)?$/) ? userCookieString : ''
+              value: DomainRegex.test(this.imageUrl) ? userCookieString : ''
             }],
             loadSrc: this.imageUrl,
             objectFit: ImageFit.Contain,

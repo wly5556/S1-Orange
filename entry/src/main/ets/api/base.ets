@@ -52,3 +52,5 @@ export enum URL {
   ATTENDANCE_WEB = 'study_daily_attendance-daily_attendance.html?inajax=1&version=1',
   ATTACHMENT_DOWNLOAD = 'forum.php?mod=attachment&aid='
 }
+
+export const DomainRegex = new RegExp(`^https:\/\/(?:[^\/]*\.)?${URL.DOMAIN.replaceAll('.','\.')}(?:\/.*)?$`)

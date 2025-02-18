@@ -4,8 +4,10 @@ import { URL } from './base';
 import { Queue, url } from '@kit.ArkTS';
 import Account, { Notice } from './model/account';
 import { promptAction } from '@kit.ArkUI';
-import wrapper from './wrapper';
+import wrapper, { wrapperApp } from './wrapper';
 import { getCache, putCache } from '../common/dataStore/ApiCacheData';
+import { PreferenceManager } from '../config/UserConfig';
+import { accountInvalid } from '../common/account/AccountManager';
 
 const waitQueue: Queue<VoidCallback> = new Queue
 
@@ -217,15 +219,29 @@ export default class request<T> {
             } else {
               data = resp.toJSON() as T
             }
-            const webApiData = data as wrapper<Account>
-            if (webApiData?.Variables?.notice) {
-              setUserNotice(webApiData.Variables.notice)
-            }
-            if (webApiData?.Variables?.error) {
-              promptAction.showToast({
-                message: '论坛异常: ' + webApiData.Variables.error
+
+            if (this.base == URL.BASE) {
+              const webApiData = data as wrapper<Account>
+              if (webApiData?.Variables?.notice) {
+                setUserNotice(webApiData.Variables.notice)
+              }
+              if (webApiData?.Variables?.error) {
+                promptAction.showToast({
+                  message: '论坛异常: ' + webApiData.Variables.error
+                })
+              }
+              PreferenceManager.readonly(conf => {
+                if (webApiData?.Variables && webApiData.Variables.member_uid != conf.user_uid) {
+                  accountInvalid()
+                }
               })
+            } else if (this.base == URL.APP_BASE) {
+              const appApiData = data as wrapperApp<null>
+              if (appApiData?.code === 501) {
+                accountInvalid()
+              }
             }
+
             if (this.cacheKey) {
               putCache(this.cacheKey, data as Object)
             }

@@ -1,6 +1,6 @@
-import { PreferenceState } from "../../pages/NavProvider/NavigationPage"
-import { FontSizeEnum } from "../fontSize/FontSizeEnum"
-import { ImageSmily } from "./ImageSmily"
+import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
+import { FontSizeEnum } from '../fontSize/FontSizeEnum'
+import { ImageSmily } from './ImageSmily'
 
 @Component
 export struct ImageSmilyLazy {

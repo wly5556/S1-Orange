@@ -141,6 +141,14 @@ export async function logout() {
   initAccountManager()
 }
 
+export async function accountInvalid() {
+  promptAction.showToast({
+    message: '当前登陆状态失效，请重新登录'
+  })
+  logout()
+  getContext().eventHub.emit(Event.OpenLoginDialog)
+}
+
 export async function switchAccount(uid: string) {
   let switched: boolean = false
   clearAccountState()
@@ -189,14 +197,6 @@ export function initAccountManager() {
         setFormHash(formhash[0])
         try {
           const account = await new request<wrapper<Account>>(URL.FORUM_GROUP).timeout(3000).get()
-          if (account.Variables.member_uid != conf.user_uid) {
-            promptAction.showToast({
-              message: '当前登陆状态失效，请重新登录'
-            })
-            logout()
-            getContext().eventHub.emit(Event.OpenLoginDialog)
-            return
-          }
           setFormHash(account.Variables.formhash)
           await createOrUpdateAsset(formhashAssetAlias.get(conf.user_uid), account.Variables.formhash)
           dailySign()

@@ -1,4 +1,4 @@
-import { URL } from '../../api/base'
+import { DomainRegex, URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
 import { Attachment, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
@@ -917,7 +917,8 @@ struct SinglePostPage {
                         .buttonStyle(ButtonStyleMode.NORMAL)
                         .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
                         .onClick(() => {
-                          DownloadFile(this.context, attach.filename, URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
+                          DownloadFile(this.context, attach.filename,
+                            URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
                         })
                     }
                     .backgroundColor(this.appTheme.backgroundTertiary)
@@ -1085,30 +1086,32 @@ export function openThreadPost(param: ThreadPostParam, pathStack: NavPathStack,
 
 async function resolveS1ThreadRedirectLink(href: string | undefined,
   succeed: (tid: string, page: number, pid?: string, authorId?: string) => void, failed: () => void) {
-  if (href && href.includes(URL.REDIRECT_TO_POST)) {
-    if (href.includes(URL.DOMAIN_APP)) {
-      href = href.replace(URL.DOMAIN_APP, URL.DOMAIN_WEB)
-    }
-    new request<string>(href, '')
-      .redirectLocation()
-      .get()
-      .then(location => {
-        const regex = /tid=(\d+)&page=(\d+)#pid(\d+)/
-        const match = location.match(regex)
-        if (match && match.length === 4) {
-          succeed(match[1], parseInt(match[2]), match[3])
-          return
-        }
-      })
-      .catch(() => {
-        failed()
-      })
-  } else if (href && href.includes(URL.DOMAIN)) {
-    const weblink = resolveS1WebLink(href)
-    if (weblink) {
-      succeed(weblink.tid, weblink.page, undefined, weblink.authorId)
+  if (href && DomainRegex.test(href)) {
+    if (href.includes(URL.REDIRECT_TO_POST)) {
+      if (href.includes(URL.DOMAIN_APP)) {
+        href = href.replace(URL.DOMAIN_APP, URL.DOMAIN_WEB)
+      }
+      new request<string>(href, '')
+        .redirectLocation()
+        .get()
+        .then(location => {
+          const regex = /tid=(\d+)&page=(\d+)#pid(\d+)/
+          const match = location.match(regex)
+          if (match && match.length === 4) {
+            succeed(match[1], parseInt(match[2]), match[3])
+            return
+          }
+        })
+        .catch(() => {
+          failed()
+        })
     } else {
-      failed()
+      const weblink = resolveS1WebLink(href)
+      if (weblink) {
+        succeed(weblink.tid, weblink.page, undefined, weblink.authorId)
+      } else {
+        failed()
+      }
     }
   } else {
     failed()
