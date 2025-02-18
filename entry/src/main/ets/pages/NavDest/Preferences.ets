@@ -324,7 +324,7 @@ export struct PreferencePage {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('网络数据缓存已使用')
                   if (this.apiCacheUsage) {
-                    Text(`${this.apiCacheUsage.count}/${CLEAN_UP_CACHE_THRESHOLD}`)
+                    Text(`${this.apiCacheUsage.count}/${CLEAN_UP_CACHE_THRESHOLD}项`)
                       .attributeModifier(this.textSecondary)
                   }
                 }.SettingColumn()

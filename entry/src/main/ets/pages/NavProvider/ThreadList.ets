@@ -382,7 +382,7 @@ struct ThreadListPage {
             .opacity(this.threadReadAccess >= threadInfo.item.readperm && !this.blockList.has(threadInfo.item.uid) ? 1 : 0.6)
             .height('auto')
             .width('100%')
-            .geometryTransition('thread_item' + threadInfo.item.tid, { follow: true })
+            .geometryTransition('thread_item' + this.pageToLoad + '_' + threadInfo.item.tid, { follow: true })
             .transition(AppearDisappearAni)
             .attributeModifier(this.clickEffectModifier)
             .clickEffect({
