@@ -687,8 +687,8 @@ function extractEditPostInfo(html: string): EditPostInfo | null {
     types.push(type)
   }
   return {
-    content: content ? content[1] : '',
-    subject: subject ? subject[1] : null,
+    content: content ? unescapeXml(content[1]) : '',
+    subject: subject ? unescapeXml(subject[1]) : null,
     threadTypeList: types,
     typeSelected
   }
