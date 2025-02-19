@@ -10,6 +10,7 @@ import { AppThemeColor } from '../theme/basic/basic'
 import { Avatar } from './Avatar'
 
 const RATING_HEIGHT = 22
+export const POST_RATING_SLICE_SIZE = 10
 
 @Component
 export struct PostRating {
@@ -51,7 +52,7 @@ export struct PostRating {
         totalRating: this.totalRating,
         rating: this.rating,
         transitionIndex: this.compTransitionId,
-        maxItem: 10,
+        maxItem: POST_RATING_SLICE_SIZE,
         seeMoreButton: true,
         context: this.getUIContext(),
         pathStack: this.pathStack,
@@ -140,10 +141,11 @@ export function PostRatingPanel(data: PostRatingPanelData) {
             })
         }.width('100%').alignItems(VerticalAlign.Top)
       }
-    })
+    }, (item: Rating) => item.uid)
   }.margin({ top: 20 })
   .geometryTransition(data.transitionIndex, { follow: true })
   .alignSelf(ItemAlign.End)
+  .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
 }
 
 @Extend(Text)

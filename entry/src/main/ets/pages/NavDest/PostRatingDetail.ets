@@ -5,13 +5,16 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
-import { PostRatingPanel, Rating, requestRating } from '../../common/component/PostRating'
+import { PostRatingPanel, POST_RATING_SLICE_SIZE, Rating, requestRating } from '../../common/component/PostRating'
 import { HeavyClickEffect, Spring035s } from '../../common/Animation'
 import { RoundPanel } from './Preferences'
 import request from '../../api/request'
 import { URL } from '../../api/base'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PreferenceState } from '../NavProvider/NavigationPage'
+import { waitFor } from '../../common/AwaitUtil'
+import { promptAction } from '@kit.ArkUI'
+
 
 export interface PostRatingPopData {
   ratingChanged: boolean
@@ -42,14 +45,33 @@ export struct PostRatingDetail {
   @Consume appTheme: AppThemeColor
   @Consume appState: PreferenceState
   @State addRatingShow: boolean = false
+  @State ratingListLoading: boolean = true
+  @State displayRating: Rating[] = []
   context = getContext(this) as common.UIAbilityContext
   popData: PostRatingPopData = {
     ratingChanged: false
   }
 
+  async updateDisplayRating() {
+    let sliceOffset = 0
+    while (true) {
+      const start = sliceOffset * POST_RATING_SLICE_SIZE
+      const slice = this.pageParam.rating.slice(start, start + POST_RATING_SLICE_SIZE)
+      sliceOffset += 1
+      if (slice.length === 0) {
+        this.ratingListLoading = false
+        break
+      } else {
+        this.displayRating = this.displayRating.concat(slice)
+        await waitFor(300)
+      }
+    }
+  }
+
   reload() {
     requestRating(this.pageParam.pid, this.pageParam.tid).then(data => {
       this.pageParam.rating = data.rating
+      this.updateDisplayRating()
       this.pageParam.totalRating = data.totalRating
       this.pageParam.userCount = data.userCount
     })
@@ -199,12 +221,12 @@ export struct PostRatingDetail {
                           .toText()
                           .post(this.formData).then(htmlStr => {
                           if (htmlStr.includes('succeedhandle_rate')) {
-                            this.getUIContext().getPromptAction().showToast({
+                            promptAction.showToast({
                               message: '评分成功'
                             })
                           } else {
-                            this.getUIContext().getPromptAction().showToast({
-                              message: '评分异常'
+                            promptAction.showToast({
+                              message: '评分时出现异常'
                             })
                           }
                           this.reload()
@@ -224,11 +246,16 @@ export struct PostRatingDetail {
               appState: this.appState,
               userCount: this.pageParam.userCount,
               totalRating: this.pageParam.totalRating,
-              rating: this.pageParam.rating,
+              rating: this.displayRating,
               transitionIndex: this.pageParam.transitionId || '',
               context: this.getUIContext(),
               pathStack: this.pathStack
             })
+            if (this.ratingListLoading) {
+              LoadingProgress()
+                .width(32)
+                .height(32)
+            }
             BottomSafeArea()
           }.constraintSize({
             minHeight: '100%'
@@ -254,6 +281,7 @@ export struct PostRatingDetail {
       if (this.pageParam.reload) {
         this.reload()
       }
+      this.updateDisplayRating()
     }).onBackPressed(() => {
       this.popBack()
       return true
@@ -269,7 +297,8 @@ export function RegisterBuilder() {
 export function openPostRatingDetail(pathStack: NavPathStack, param: PostRatingDetailParam,
   popCallback: Callback<PopInfo>) {
   animateTo(Spring035s, () => {
-    openOrJumpTo(pathStack, PageNameEnum.PostRatingDetail, param, false, e => JSON.stringify(e) == JSON.stringify(param),
+    openOrJumpTo(pathStack, PageNameEnum.PostRatingDetail, param, false,
+      e => JSON.stringify(e) == JSON.stringify(param),
       popCallback)
   })
 }
