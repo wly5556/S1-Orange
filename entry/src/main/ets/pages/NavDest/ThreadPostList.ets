@@ -121,7 +121,7 @@ export struct ThreadPostList {
     // 此时认为真正打开了帖子
     this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
     Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
-    if (this.pageParam.jumpToPage && !this.jumpToPageDone) {
+    if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
       setTimeout(() => {
         let jumpToPage = this.pageParam.jumpToPage!
         if (jumpToPage < 0) {
@@ -509,7 +509,7 @@ struct SinglePostPage {
     if (this.pageParam.subject != latestTitle) {
       this.pageParam.subject = latestTitle
     }
-    if (this.pageParam.replies != v.Variables.thread.replies) {
+    if ((this.pageParam.replies ?? 0) < v.Variables.thread.replies) {
       this.pageParam.replies = v.Variables.thread.replies
     }
     if (this.pageParam.fid === undefined) {
