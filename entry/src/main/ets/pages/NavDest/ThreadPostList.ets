@@ -527,6 +527,9 @@ struct SinglePostPage {
   }
 
   processThreadDataApp(v: wrapperApp<ThreadDataApp>) {
+    if (parseInt(this.pageParam.replies ?? '0') < v.data.totalCount) {
+      this.pageParam.replies = String(v.data.totalCount)
+    }
     let postArray: PostViewModel[] = []
     let rawPostList = v.data.list
     this.imgUrl = []
