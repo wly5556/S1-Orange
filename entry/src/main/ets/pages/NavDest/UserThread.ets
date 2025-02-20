@@ -252,14 +252,14 @@ function extractUserThreads(html: string, matchReply: boolean) {
   let titlePattern: RegExp
   if (matchReply) {
     regex = /<tr class="bw0_all">([\s\S]*?)(?=<tr class="bw0_all">|<\/table>)/g
-    titlePattern = /<th>\s<a href="forum\.php[\S]*?ptid=(\d+)[\s\S]*?>([\s\S]*?)<\/a>/
+    titlePattern = /<th>\s*<a href="forum\.php[\S]*?ptid=(\d+)[\s\S]*?>([\s\S]*?)<\/a>/
   } else {
-    regex = /<tr>\s<td class="icn">[\s\S]*?<\/tr>/g
-    titlePattern = /<th>\s<a href="thread-(\d+)-[\s\S]*?>([\s\S]*?)<\/a>/
+    regex = /<tr>\s*<td class="icn">[\s\S]*?<\/tr>/g
+    titlePattern = /<th>\s*<a href="thread-(\d+)-[\s\S]*?>([\s\S]*?)<\/a>/
   }
   const forumNamePattern = /<a href="forum-[\s\S]*?>([\s\S]*?)<\/a>/
   const repliesAndViews =
-    /<td class="num">\s<a href="thread-[\s\S]*? class="xi2"[\s\S]*?>([\s\S]*?)<\/a>\s<em>(\d+)<\/em>/
+    /<td class="num">\s*<a href="thread-[\s\S]*? class="xi2"[\s\S]*?>([\s\S]*?)<\/a>\s*<em>(\d+)<\/em>/
   const usernamePattern = /<cite><a[^>]*>([^<]+)<\/a><\/cite>/
   const lastReplyDatePattern = /<\/cite>\s*<em><a[^>]*>([^<]+)<\/a><\/em>/
   let match: RegExpExecArray | null = null
