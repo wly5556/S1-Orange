@@ -142,11 +142,15 @@ export async function logout() {
 }
 
 export async function accountInvalid() {
-  promptAction.showToast({
-    message: '当前登陆状态失效，请重新登录'
+  PreferenceManager.readonly(conf => {
+    if (conf.user_uid) {
+      promptAction.showToast({
+        message: '当前登陆状态失效，请重新登录'
+      })
+      logout()
+      getContext().eventHub.emit(Event.OpenLoginDialog)
+    }
   })
-  logout()
-  getContext().eventHub.emit(Event.OpenLoginDialog)
 }
 
 export async function switchAccount(uid: string) {

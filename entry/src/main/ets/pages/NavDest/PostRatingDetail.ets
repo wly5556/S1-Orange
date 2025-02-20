@@ -45,7 +45,7 @@ export struct PostRatingDetail {
   @Consume appTheme: AppThemeColor
   @Consume appState: PreferenceState
   @State addRatingShow: boolean = false
-  @State ratingListLoading: boolean = true
+  @State ratingListLoading: boolean = false
   @State displayRating: Rating[] = []
   context = getContext(this) as common.UIAbilityContext
   popData: PostRatingPopData = {
@@ -63,6 +63,9 @@ export struct PostRatingDetail {
         break
       } else {
         this.displayRating = this.displayRating.concat(slice)
+        if (sliceOffset > 1 && this.ratingListLoading === false) {
+          this.ratingListLoading = true
+        }
         await waitFor(300)
       }
     }
