@@ -509,7 +509,7 @@ struct SinglePostPage {
     if (this.pageParam.subject != latestTitle) {
       this.pageParam.subject = latestTitle
     }
-    if ((this.pageParam.replies ?? 0) < v.Variables.thread.replies) {
+    if (parseInt(this.pageParam.replies ?? '0') < parseInt(v.Variables.thread.replies)) {
       this.pageParam.replies = v.Variables.thread.replies
     }
     if (this.pageParam.fid === undefined) {
