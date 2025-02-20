@@ -12,6 +12,8 @@ export interface RectSize {
   h: number
 }
 
+const MAX_RETRY = 2
+
 @Component
 export struct ImageContainer {
   @Consume appState: PreferenceState
@@ -23,6 +25,7 @@ export struct ImageContainer {
   @Prop @Watch('resize') constrainSize: RectSize | undefined = undefined
   lastConstrainSizeWidth: number | undefined = undefined
   src: string = ''
+  retry: number = 0
   usedByImageViewer: boolean = false
   @Prop imgHeight: number | string = 100 * FontSizeEnum[this.appState.fontSize].ratio
   @Prop imgWidth: number | string = '100%'
@@ -110,8 +113,16 @@ export struct ImageContainer {
             objectFit: ImageFit.Contain,
             onLoadListener: {
               onLoadFailed: (err) => {
-                this.loadFailed = true
-                this.onFailed()
+                if (this.retry >= MAX_RETRY) {
+                  this.loadFailed = true
+                  this.onFailed()
+                } else {
+                  this.retry += 1
+                  this.imageUrl = ''
+                  setTimeout(() => {
+                    this.imageUrl = this.src
+                  }, 10)
+                }
               }
             },
             onComplete: (imageSize) => {
