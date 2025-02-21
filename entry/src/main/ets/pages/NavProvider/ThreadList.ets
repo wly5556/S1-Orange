@@ -314,8 +314,9 @@ struct ThreadListPage {
       QueryThreadReplyCount(v.Variables.forum_threadlist.map(v => parseInt(v.tid))).then(viewedThread => {
         v.Variables.forum_threadlist.forEach(v => {
           if (viewedThread[v.tid]) {
-            const newCount = parseInt(v.replies) - viewedThread[v.tid]
-            if (!isNaN(newCount)) {
+            const replies = parseInt(v.replies) + 1 // v.replies没有计入主楼，而数据库记录的回帖数把主楼计入了，需要+1来匹配
+            const newCount = replies - viewedThread[v.tid]
+            if (!isNaN(newCount) && newCount >= 0) {
               this.threadNewReplyCount[v.tid] = newCount.toString()
             }
           }
