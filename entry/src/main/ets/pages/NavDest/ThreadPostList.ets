@@ -401,7 +401,7 @@ struct SinglePostPage {
   @Consume pageScrollOffset: Map<number, number>
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
-  @State postHidden: Array<UIRootNode[]> = []
+  @State postHidden: Map<string, UIRootNode[]> = new Map
   @State postHiddenExpand: boolean[] = []
   @State postFloorNumber: string[] = []
   @Consume(PropKey.pathStack) pathStack: NavPathStack
@@ -467,7 +467,7 @@ struct SinglePostPage {
     } else {
       this.indexerFloorNum = []
 
-      this.postHidden = []
+      this.postHidden.clear()
       this.postHiddenExpand = []
       const pageFloorStart = POST_PER_PAGE * (this.pageToLoad - 1)
       if (pageFloorStart >= 10000) {
@@ -491,7 +491,7 @@ struct SinglePostPage {
         if (p.groupid === '4') {
           parseXML([p]).forEach((root) => {
             const post = PostContentParser(root, [])
-            this.postHidden[i] = post.node
+            this.postHidden.set(p.pid, post.node)
           })
         }
         newPostFloorNumber[i] = p.number || ''
@@ -848,15 +848,15 @@ struct SinglePostPage {
                 .height(50)
                 .margin({ bottom: 10 })
 
-                if (this.postHidden[postIndex] === undefined ||
+                if (!this.postHidden.has(post.pid) ||
                   this.appState.hiddenPostDisplay == HiddenPostDisplay.visibleWithoutHiddenReason) {
                   if (post.node.length > 0) {
                     this.buildPostContent(post.node)
-                  } else if (this.postHidden[postIndex]) {
-                    this.buildPostContent(this.postHidden[postIndex])
+                  } else if (this.postHidden.has(post.pid)) {
+                    this.buildPostContent(this.postHidden.get(post.pid) || [])
                   }
                 } else {
-                  this.buildPostContent(this.postHidden[postIndex])
+                  this.buildPostContent(this.postHidden.get(post.pid) || [])
                   if (this.appState.hiddenPostDisplay == HiddenPostDisplay.visible ||
                   this.postHiddenExpand[postIndex]) {
                     Column() {
