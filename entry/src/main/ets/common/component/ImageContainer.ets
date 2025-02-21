@@ -109,7 +109,7 @@ export struct ImageContainer {
               key: 'user-agent',
               value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
             }],
-            loadSrc: this.imageUrl,
+            loadSrc: encodeURI(this.imageUrl),
             objectFit: ImageFit.Contain,
             onLoadListener: {
               onLoadFailed: (err) => {
