@@ -138,7 +138,7 @@ export struct ThreadPostList {
       })
       this.jumpToPostDone = true
     }
-    if (this.pageParam.subject && this.pageParam.replies) {
+    if (this.pageParam.subject && this.pageParam.replies && this.pageParam.authorid === undefined) {
       RecordThreadViewHistory(this.pageParam.tid, this.pageParam.subject, this.pageParam.jumpToPid || '0', Date.now(),
         this.pageParam.replies, this.currentPage)
       FlushThreadViewHistory(this.pageParam.tid)
@@ -295,7 +295,7 @@ export struct ThreadPostList {
     .onReady(async (context: NavDestinationContext) => {
       this.pathStack = context.pathStack
       const pageParam = context.pathInfo.param as ThreadPostParam
-      if (pageParam.jumpToPage == undefined && pageParam.jumpToPid == undefined) {
+      if (pageParam.jumpToPage == undefined && pageParam.jumpToPid == undefined && pageParam.authorid == undefined) {
         const history = await QuerySingleViewHistory(pageParam.tid)
         if (history) {
           pageParam.jumpToPage = history.page
@@ -772,7 +772,6 @@ struct SinglePostPage {
                             tid: this.pageParam.tid,
                             fid: this.pageParam.fid,
                             subject: this.pageParam.subject,
-                            replies: this.pageParam.replies,
                             authorid: post.uid
                           }
                           openThreadPost(param, this.pathStack)
@@ -975,7 +974,7 @@ struct SinglePostPage {
       .opacity(this.isLoading ? 0.8 : 1)
       .edgeEffect(EdgeEffect.None)
       .onScrollVisibleContentChange((start: VisibleListContentInfo, end: VisibleListContentInfo) => {
-        if (this.visiblePage == this.pageToLoad && this.isLoading == false && !this.pageParam.authorid &&
+        if (this.visiblePage == this.pageToLoad && this.isLoading == false && this.pageParam.authorid === undefined &&
         this.pageParam.subject && this.pageParam.replies) {
           RecordThreadViewHistory(this.pageParam.tid, this.pageParam.subject, this.pidMap[start.index], Date.now(),
             this.pageParam.replies, this.pageToLoad)
