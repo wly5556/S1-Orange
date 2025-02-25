@@ -39,3 +39,7 @@
 - [S1-Next](https://github.com/ykrank/S1-Next/blob/master/LICENSE.md) 特别感谢S1-Next项目，能让我免于在界面设计和对接论坛api上花费大量精力，能够在较短的时间内开发本项目
 
 - [ImageKnife](https://gitee.com/openharmony-tpc/ImageKnife/blob/master/LICENSE)
+
+## 界面截图
+
+![界面截图](https://p.sda1.dev/22/ad8fdfe7c16a2d3cec953e2eca6d7970/overview.png)
