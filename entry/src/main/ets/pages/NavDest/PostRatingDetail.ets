@@ -53,6 +53,7 @@ export struct PostRatingDetail {
   }
 
   async updateDisplayRating() {
+    this.displayRating = []
     let sliceOffset = 0
     while (true) {
       const start = sliceOffset * POST_RATING_SLICE_SIZE
