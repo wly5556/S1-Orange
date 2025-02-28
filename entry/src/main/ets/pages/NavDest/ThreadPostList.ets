@@ -122,20 +122,16 @@ export struct ThreadPostList {
     this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
     Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
     if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
-      setTimeout(() => {
-        let jumpToPage = this.pageParam.jumpToPage!
-        if (jumpToPage < 0) {
-          this.jumpToPage = Math.max(1, this.totalPage + 1 + jumpToPage)
-        } else if (jumpToPage > 1) {
-          this.jumpToPage = Math.min(this.totalPage, jumpToPage)
-        }
-      })
+      let jumpToPage = this.pageParam.jumpToPage!
+      if (jumpToPage < 0) {
+        this.jumpToPage = Math.max(1, this.totalPage + 1 + jumpToPage)
+      } else if (jumpToPage > 1) {
+        this.jumpToPage = Math.min(this.totalPage, jumpToPage)
+      }
       this.jumpToPageDone = true
     }
     if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0' && !this.jumpToPostDone) {
-      setTimeout(() => {
-        this.jumpToPost = this.pageParam.jumpToPid
-      })
+      this.jumpToPost = this.pageParam.jumpToPid
       this.jumpToPostDone = true
     }
     if (this.pageParam.subject && this.pageParam.replies && this.pageParam.authorid === undefined) {
