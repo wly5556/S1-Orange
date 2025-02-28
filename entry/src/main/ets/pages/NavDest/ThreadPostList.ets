@@ -15,7 +15,6 @@ import { formatRelativeTime } from '../../common/TimeFormat'
 import { PageNameEnum } from '../PageNameEnum'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 import { AppThemeColor } from '../../common/theme/basic/basic'
-import { JSON } from '@kit.ArkTS'
 import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
 import { openOrJumpTo } from '../SingletonPage'
 import { SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
@@ -132,6 +131,7 @@ export struct ThreadPostList {
     }
     if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0' && !this.jumpToPostDone) {
       this.jumpToPost = this.pageParam.jumpToPid
+      setTimeout(() => this.jumpToPost = '', 200) // 跳转完成前会隐藏帖文内容，若实际未能跳到该帖子也需要解除隐藏
       this.jumpToPostDone = true
     }
     if (this.pageParam.subject && this.pageParam.replies && this.pageParam.authorid === undefined) {
@@ -957,7 +957,7 @@ struct SinglePostPage {
             .margin({ bottom: 8 })
           }
 
-        }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid))
+        }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + this.postFloorNumber[index])
         ListItem() {
           BottomSafeArea()
         }
