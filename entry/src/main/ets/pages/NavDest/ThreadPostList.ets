@@ -132,7 +132,7 @@ export struct ThreadPostList {
       })
       this.jumpToPageDone = true
     }
-    if (this.pageParam.jumpToPid && !this.jumpToPostDone) {
+    if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0' && !this.jumpToPostDone) {
       setTimeout(() => {
         this.jumpToPost = this.pageParam.jumpToPid
       })
@@ -401,6 +401,7 @@ struct SinglePostPage {
   @Consume pageScrollOffset: Map<number, number>
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
+  postStringify: Map<string, string> = new Map
   @State postHidden: Map<string, UIRootNode[]> = new Map
   @State postHiddenExpand: boolean[] = []
   @State postFloorNumber: string[] = []
@@ -533,9 +534,10 @@ struct SinglePostPage {
     let postArray: PostViewModel[] = []
     let rawPostList = v.data.list
     this.imgUrl = []
+    this.postStringify.clear()
     parseXML(rawPostList).forEach((root, index) => {
       const post = PostContentParser(root, this.imgUrl)
-      postArray.push({
+      const vm: PostViewModel = {
         node: post.node,
         uid: rawPostList[index].authorid.toString(),
         username: rawPostList[index].author,
@@ -543,22 +545,25 @@ struct SinglePostPage {
         timestamp: new Date(rawPostList[index].dateline * 1000),
         userCredit: rawPostList[index].e ?
           '(' + (rawPostList[index].e >= 0 ? '+' : '') + rawPostList[index].e.toString() + ')' : '(+0)'
-      })
+      }
+      this.postStringify.set(vm.pid, JSON.stringify(post.node))
+      postArray.push(vm)
     })
 
     this.updatePostDatetime()
     rawPostList.forEach((p, i) => {
       this.pidMap[i] = p.pid.toString()
       if (this.jumpToPost == p.pid.toString()) {
-        setTimeout((): void => {
+        if (this.pageParam.jumpToPidWithHighlight) {
+          setTimeout(() => {
+            this.pageParam.jumpToPidWithHighlight = false
+          }, 100)
+        }
+        setTimeout(() => {
           this.scroller.scrollToIndex(i, false, ScrollAlign.START)
-          setTimeout((): void => this.scroller.scrollToIndex(i, false, ScrollAlign.START),
-            50) // 如果有图片布局会重新计算，再跳转一次
-          if (this.pageParam.jumpToPidWithHighlight) {
-            setTimeout(() => this.pageParam.jumpToPidWithHighlight = false, 100)
-          }
-        })
-        this.jumpToPost = ''
+          setTimeout((): void => this.scroller.scrollToIndex(i, false, ScrollAlign.START), 50)
+          this.jumpToPost = ''
+        }, 0)
       }
     })
 
@@ -956,7 +961,7 @@ struct SinglePostPage {
             .margin({ bottom: 8 })
           }
 
-        }, (post: PostViewModel, index: number) => JSON.stringify(post) + this.postFloorNumber[index])
+        }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid))
         ListItem() {
           BottomSafeArea()
         }
@@ -1067,6 +1072,7 @@ struct SinglePostPage {
       }
     }.width('100%')
     .height('100%')
+    .visibility(this.jumpToPost ? Visibility.Hidden : Visibility.Visible)
   }
 }
 
