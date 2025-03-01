@@ -369,10 +369,7 @@ interface floorParam {
   floorNumber: string
 }
 
-interface PinnedPost {
-  post: PostViewModel
-  floorNum: string
-}
+const PinnedPostFloorIndex = -1
 
 @Component
 struct SinglePostPage {
@@ -405,11 +402,11 @@ struct SinglePostPage {
   postStringify: Map<string, string> = new Map
   @State postHidden: Map<string, UIRootNode[]> = new Map
   @State postHiddenExpand: Set<string> = new Set
-  @State postFloorNumber: string[] = []
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   scroller: Scroller = new Scroller()
   @Consume refreshStage: PullToRefreshStage
-  @State indexerFloorNum: string[] = []
+  @State postFloorNumber: Map<number, string> = new Map // 列表组件索引 | 置顶楼层索引(PinnedPostFloorIndex) -> 显示的楼层号，用于楼层号角标
+  @State indexerFloorNum: string[] = [] // 列表组件索引 -> pid，用于indexer显示
   pidMap: string[] = [] // 列表组件索引 -> pid，用于记录浏览历史
   indexerFloorCompIndex: number[] = [] // indexer的索引 -> 列表组件索引， 用于快速跳转
   @State indexerFontSize: number = 10
@@ -430,7 +427,7 @@ struct SinglePostPage {
   @Provide postRatingInfo: Map<string, ThreadRatingInfo | undefined> = new Map
   @State postAttachment: Map<string, Attachment[]> = new Map
   @Consume contentVisible: boolean
-  @State pinnedPost: PinnedPost | undefined = undefined
+  @State pinnedPost: PostViewModel | undefined = undefined
   pullUpStartOffset: number = 0
   pullUpLoadingTs: number = 0
 
@@ -487,7 +484,7 @@ struct SinglePostPage {
       }
 
       this.indexerFloorNum = []
-      const newPostFloorNumber: string[] = []
+      this.postFloorNumber.clear()
 
       rawPostList.forEach((p, i) => {
         if (p.attachments) {
@@ -508,7 +505,7 @@ struct SinglePostPage {
           })
         }
 
-        newPostFloorNumber[i] = p.number || ''
+        this.postFloorNumber.set(i, p.number || '')
         const floorNum = parseInt(p.number || '')
         if (!isNaN(floorNum)) {
           if (floorNum < pageFloorStart + 10 || floorNum % 2 == 0) {
@@ -516,29 +513,25 @@ struct SinglePostPage {
             this.indexerFloorNum.push(floorNum.toString())
           }
           if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position) { // 置顶楼层
+            this.postFloorNumber.set(PinnedPostFloorIndex, p.position + '(置顶)')
             const parsed = parseXML([p])
             if (parsed.length > 0) {
               const node = PostContentParser(parsed[0], []).node
-              if (this.pinnedPost !== undefined && JSON.stringify(this.pinnedPost.post.node) == JSON.stringify(node)) {
+              if (this.pinnedPost !== undefined && JSON.stringify(this.pinnedPost.node) == JSON.stringify(node)) {
               } else {
                 this.pinnedPost = {
-                  post: {
-                    node,
-                    uid: p.authorid,
-                    username: p.author,
-                    pid: p.pid,
-                    timestamp: new Date(parseInt(p.dbdateline) * 1000),
-                    userCredit: ''
-                  },
-                  floorNum: p.position + '(置顶)'
+                  node,
+                  uid: p.authorid,
+                  username: p.author,
+                  pid: p.pid,
+                  timestamp: new Date(parseInt(p.dbdateline) * 1000),
+                  userCredit: ''
                 }
               }
             }
           }
         }
       })
-
-      this.postFloorNumber = newPostFloorNumber
     }
     const latestTitle = unescapeAll(v.Variables.thread.subject)
     if (this.pageParam.subject != latestTitle) {
@@ -705,7 +698,7 @@ struct SinglePostPage {
   }
 
   @Builder
-  floorNumber(param: floorParam) {
+  buildFloorNumber(param: floorParam) {
     Text() {
       Span('#')
       Span(param.floorNumber).fontSize(FontSizeEnum[this.appState.fontSize].vp18).fontWeight(FontWeight.Medium)
@@ -721,6 +714,10 @@ struct SinglePostPage {
     .textAlign(TextAlign.End)
     .clickEffect(HeavyClickEffect)
     .bindMenu(param.menu)
+  }
+
+  getFloorNumber(compIndex: number) {
+    return this.postFloorNumber.get(compIndex) ?? ''
   }
 
   @LocalBuilder
@@ -745,7 +742,7 @@ struct SinglePostPage {
   }
 
   @LocalBuilder
-  buildPost(post: PostViewModel, compIndex: number, floorNum: string) {
+  buildPost(post: PostViewModel, compIndex: number) {
     Column() {
       if (this.blockList.has(post.uid)) {
         Row({ space: 12 }) {
@@ -770,8 +767,9 @@ struct SinglePostPage {
 
           Text('[已被屏蔽]').opacity(.7)
           Blank()
-          this.floorNumber({
-            floorNumber: floorNum, menu: [{
+          this.buildFloorNumber({
+            floorNumber: this.getFloorNumber(compIndex),
+            menu: [{
               value: '解除屏蔽',
               action: () => {
                 UnblockUser(post.uid)
@@ -837,8 +835,9 @@ struct SinglePostPage {
           .padding({ left: 12 })
 
           Column() {
-            this.floorNumber({
-              floorNumber: floorNum, menu: [{
+            this.buildFloorNumber({
+              floorNumber: this.getFloorNumber(compIndex),
+              menu: [{
                 value: '回复',
                 action: () => {
                   if (!this.pageParam.subject) {
@@ -1015,15 +1014,15 @@ struct SinglePostPage {
         LazyForEach(this.postDataSource, (post: PostViewModel, compIndex: number) => {
           ListItem() {
             Column() {
-              this.buildPost(post, compIndex, this.postFloorNumber[compIndex])
+              this.buildPost(post, compIndex)
               this.buildPostDivider()
               if (this.pageToLoad == 1 && compIndex == 0 && this.pinnedPost !== undefined) {
-                this.buildPost(this.pinnedPost.post, -1, this.pinnedPost.floorNum)
+                this.buildPost(this.pinnedPost, PinnedPostFloorIndex)
                 this.buildPostDivider()
               }
             }
           }
-        }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + this.postFloorNumber[index])
+        }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + index.toString())
         ListItem() {
           BottomSafeArea()
         }
