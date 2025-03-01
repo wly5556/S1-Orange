@@ -105,7 +105,6 @@ export struct ThreadPostList {
   @State jumpToPage: number = -1
   jumpToPageDone: boolean = false
   @Provide jumpToPost?: string = undefined
-  jumpToPostDone: boolean = false
   @Provide allowPullDownRefresh: boolean = true
   @Provide allowPullUpRefresh: boolean = false
   @Provide pageScrollOffset: Map<number, number> = new Map
@@ -130,12 +129,6 @@ export struct ThreadPostList {
       }
       this.jumpToPageDone = true
     }
-    if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0' && !this.jumpToPostDone) {
-      this.jumpToPost = this.pageParam.jumpToPid
-      this.contentVisible = false
-      setTimeout(() => this.contentVisible = true, 300) // 跳转完成前会隐藏帖文内容，若实际未能跳到该帖子也需要解除隐藏
-      this.jumpToPostDone = true
-    }
     if (this.pageParam.subject && this.pageParam.replies && this.pageParam.authorid === undefined) {
       RecordThreadViewHistory(this.pageParam.tid, this.pageParam.subject, this.pageParam.jumpToPid || '0', Date.now(),
         this.pageParam.replies, this.currentPage)
@@ -153,7 +146,7 @@ export struct ThreadPostList {
       pageToLoad: page,
       loadingIcon,
       scroller
-    }).visibility(this.contentVisible ? Visibility.Hidden : Visibility.Visible)
+    })
   }
 
   build() {
@@ -302,6 +295,11 @@ export struct ThreadPostList {
         }
       }
       this.pageParam = pageParam
+      if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0') {
+        this.jumpToPost = this.pageParam.jumpToPid
+        this.contentVisible = false
+        setTimeout(() => this.contentVisible = true, 1000) // 跳转完成前先隐藏帖文内容，减少闪烁，若实际未能跳到该帖子需要解除隐藏
+      }
       this.context.eventHub.on(openImgViewerEventName(this.pageParam),
         (imgUrl: string[], index: number) => {
           this.imgViewer = {
@@ -567,9 +565,11 @@ struct SinglePostPage {
         }
         setTimeout(() => {
           this.scroller.scrollToIndex(i, false, ScrollAlign.START)
-          setTimeout((): void => this.scroller.scrollToIndex(i, false, ScrollAlign.START), 50)
+          setTimeout((): void => {
+            this.scroller.scrollToIndex(i, false, ScrollAlign.START)
+            this.contentVisible = true
+          }, 50)
           this.jumpToPost = ''
-          this.contentVisible = true
         }, 10)
       }
     })
@@ -981,6 +981,8 @@ struct SinglePostPage {
           BottomSafeArea()
         }
       }
+      .opacity(this.contentVisible ? (this.isLoading ? 0.8 : 1) : 0)
+      .animation({ duration: 70 })
       .enableScrollInteraction(this.refreshStage != PullToRefreshStage.pullDownBegin)
       .cachedCount(2)
       .width('100%')
@@ -991,7 +993,6 @@ struct SinglePostPage {
         scrollForward: NestedScrollMode.PARENT_FIRST,
         scrollBackward: NestedScrollMode.PARENT_FIRST
       })
-      .opacity(this.isLoading ? 0.8 : 1)
       .edgeEffect(EdgeEffect.None)
       .onScrollVisibleContentChange((start: VisibleListContentInfo, end: VisibleListContentInfo) => {
         this.recordViewHistory(start.index)
