@@ -435,7 +435,8 @@ struct SinglePostPage {
   pageLoadedKey: string = ''
 
   visiblePageChanged() {
-    if (this.scroller) {
+    if (this.scroller && typeof this.scroller.getItemIndex == 'function' &&
+      typeof this.scroller.currentOffset == 'function') {
       const index = this.scroller.getItemIndex(0, this.scroller.currentOffset().yOffset)
       this.recordViewHistory(index)
     }
