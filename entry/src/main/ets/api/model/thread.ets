@@ -9,7 +9,7 @@ export interface ForumThread {
   typeid: string
   author: string
   authorid: string
-  subject: string
+  subject: string  // 标题，xml特殊符号会被转义
   dateline: string
   lastpost: string
   lastposter: string

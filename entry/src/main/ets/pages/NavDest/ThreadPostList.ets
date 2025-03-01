@@ -369,6 +369,11 @@ interface floorParam {
   floorNumber: string
 }
 
+interface PinnedPost {
+  post: PostViewModel
+  floorNum: string
+}
+
 @Component
 struct SinglePostPage {
   @Consume totalPage: number
@@ -399,7 +404,7 @@ struct SinglePostPage {
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
   postStringify: Map<string, string> = new Map
   @State postHidden: Map<string, UIRootNode[]> = new Map
-  @State postHiddenExpand: boolean[] = []
+  @State postHiddenExpand: Set<string> = new Set
   @State postFloorNumber: string[] = []
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   scroller: Scroller = new Scroller()
@@ -425,6 +430,7 @@ struct SinglePostPage {
   @Provide postRatingInfo: Map<string, ThreadRatingInfo | undefined> = new Map
   @State postAttachment: Map<string, Attachment[]> = new Map
   @Consume contentVisible: boolean
+  @State pinnedPost: PinnedPost | undefined = undefined
   pullUpStartOffset: number = 0
   pullUpLoadingTs: number = 0
 
@@ -471,17 +477,18 @@ struct SinglePostPage {
       this.threadNotExist = true
       this.loadingFinish()
     } else {
-      this.indexerFloorNum = []
-
       this.postHidden.clear()
-      this.postHiddenExpand = []
+      this.postHiddenExpand.clear()
       const pageFloorStart = POST_PER_PAGE * (this.pageToLoad - 1)
       if (pageFloorStart >= 10000) {
         this.indexerFontSize = 8
       } else if (pageFloorStart >= 1000) {
         this.indexerFontSize = 9
       }
+
+      this.indexerFloorNum = []
       const newPostFloorNumber: string[] = []
+
       rawPostList.forEach((p, i) => {
         if (p.attachments) {
           Object.values(p.attachments).forEach(attach => {
@@ -500,6 +507,7 @@ struct SinglePostPage {
             this.postHidden.set(p.pid, post.node)
           })
         }
+
         newPostFloorNumber[i] = p.number || ''
         const floorNum = parseInt(p.number || '')
         if (!isNaN(floorNum)) {
@@ -507,8 +515,29 @@ struct SinglePostPage {
             this.indexerFloorCompIndex[this.indexerFloorNum.length] = i
             this.indexerFloorNum.push(floorNum.toString())
           }
+          if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position) { // 置顶楼层
+            const parsed = parseXML([p])
+            if (parsed.length > 0) {
+              const node = PostContentParser(parsed[0], []).node
+              if (this.pinnedPost !== undefined && JSON.stringify(this.pinnedPost.post.node) == JSON.stringify(node)) {
+              } else {
+                this.pinnedPost = {
+                  post: {
+                    node,
+                    uid: p.authorid,
+                    username: p.author,
+                    pid: p.pid,
+                    timestamp: new Date(parseInt(p.dbdateline) * 1000),
+                    userCredit: ''
+                  },
+                  floorNum: p.position + '(置顶)'
+                }
+              }
+            }
+          }
         }
       })
+
       this.postFloorNumber = newPostFloorNumber
     }
     const latestTitle = unescapeAll(v.Variables.thread.subject)
@@ -715,268 +744,285 @@ struct SinglePostPage {
       (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize + this.appState.fontSizeOverride)
   }
 
+  @LocalBuilder
+  buildPost(post: PostViewModel, compIndex: number, floorNum: string) {
+    Column() {
+      if (this.blockList.has(post.uid)) {
+        Row({ space: 12 }) {
+          Row({ space: 12 }) {
+            Avatar({
+              uid: post.uid,
+              transitionIndex: compIndex.toString() + ',' + this.pageToLoad +
+              genThreadPostViewKey(this.pageParam),
+              avatarSize: 20
+            })
+            Text(post.username)
+              .opacity(.7)
+          }.onClick(() => {
+            const userSpaceParam: UserSpaceParam = {
+              uid: post.uid,
+              username: post.username,
+              avatarTransitionIndex: compIndex.toString() + ',' + this.pageToLoad +
+              genThreadPostViewKey(this.pageParam)
+            }
+            openUserSpace(userSpaceParam, this.pathStack)
+          })
+
+          Text('[已被屏蔽]').opacity(.7)
+          Blank()
+          this.floorNumber({
+            floorNumber: floorNum, menu: [{
+              value: '解除屏蔽',
+              action: () => {
+                UnblockUser(post.uid)
+              }
+            }]
+          })
+        }.width('100%')
+      } else {
+        Row() {
+          Avatar({
+            uid: post.uid,
+            avatarSize: FontSizeEnum[this.appState.fontSize].vp40,
+            transitionIndex: compIndex.toString() + ',' + this.pageToLoad + genThreadPostViewKey(this.pageParam)
+          }).onClick(() => {
+            const userSpaceParam: UserSpaceParam = {
+              uid: post.uid,
+              username: post.username,
+              avatarTransitionIndex: compIndex.toString() + ',' + this.pageToLoad +
+              genThreadPostViewKey(this.pageParam)
+            }
+            openUserSpace(userSpaceParam, this.pathStack)
+          }).bindContextMenu(this.blockUserButton(post.uid, post.username), ResponseType.LongPress)
+            .draggable(false)
+            .clickEffect(HeavyClickEffect)
+          Column() {
+            Row({ space: 12 }) {
+              Text(post.username)
+                .fontWeight(FontWeight.Medium)
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                .copyOption(this.appState.textCopyable ? CopyOptions.LocalDevice : CopyOptions.None)
+              if (this.appState.showCredit) {
+                Text(post.userCredit)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  .opacity(0.7)
+              }
+              if (post.uid == this.threadAuthorUid) {
+                Text('楼')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  .opacity(0.7)
+                  .fontColor(this.appTheme.fontEmphasize)
+              }
+              Text('只看他').fontSize(FontSizeEnum[this.appState.fontSize].vp13).opacity(0.7)
+                .onClick(() => {
+                  const param: ThreadPostParam = {
+                    tid: this.pageParam.tid,
+                    fid: this.pageParam.fid,
+                    subject: this.pageParam.subject,
+                    authorid: post.uid
+                  }
+                  openThreadPost(param, this.pathStack)
+                })
+            }.layoutWeight(1)
+            .alignSelf(ItemAlign.Stretch)
+            .alignItems(VerticalAlign.Center)
+
+            Text(formatRelativeTime(this.nowDate, post.timestamp))
+              .layoutWeight(1)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .alignSelf(ItemAlign.Stretch)
+              .fontColor($r('sys.color.font_tertiary'))
+          }.flexGrow(1)
+          .flexShrink(1)
+          .padding({ left: 12 })
+
+          Column() {
+            this.floorNumber({
+              floorNumber: floorNum, menu: [{
+                value: '回复',
+                action: () => {
+                  if (!this.pageParam.subject) {
+                    return
+                  }
+                  const param: WriteReplyParam = {
+                    defaultTransition: true,
+                    tid: this.pageParam.tid,
+                    quotePid: post.pid,
+                    mode: WriteReplyMode.NEW_POST_QUOTE,
+                    subjectToReply: this.pageParam.subject
+                  }
+                  openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
+                }
+              }, post.uid == this.currentUserUid ? {
+                value: '编辑',
+                action: () => {
+                  if (!this.pageParam.subject) {
+                    return
+                  }
+                  const param: WriteReplyParam = {
+                    defaultTransition: true,
+                    tid: this.pageParam.tid,
+                    fid: this.pageParam.fid,
+                    editPid: post.pid,
+                    mode: WriteReplyMode.EDIT,
+                    subjectToReply: this.pageParam.subject
+                  }
+                  openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
+                }
+              } : {
+                value: '评分',
+                action: () => {
+                  const param: PostRatingDetailParam = {
+                    rating: [],
+                    pid: post.pid,
+                    tid: this.pageParam.tid,
+                    userCount: 0,
+                    totalRating: 0,
+                    showPanel: true,
+                    transitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
+                      this.generateSinglePageKey()),
+                    reload: true
+                  }
+                  openPostRatingDetail(this.pathStack, param, () => {
+                  })
+                }
+              }]
+            })
+          }.alignItems(HorizontalAlign.Start)
+          .height('100%')
+        }.width('100%')
+        .height(50)
+        .margin({ bottom: 10 })
+
+        if (!this.postHidden.has(post.pid) ||
+          this.appState.hiddenPostDisplay == HiddenPostDisplay.visibleWithoutHiddenReason) {
+          if (post.node.length > 0) {
+            this.buildPostContent(post.node)
+          } else if (this.postHidden.has(post.pid)) {
+            this.buildPostContent(this.postHidden.get(post.pid) || [])
+          }
+        } else {
+          this.buildPostContent(this.postHidden.get(post.pid) || [])
+          if (this.appState.hiddenPostDisplay == HiddenPostDisplay.visible ||
+          this.postHiddenExpand.has(post.pid)) {
+            Column() {
+              if (post.node.length > 0) {
+                this.buildPostContent(post.node)
+              } else {
+                Text() {
+                  ImageSpan($r('app.media.face_253_akarin'))
+                    .width(FontSizeEnum[this.appState.fontSize].vp32)
+                    .height(FontSizeEnum[this.appState.fontSize].vp32)
+                  Span('(黑魔法的回应是空白)')
+                }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              }
+            }.border({
+              width: 2,
+              dashGap: {
+                value: 6,
+                unit: LengthUnit.VP
+              },
+              color: this.appTheme.fontEmphasize,
+              style: BorderStyle.Dashed,
+              radius: 12
+            }).padding(12)
+            .margin({ top: 8 })
+          } else {
+            Button('查看不可见内容')
+              .onClick(() => this.postHiddenExpand.add(post.pid))
+              .buttonStyle(ButtonStyleMode.NORMAL)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .margin({ top: 8 })
+          }
+        }
+
+        if (this.pageToLoad == 1 && compIndex == 0 && this.pollList.length > 0 &&
+          this.pageParam.authorid === undefined) {
+          PollPanel({
+            pollList: this.pollList,
+            pollInfo: this.pollInfo,
+            tid: this.pageParam.tid,
+            compTransitionId: 'Vote' + this.generateSinglePageKey() + this.pageParam.tid
+          })
+        }
+
+        if (this.postAttachment.has(post.pid)) {
+          ForEach(this.postAttachment.get(post.pid), (attach: Attachment) => {
+            Row({ space: 12 }) {
+              Image($r('app.media.arrow_right_folder_circle')).width(26).height(26)
+                .fillColor(this.appTheme.fontEmphasize)
+              Column({ space: 6 }) {
+                Text(attach.filename)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                  .wordBreak(WordBreak.BREAK_ALL)
+                Text(`${attach.attachsize}   ${attach.downloads}次下载`)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                  .opacity(.7)
+              }.flexGrow(100)
+              .flexShrink(1)
+              .alignItems(HorizontalAlign.Start)
+
+              Button('下载')
+                .buttonStyle(ButtonStyleMode.NORMAL)
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                .onClick(() => {
+                  DownloadFile(this.context, attach.filename,
+                    URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
+                })
+            }
+            .backgroundColor(this.appTheme.backgroundTertiary)
+            .padding(12)
+            .borderRadius(12)
+            .alignItems(VerticalAlign.Center)
+            .width('100%')
+            .margin({ top: 8 })
+          }, (attach: Attachment) => attach.aid)
+        }
+
+        if (this.postRatingInfo.has(post.pid)) {
+          Divider().margin({ top: 20 })
+          PostRating({
+            pid: post.pid,
+            tid: this.pageParam.tid,
+            compTransitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
+              this.generateSinglePageKey())
+          })
+        }
+      }
+    }
+    .brightness(this.pageParam.jumpToPid == post.pid && this.pageParam.jumpToPidWithHighlight ?
+      (this.appTheme.isDark ? 1.1 : 0.9) : 1)
+    .animation({ duration: 300, iterations: 2 })
+    .backgroundColor(this.appTheme.backgroundSecondary)
+    .padding({
+      left: PostContentHorizontalPadding,
+      top: PostContentVerticalPadding,
+      bottom: PostContentVerticalPadding,
+      right: PostContentHorizontalPadding + (this.appState.postAlphabetIndexer ? 6 : 0)
+    })
+  }
+
+  @LocalBuilder
+  buildPostDivider() {
+    Column() {
+
+    }.height(8)
+  }
+
   build() {
     Stack() {
       List({ scroller: this.scroller }) {
-        LazyForEach(this.postDataSource, (post: PostViewModel, postIndex: number) => {
+        LazyForEach(this.postDataSource, (post: PostViewModel, compIndex: number) => {
           ListItem() {
             Column() {
-              if (this.blockList.has(post.uid)) {
-                Row({ space: 12 }) {
-                  Row({ space: 12 }) {
-                    Avatar({
-                      uid: post.uid,
-                      transitionIndex: postIndex.toString() + ',' + this.pageToLoad +
-                      genThreadPostViewKey(this.pageParam),
-                      avatarSize: 20
-                    })
-                    Text(post.username)
-                      .opacity(.7)
-                  }.onClick(() => {
-                    const userSpaceParam: UserSpaceParam = {
-                      uid: post.uid,
-                      username: post.username,
-                      avatarTransitionIndex: postIndex.toString() + ',' + this.pageToLoad +
-                      genThreadPostViewKey(this.pageParam)
-                    }
-                    openUserSpace(userSpaceParam, this.pathStack)
-                  })
-
-                  Text('[已被屏蔽]').opacity(.7)
-                  Blank()
-                  this.floorNumber({
-                    floorNumber: this.postFloorNumber[postIndex], menu: [{
-                      value: '解除屏蔽',
-                      action: () => {
-                        UnblockUser(post.uid)
-                      }
-                    }]
-                  })
-                }.width('100%')
-              } else {
-                Row() {
-                  Avatar({
-                    uid: post.uid,
-                    avatarSize: FontSizeEnum[this.appState.fontSize].vp40,
-                    transitionIndex: postIndex.toString() + ',' + this.pageToLoad + genThreadPostViewKey(this.pageParam)
-                  }).onClick(() => {
-                    const userSpaceParam: UserSpaceParam = {
-                      uid: post.uid,
-                      username: post.username,
-                      avatarTransitionIndex: postIndex.toString() + ',' + this.pageToLoad +
-                      genThreadPostViewKey(this.pageParam)
-                    }
-                    openUserSpace(userSpaceParam, this.pathStack)
-                  }).bindContextMenu(this.blockUserButton(post.uid, post.username), ResponseType.LongPress)
-                    .draggable(false)
-                    .clickEffect(HeavyClickEffect)
-                  Column() {
-                    Row({ space: 12 }) {
-                      Text(post.username)
-                        .fontWeight(FontWeight.Medium)
-                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                        .copyOption(this.appState.textCopyable ? CopyOptions.LocalDevice : CopyOptions.None)
-                      if (this.appState.showCredit) {
-                        Text(post.userCredit)
-                          .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-                          .opacity(0.7)
-                      }
-                      if (post.uid == this.threadAuthorUid) {
-                        Text('楼')
-                          .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-                          .opacity(0.7)
-                          .fontColor(this.appTheme.fontEmphasize)
-                      }
-                      Text('只看他').fontSize(FontSizeEnum[this.appState.fontSize].vp13).opacity(0.7)
-                        .onClick(() => {
-                          const param: ThreadPostParam = {
-                            tid: this.pageParam.tid,
-                            fid: this.pageParam.fid,
-                            subject: this.pageParam.subject,
-                            authorid: post.uid
-                          }
-                          openThreadPost(param, this.pathStack)
-                        })
-                    }.layoutWeight(1)
-                    .alignSelf(ItemAlign.Stretch)
-                    .alignItems(VerticalAlign.Center)
-
-                    Text(formatRelativeTime(this.nowDate, post.timestamp))
-                      .layoutWeight(1)
-                      .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      .alignSelf(ItemAlign.Stretch)
-                      .fontColor($r('sys.color.font_tertiary'))
-                  }.flexGrow(1)
-                  .flexShrink(1)
-                  .padding({ left: 12 })
-
-                  Column() {
-                    this.floorNumber({
-                      floorNumber: this.postFloorNumber[postIndex], menu: [{
-                        value: '回复',
-                        action: () => {
-                          if (!this.pageParam.subject) {
-                            return
-                          }
-                          const param: WriteReplyParam = {
-                            defaultTransition: true,
-                            tid: this.pageParam.tid,
-                            quotePid: post.pid,
-                            mode: WriteReplyMode.NEW_POST_QUOTE,
-                            subjectToReply: this.pageParam.subject
-                          }
-                          openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                        }
-                      }, post.uid == this.currentUserUid ? {
-                        value: '编辑',
-                        action: () => {
-                          if (!this.pageParam.subject) {
-                            return
-                          }
-                          const param: WriteReplyParam = {
-                            defaultTransition: true,
-                            tid: this.pageParam.tid,
-                            fid: this.pageParam.fid,
-                            editPid: post.pid,
-                            mode: WriteReplyMode.EDIT,
-                            subjectToReply: this.pageParam.subject
-                          }
-                          openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                        }
-                      } : {
-                        value: '评分',
-                        action: () => {
-                          const param: PostRatingDetailParam = {
-                            rating: [],
-                            pid: post.pid,
-                            tid: this.pageParam.tid,
-                            userCount: 0,
-                            totalRating: 0,
-                            showPanel: true,
-                            transitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
-                              this.generateSinglePageKey()),
-                            reload: true
-                          }
-                          openPostRatingDetail(this.pathStack, param, () => {
-                          })
-                        }
-                      }]
-                    })
-                  }.alignItems(HorizontalAlign.Start)
-                  .height('100%')
-                }.width('100%')
-                .height(50)
-                .margin({ bottom: 10 })
-
-                if (!this.postHidden.has(post.pid) ||
-                  this.appState.hiddenPostDisplay == HiddenPostDisplay.visibleWithoutHiddenReason) {
-                  if (post.node.length > 0) {
-                    this.buildPostContent(post.node)
-                  } else if (this.postHidden.has(post.pid)) {
-                    this.buildPostContent(this.postHidden.get(post.pid) || [])
-                  }
-                } else {
-                  this.buildPostContent(this.postHidden.get(post.pid) || [])
-                  if (this.appState.hiddenPostDisplay == HiddenPostDisplay.visible ||
-                  this.postHiddenExpand[postIndex]) {
-                    Column() {
-                      if (post.node.length > 0) {
-                        this.buildPostContent(post.node)
-                      } else {
-                        Text() {
-                          ImageSpan($r('app.media.face_253_akarin'))
-                            .width(FontSizeEnum[this.appState.fontSize].vp32)
-                            .height(FontSizeEnum[this.appState.fontSize].vp32)
-                          Span('(黑魔法的回应是空白)')
-                        }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      }
-                    }.border({
-                      width: 2,
-                      dashGap: {
-                        value: 6,
-                        unit: LengthUnit.VP
-                      },
-                      color: this.appTheme.fontEmphasize,
-                      style: BorderStyle.Dashed,
-                      radius: 12
-                    }).padding(12)
-                    .margin({ top: 8 })
-                  } else {
-                    Button('查看不可见内容')
-                      .onClick(() => this.postHiddenExpand[postIndex] = true)
-                      .buttonStyle(ButtonStyleMode.NORMAL)
-                      .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      .margin({ top: 8 })
-                  }
-                }
-
-                if (this.pageToLoad == 1 && postIndex == 0 && this.pollList.length > 0 &&
-                  this.pageParam.authorid === undefined) {
-                  PollPanel({
-                    pollList: this.pollList,
-                    pollInfo: this.pollInfo,
-                    tid: this.pageParam.tid,
-                    compTransitionId: 'Vote' + this.generateSinglePageKey() + this.pageParam.tid
-                  })
-                }
-
-                if (this.postAttachment.has(post.pid)) {
-                  ForEach(this.postAttachment.get(post.pid), (attach: Attachment) => {
-                    Row({ space: 12 }) {
-                      Image($r('app.media.arrow_right_folder_circle')).width(26).height(26)
-                        .fillColor(this.appTheme.fontEmphasize)
-                      Column({ space: 6 }) {
-                        Text(attach.filename)
-                          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                          .wordBreak(WordBreak.BREAK_ALL)
-                        Text(`${attach.attachsize}   ${attach.downloads}次下载`)
-                          .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-                          .opacity(.7)
-                      }.flexGrow(100)
-                      .flexShrink(1)
-                      .alignItems(HorizontalAlign.Start)
-
-                      Button('下载')
-                        .buttonStyle(ButtonStyleMode.NORMAL)
-                        .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                        .onClick(() => {
-                          DownloadFile(this.context, attach.filename,
-                            URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
-                        })
-                    }
-                    .backgroundColor(this.appTheme.backgroundTertiary)
-                    .padding(12)
-                    .borderRadius(12)
-                    .alignItems(VerticalAlign.Center)
-                    .width('100%')
-                    .margin({ top: 8 })
-                  }, (attach: Attachment) => attach.aid)
-                }
-
-                if (this.postRatingInfo.has(post.pid)) {
-                  Divider().margin({ top: 20 })
-                  PostRating({
-                    pid: post.pid,
-                    tid: this.pageParam.tid,
-                    compTransitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
-                      this.generateSinglePageKey())
-                  })
-                }
+              this.buildPost(post, compIndex, this.postFloorNumber[compIndex])
+              this.buildPostDivider()
+              if (this.pageToLoad == 1 && compIndex == 0 && this.pinnedPost !== undefined) {
+                this.buildPost(this.pinnedPost.post, -1, this.pinnedPost.floorNum)
+                this.buildPostDivider()
               }
             }
-            .backgroundColor(this.appTheme.backgroundSecondary)
-            .padding({
-              left: PostContentHorizontalPadding,
-              top: PostContentVerticalPadding,
-              bottom: PostContentVerticalPadding,
-              right: PostContentHorizontalPadding + (this.appState.postAlphabetIndexer ? 6 : 0)
-            })
-            .brightness(this.pageParam.jumpToPid == post.pid && this.pageParam.jumpToPidWithHighlight ?
-              (this.appTheme.isDark ? 1.1 : 0.9) : 1)
-            .animation({ duration: 300, iterations: 2 })
-            .margin({ bottom: 8 })
           }
-
         }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + this.postFloorNumber[index])
         ListItem() {
           BottomSafeArea()

@@ -61,6 +61,7 @@ export interface Post {
   dbdateline: string
   attachments?: Record<string, Attachment>
   imagelist?: string[]
+  position: string
 }
 
 export interface Attachment {
