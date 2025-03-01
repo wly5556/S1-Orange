@@ -9,7 +9,6 @@ import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { AppThemeColor } from '../theme/basic/basic'
 import { Avatar } from './Avatar'
 
-const RATING_HEIGHT = 22
 export const POST_RATING_SLICE_SIZE = 10
 
 @Component
@@ -119,25 +118,27 @@ export function PostRatingPanel(data: PostRatingPanelData) {
           Row({ space: 12 }) {
             Avatar({
               uid: item.uid,
-              avatarSize: RATING_HEIGHT,
+              avatarSize: FontSizeEnum[data.appState.fontSize].vp22,
               transitionIndex: 'avatar' + index + data.transitionIndex
             })
             Text(item.username).width('25%').ratingText(FontSizeEnum[data.appState.fontSize].vp13).maxLines(1)
             Text(item.count).width('10%').ratingText(FontSizeEnum[data.appState.fontSize].vp13).maxLines(1)
-          }.height(RATING_HEIGHT).onClick(e => {
+          }.onClick(e => {
             const userSpaceParam: UserSpaceParam = {
               uid: item.uid,
               username: item.username,
               avatarTransitionIndex: 'avatar' + index + data.transitionIndex
             }
             openUserSpace(userSpaceParam, data.pathStack)
+          }).constraintSize({
+            minHeight: FontSizeEnum[data.appState.fontSize].vp22
           })
 
           Text(blockUserList[item.uid] ? '[已被屏蔽]' : item.comment)
             .layoutWeight(1)
             .ratingText(FontSizeEnum[data.appState.fontSize].vp13)
             .constraintSize({
-              minHeight: RATING_HEIGHT
+              minHeight: FontSizeEnum[data.appState.fontSize].vp22
             })
         }.width('100%').alignItems(VerticalAlign.Top)
       }
