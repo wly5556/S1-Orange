@@ -18,7 +18,7 @@
 最低SDK版本: **12**
 
 ## 功能
-查看[论坛专楼](https://bbs.saraba1st.com/2b/thread-2244111-1-1.html)内的说明
+详情查看[论坛专楼](https://bbs.saraba1st.com/2b/thread-2244111-1-1.html)内的说明
 
 ## 安装使用
 
@@ -29,6 +29,9 @@
 ## 获取更新
 
 目前应用内没有主动获取更新的功能，需要自行从最新源代码构建更新的版本。对于版本号变动，在github releases和[论坛专楼](https://bbs.saraba1st.com/2b/thread-2244111-1-1.html)内会提供版本说明。
+
+## 衍生项目
+[S1-OrangeX](https://github.com/cG77hR/S1-OrangeX): 利用ArkUI-X让本项目跨平台到Android来使用的实验性项目
 
 ## 协议和贡献
 
