@@ -69,6 +69,7 @@ export class ApplicationConfig {
   split_mode: boolean = true
   first_run: boolean = true
   post_signature: boolean = false
+  post_signature_device_info: boolean = false
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

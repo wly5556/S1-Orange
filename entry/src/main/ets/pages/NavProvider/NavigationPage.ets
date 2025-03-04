@@ -115,7 +115,9 @@ struct NavigationPage {
       this.appState.fontSizeOverride = conf.font_size_override
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
-      PostSignature.init(conf.post_signature, this.context.resourceManager.getStringSync($r('app.string.app_name').id))
+      PostSignature.init(conf.post_signature,
+        this.context.resourceManager.getStringSync($r('app.string.app_name').id),
+        conf.post_signature_device_info)
       if (conf.dark_mode_follow_system) {
         this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET)
       } else {

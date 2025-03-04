@@ -28,6 +28,7 @@ import {
   getApiCacheState
 } from '../../common/dataStore/ApiCacheData'
 import { PostSignature } from '../../common/PostSignature'
+import { OpacityTransition } from '../../common/Animation'
 
 export interface PreferenceParam {}
 
@@ -47,7 +48,9 @@ export struct PreferencePage {
   @State darkModeFollowSys: boolean = defaultApplicationConfig.dark_mode_follow_system
   @State showTopThread: boolean = defaultApplicationConfig.show_top_thread
   @State postSignature: boolean = defaultApplicationConfig.post_signature
+  @State postSignatureDeviceInfo: boolean = defaultApplicationConfig.post_signature_device_info
   @State apiCacheUsage?: ApiCacheState = undefined
+  @State postSignatureDisplayText: string = PostSignature.displayText()
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -56,6 +59,7 @@ export struct PreferencePage {
       this.darkModeFollowSys = conf.dark_mode_follow_system
       this.showTopThread = conf.show_top_thread
       this.postSignature = conf.post_signature
+      this.postSignatureDeviceInfo = conf.post_signature_device_info
     })
   }
 
@@ -261,7 +265,7 @@ export struct PreferencePage {
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('回帖尾巴')
-                  Text(PostSignature.displayText()).attributeModifier(this.textSecondary)
+                  Text(this.postSignatureDisplayText).attributeModifier(this.textSecondary).wordBreak(WordBreak.BREAK_ALL)
                 }.SettingColumn()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.postSignature }).onChange(isOn => {
@@ -272,6 +276,23 @@ export struct PreferencePage {
                   })
                 })
               }.attributeModifier(this.settingRow)
+
+              if (this.postSignature) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('尾巴机型显示')
+                  }.SettingColumn()
+
+                  Toggle({ type: ToggleType.Switch, isOn: this.postSignatureDeviceInfo }).onChange(isOn => {
+                    PreferenceManager.modify(conf => {
+                      conf.post_signature_device_info = isOn
+                      this.postSignatureDeviceInfo = isOn
+                      PostSignature.device = isOn
+                      this.postSignatureDisplayText = PostSignature.displayText()
+                    })
+                  })
+                }.attributeModifier(this.settingRow).transition(OpacityTransition)
+              }
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
             SettingGroupHeader({
