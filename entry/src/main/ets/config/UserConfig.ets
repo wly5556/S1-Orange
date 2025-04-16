@@ -1,4 +1,5 @@
 import { preferences } from '@kit.ArkData';
+import { clearApiCache } from '../common/dataStore/ApiCacheData';
 import { ApplicationConfig } from './v1/default';
 
 /**
@@ -23,11 +24,17 @@ export class PreferencesWrapper implements ProxyHandler<ApplicationConfig> {
     const pref = await preferences.getPreferences(context, { name: 'UserPreference' })
     this.preferences = pref
     const currentVersion = await this.preferences.get('version', '')
-    const targetVersion = '1'
+    const targetVersion = '2'
     if (currentVersion === '') {
       await this.preferences.put('version', targetVersion)
       await this.preferences.flush()
     } else {
+      if (currentVersion === '1' && targetVersion === '2') {
+        // 2025/4/16 版本1.3.0：论坛域名更换，需要将api缓存失效。
+        clearApiCache()
+        await this.preferences.put('version', targetVersion)
+        await this.preferences.flush()
+      }
       let storedConfig = await this.preferences.getAll() as ApplicationConfig
       Object.keys(storedConfig).forEach(k => Reflect.set(this.config, k, Reflect.get(storedConfig, k)))
     }

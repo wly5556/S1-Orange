@@ -23,6 +23,7 @@ import { waitFor } from '../AwaitUtil'
 import { Event } from '../Events'
 import { PropKey } from '../Constants'
 import { ApiCacheSetUser, clearApiCache } from '../dataStore/ApiCacheData'
+import json from '@ohos.util.json'
 
 export enum LoginResult {
   SUCCEED,
@@ -33,6 +34,7 @@ export enum LoginResult {
 class AssetAlias {
   prefix: string
   static list: AssetAlias[] = []
+
   constructor(prefix: string) {
     this.prefix = prefix
     AssetAlias.list.push(this)
@@ -232,8 +234,8 @@ async function dailySign() {
         const cookie = await queryAsset(cookieAssetAlias.get(uid))
         if (formhash && formhash.length > 0 && cookie && cookie.length > 0) {
           const req = new request<string>(URL.ATTENDANCE_WEB, URL.WEB_BASE)
-          if (req.sessionConfig.cookies) {
-            req.sessionConfig.cookies = JSON.parse(cookie[0])
+          if (cookie && cookie.length > 0) {
+            req.overrideCookie(json.parse(cookie[0]))
           }
           try {
             const sign = await req.param('formhash', formhash[0])

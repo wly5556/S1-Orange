@@ -99,8 +99,15 @@ export default class request<T> {
     return this
   }
 
-  updateCookie() {
-    if (this.responseCookie) {
+  private cookieOverride = false
+  overrideCookie(cookie: Object | null) {
+    this.sessionConfig.cookies = cookie as rcp.RequestCookies
+    this.cookieOverride = true
+    return this
+  }
+
+  private updateCookie() {
+    if (this.responseCookie && !this.cookieOverride) {
       this.responseCookie.forEach(c => c.value && (userCookies[c.name] = c.value))
       setUserCookieString(userCookies)
     }

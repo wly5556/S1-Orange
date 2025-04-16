@@ -13,22 +13,21 @@
     </a>
   </p>
 
-
-**专为鸿蒙Next开发的 [bbs.saraba1st.com](https://bbs.saraba1st.com/) 移动客户端**   
+**专为鸿蒙Next开发的 [bbs.stage1st.com](https://bbs.stage1st.com/) 移动客户端**   
 最低SDK版本: **12**
 
 ## 功能
-详情查看[论坛专楼](https://bbs.saraba1st.com/2b/thread-2244111-1-1.html)内的说明
+详情查看[论坛专楼](https://bbs.stage1st.com/2b/thread-2244111-1-1.html)内的说明
 
 ## 安装使用
 
 遵循鸿蒙Next的一般[应用开发运行步骤](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/ide-run-device-V5)：在您的设备上，开启开发者模式，将设备连接到PC端开发者套件；在开发者工具中构建并安装应用到设备上。
 
-可以在这里[阅读更详细的步骤说明](https://bbs.saraba1st.com/2b/forum.php?mod=redirect&goto=findpost&ptid=2244111&pid=67282974)。
+可以在这里[阅读更详细的步骤说明](https://bbs.stage1st.com/2b/forum.php?mod=redirect&goto=findpost&ptid=2244111&pid=67282974)。
 
 ## 获取更新
 
-目前应用内没有主动获取更新的功能，需要自行从最新源代码构建更新的版本。对于版本号变动，在github releases和[论坛专楼](https://bbs.saraba1st.com/2b/thread-2244111-1-1.html)内会提供版本说明。
+目前应用内没有主动获取更新的功能，需要自行从最新源代码构建更新的版本。对于版本号变动，在github releases和[论坛专楼](https://bbs.stage1st.com/2b/thread-2244111-1-1.html)内会提供版本说明。
 
 ## 衍生项目
 [S1-OrangeX](https://github.com/cG77hR/S1-OrangeX): 利用ArkUI-X让本项目跨平台到Android来使用的实验性项目

@@ -1,6 +1,7 @@
 import BuildProfile from 'BuildProfile'
 import { defaultApplicationConfig } from '../config/v1/default'
 import { deviceInfo } from '@kit.BasicServicesKit'
+import { URL } from '../api/base'
 
 export class PostSignature {
   static enable: boolean = defaultApplicationConfig.post_signature
@@ -39,7 +40,7 @@ export class PostSignature {
         `——来自 ` +
       PostSignature.getDeviceInfo()
         +
-        `[url=https://bbs.saraba1st.com/2b/forum.php?mod=viewthread&tid=2244111]${PostSignature.appName}[/url] ${BuildProfile.VERSION_NAME}`
+        `[url=https://${URL.DOMAIN_WEB}/2b/forum.php?mod=viewthread&tid=2244111]${PostSignature.appName}[/url] ${BuildProfile.VERSION_NAME}`
     } else {
       return ''
     }
