@@ -1,5 +1,6 @@
 export enum URL {
   DOMAIN = 'stage1st.com',
+  PRIMARY_DOMAIN = 'stage1st.com',
   DOMAIN_APP = 'app.stage1st.com',
   DOMAIN_WEB = 'stage1st.com',
   WEB_BASE = 'https://stage1st.com/2b/',
