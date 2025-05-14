@@ -9,6 +9,7 @@ import { readJson, writeJson } from '../dataStore/JsonPersist';
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage';
 import { ImageSmilyLazy } from './ImageSmilyLazy';
 import { promptAction } from '@kit.ArkUI';
+import { FontSizeEnum } from '../fontSize/FontSizeEnum';
 
 const SMILY_COL_NUM = 8
 
@@ -122,7 +123,12 @@ export struct SmilyPicker {
           ForEach(this.smilyGroup, (item: SmilyGroup, index: number) => {
             TabContent() {
             }.tabBar(SubTabBarStyle.of(item.name)
-              .labelStyle({ selectedColor: this.appTheme.fontEmphasize})
+              .labelStyle({
+                selectedColor: this.appTheme.fontEmphasize,
+                font: {
+                  size: FontSizeEnum[this.appState.fontSize].vp16
+                }
+              })
               .indicator({ color: '#00000000' })
             )
           })
@@ -130,6 +136,7 @@ export struct SmilyPicker {
           this.controller.changeIndex(target, true)
         })
         .barMode(BarMode.Scrollable)
+        .barHeight(FontSizeEnum[this.appState.fontSize].vp56)
         .scrollable(false)
         .height('auto')
         Swiper(this.controller) {

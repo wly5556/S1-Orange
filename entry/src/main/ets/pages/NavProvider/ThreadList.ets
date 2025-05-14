@@ -47,6 +47,7 @@ export struct ThreadListView {
   @Consume @Watch('onForumInfoUpdate') forumInfo?: ForumInfo
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   @Consume appTheme: AppThemeColor
+  @Consume appState: PreferenceState
   @State threadTypes: ThreadTypeItemViewData[] = [{
     typeid: "",
     name: "全部"
@@ -196,7 +197,12 @@ export struct ThreadListView {
           ForEach(this.threadTypes, (item: ThreadTypeItemViewData, index: number) => {
             TabContent() {
             }.tabBar(SubTabBarStyle.of(item.name)
-              .labelStyle({ selectedColor: this.appTheme.fontEmphasize })
+              .labelStyle({
+                selectedColor: this.appTheme.fontEmphasize,
+                font: {
+                  size: FontSizeEnum[this.appState.fontSize].vp16
+                }
+              })
               .indicator({
                 color: this.appTheme.fontEmphasize
               })
@@ -206,7 +212,7 @@ export struct ThreadListView {
         .barBackgroundColor(this.appTheme.backgroundSecondary)
         .barMode(BarMode.Scrollable)
         .scrollable(false)
-        .barHeight(56)
+        .barHeight(FontSizeEnum[this.appState.fontSize].vp56)
         .height('auto')
         .animation({ duration: 50 })
         .onContentWillChange((currentIndex: number, index: number) => {
@@ -326,7 +332,7 @@ struct ThreadListPage {
           }
         }
       })
-      for(const tid of this.threadNewReplyCount.keys()) {
+      for (const tid of this.threadNewReplyCount.keys()) {
         if (!threadWithReplyCount.has(tid)) {
           this.threadNewReplyCount.delete(tid)
         }
