@@ -15,6 +15,7 @@ import { PreferenceManager } from '../../config/UserConfig';
 import { ArrayDataSource } from '../BasicDataSource';
 import { RipImageItem, RipImageUpload } from '../../api/model/ripImage/sda1';
 import { WriteHandler, WriteReplyMode } from '../../pages/NavDest/WriteReply';
+import { TabBarSelector } from './TabBarSelector';
 
 const IMG_THUMBNAIL_HEIGHT = 150
 
@@ -128,22 +129,15 @@ export struct ReplyImagePicker {
   build() {
     Scroll() {
       Column() {
-        Tabs({ barPosition: BarPosition.Start, index: this.uploaderCurrentIndex }) {
-          ForEach(this.uploaders, (item: Uploader, index: number) => {
-            TabContent() {
-            }.tabBar(SubTabBarStyle.of(item.getName())
-              .labelStyle({ selectedColor: this.appTheme.fontEmphasize })
-              .indicator({ color: '#00000000' })
-            )
-          })
-        }.onAnimationStart((index, target) => {
-          this.uploaderCurrentIndex = target
-          this.controller.changeIndex(target, true)
-          this.initUploader(target)
+        TabBarSelector({
+          names: this.uploaders.map(v => v.getName()),
+          index: this.uploaderCurrentIndex,
+          onAnimationStart: (index, target) => {
+            this.uploaderCurrentIndex = target
+            this.controller.changeIndex(target, true)
+            this.initUploader(target)
+          }
         })
-        .barMode(BarMode.Scrollable)
-        .scrollable(false)
-        .height('auto')
 
         Swiper(this.controller) {
           LazyForEach(this.uploadersDataSource, (_: void, upIndex: number) => {

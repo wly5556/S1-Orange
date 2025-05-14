@@ -24,6 +24,7 @@ import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { openInBrowser } from '../../common/WantUitl'
 import { ReloadController } from '../../common/BasicDataSource'
 import { PropKey } from '../../common/Constants'
+import { TabBarSelector } from '../../common/component/TabBarSelector'
 
 export const THREAD_PER_PAGE = 50
 
@@ -193,34 +194,17 @@ export struct ThreadListView {
       }
 
       if (this.threadTypes.length > 1) {
-        Tabs({ barPosition: BarPosition.Start }) {
-          ForEach(this.threadTypes, (item: ThreadTypeItemViewData, index: number) => {
-            TabContent() {
-            }.tabBar(SubTabBarStyle.of(item.name)
-              .labelStyle({
-                selectedColor: this.appTheme.fontEmphasize,
-                font: {
-                  size: FontSizeEnum[this.appState.fontSize].vp16
-                }
-              })
-              .indicator({
-                color: this.appTheme.fontEmphasize
-              })
-            )
-          }, (item: ThreadTypeItemViewData) => item.typeid)
-        }
-        .barBackgroundColor(this.appTheme.backgroundSecondary)
-        .barMode(BarMode.Scrollable)
-        .scrollable(false)
-        .barHeight(FontSizeEnum[this.appState.fontSize].vp56)
-        .height('auto')
-        .animation({ duration: 50 })
-        .onContentWillChange((currentIndex: number, index: number) => {
-          if (this.threadTypes[index]) {
-            this.threadTypeFilter = this.threadTypes[index].typeid
-            this.reloadCtrl.reload()
+        TabBarSelector({
+          names: this.threadTypes.map(v => v.name),
+          showIndicator: true,
+          bgColor: this.appTheme.backgroundSecondary,
+          onAnimationStart: (index, target) => {
+            if (this.threadTypes[target]) {
+              this.threadTypeFilter = this.threadTypes[target].typeid
+              this.reloadCtrl.reload()
+            }
+            return true
           }
-          return true
         })
       }
       SwipePageViewer({

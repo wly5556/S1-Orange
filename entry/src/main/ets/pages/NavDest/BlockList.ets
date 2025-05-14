@@ -109,9 +109,12 @@ export struct BlockListPage {
 
                   if (this.syncTipShow) {
                     Column({ space: 8 }) {
-                      Text('屏蔽用户的“添加时间”并非屏蔽该用户的时刻，而是代表软件内记录了该用户的屏蔽信息的时刻。').fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      Text('登陆账号时，将从网页端载入您的屏蔽用户列表，您在本应用内发起的屏蔽，将会向网页端发送请求，更改屏蔽用户列表。').fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      Text('但除此之外，屏蔽用户列表不会自动刷新。若您在其它设备、网页端更改了屏蔽用户，则可在本应用内发起同步，获取更新。').fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      Text('屏蔽用户的“添加时间”并非屏蔽该用户的时刻，而是代表软件内记录了该用户的屏蔽信息的时刻。')
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      Text('登陆账号时，将从网页端载入您的屏蔽用户列表，您在本应用内发起的屏蔽，将会向网页端发送请求，更改屏蔽用户列表。')
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      Text('但除此之外，屏蔽用户列表不会自动刷新。若您在其它设备、网页端更改了屏蔽用户，则可在本应用内发起同步，获取更新。')
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                     }
                   }
                   Row() {
@@ -211,7 +214,12 @@ export struct BlockListPage {
               scrollBackward: NestedScrollMode.PARENT_FIRST
             })
           }.tabBar(SubTabBarStyle.of('用户屏蔽')
-            .labelStyle({ selectedColor: this.appTheme.fontEmphasize })
+            .labelStyle({
+              selectedColor: this.appTheme.fontEmphasize,
+              font: {
+                size: FontSizeEnum[this.appState.fontSize].vp16
+              }
+            })
             .indicator({
               color: this.appTheme.fontEmphasize
             }))
@@ -243,7 +251,10 @@ export struct BlockListPage {
               ListItem() {
                 if (this.blockKwList.length === 0) {
                   Stack() {
-                    Text('无屏蔽词').fontStyle(FontStyle.Italic).opacity(.8).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                    Text('无屏蔽词')
+                      .fontStyle(FontStyle.Italic)
+                      .opacity(.8)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   }.width('100%')
                   .height(60)
                 } else {
@@ -308,13 +319,18 @@ export struct BlockListPage {
               scrollBackward: NestedScrollMode.PARENT_FIRST
             })
           }.tabBar(SubTabBarStyle.of('关键词屏蔽')
-            .labelStyle({ selectedColor: this.appTheme.fontEmphasize })
+            .labelStyle({
+              selectedColor: this.appTheme.fontEmphasize,
+              font: {
+                size: FontSizeEnum[this.appState.fontSize].vp16
+              }
+            })
             .indicator({
               color: this.appTheme.fontEmphasize
             }))
         }.barBackgroundColor(this.appTheme.backgroundSecondary)
         .barMode(BarMode.Scrollable)
-        .barHeight(56)
+        .barHeight(FontSizeEnum[this.appState.fontSize].vp56)
         .height('auto')
 
       }
