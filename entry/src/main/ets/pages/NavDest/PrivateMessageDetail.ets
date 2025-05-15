@@ -249,6 +249,7 @@ export struct PmDetail {
                             uiRoot,
                             appTheme: this.appTheme,
                             fontSize: this.appState.fontSize,
+                            lineSpace: this.appState.contentLineSpace,
                             fontSizeOverride: this.appState.fontSizeOverride,
                             copyOption: CopyOptions.LocalDevice,
                             onLinkClick: (href: string): void => {

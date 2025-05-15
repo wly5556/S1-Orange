@@ -169,6 +169,7 @@ interface ThreadPostUINodeRenderParam {
   copyOption: CopyOptions
   onLinkClick: (href: string) => void
   onImgClick: (url: string, index: number) => void
+  lineSpace: number
 }
 
 
@@ -541,7 +542,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
     .copyOption(param.copyOption)
     .textAlign(param.uiRoot.textAlign)
     .lineSpacing({
-      value: 8,
+      value: param.lineSpace,
       unit: LengthUnit.VP
     })
   } else if (param.uiRoot.type == UINodeName.Quote) {
@@ -647,6 +648,7 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         uiRoot: nested,
         appTheme: param.appTheme,
         fontSize: param.fontSize,
+        lineSpace: param.lineSpace,
         fontSizeOverride: param.fontSizeOverride,
         copyOption: param.copyOption,
         onLinkClick: param.onLinkClick,

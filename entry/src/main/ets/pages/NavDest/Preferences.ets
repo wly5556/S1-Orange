@@ -29,6 +29,9 @@ import {
 } from '../../common/dataStore/ApiCacheData'
 import { PostSignature } from '../../common/PostSignature'
 import { OpacityTransition } from '../../common/Animation'
+import { FoldMenu } from '../../common/component/FoldMenu'
+import BuildProfile from 'BuildProfile'
+import { LengthUnit } from '@ohos.arkui.node'
 
 export interface PreferenceParam {}
 
@@ -205,6 +208,56 @@ export struct PreferencePage {
                   })
                 })
               }.attributeModifier(this.settingRow)
+
+              FoldMenu({
+                title: '调整间距'
+              }) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('主题帖间距')
+                    Text(`调整每条主题帖之间的空白大小。默认: ${defaultApplicationConfig.thread_item_gap}单位`)
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+                Slider({
+                  value: this.appState.threadItemGap,
+                  min: 0,
+                  max: defaultApplicationConfig.thread_item_gap * 2
+                }).onChange(v => {
+                  PreferenceManager.modify(conf => {
+                    conf.thread_item_gap = v
+                    this.appState.threadItemGap = v
+                  })
+                }).showTips(true, this.appState.threadItemGap.toString())
+                Divider()
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('内容文字间距')
+                    Text(`调整主题帖标题、内容的两行之间空白大小。默认: ${defaultApplicationConfig.content_line_space}单位`)
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+                Slider({
+                  value: this.appState.contentLineSpace,
+                  min: 0,
+                  max: defaultApplicationConfig.content_line_space * 3
+                }).onChange(v => {
+                  PreferenceManager.modify(conf => {
+                    conf.content_line_space = v
+                    this.appState.contentLineSpace = v
+                  })
+                }).showTips(true, this.appState.contentLineSpace.toString())
+                Text(`示例文本：欢迎使用${this.context.resourceManager.getStringSync($r('app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                  .lineSpacing({
+                    value: this.appState.contentLineSpace,
+                    unit: LengthUnit.VP
+                  })
+                  .width('100%')
+                  .margin({
+                    bottom: 12
+                  })
+              }
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
             SettingGroupHeader({

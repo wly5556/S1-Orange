@@ -727,6 +727,7 @@ struct SinglePostPage {
         uiRoot: uiRoot,
         appTheme: this.appTheme,
         fontSize: this.appState.fontSize,
+        lineSpace: this.appState.contentLineSpace,
         fontSizeOverride: this.appState.fontSizeOverride,
         copyOption: this.appState ? CopyOptions.LocalDevice : CopyOptions.None,
         onLinkClick: (href: string): void => {

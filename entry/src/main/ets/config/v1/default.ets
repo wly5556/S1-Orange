@@ -70,6 +70,8 @@ export class ApplicationConfig {
   first_run: boolean = true
   post_signature: boolean = false
   post_signature_device_info: boolean = false
+  thread_item_gap: number = 9
+  content_line_space: number = 8
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

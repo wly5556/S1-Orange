@@ -25,6 +25,7 @@ import { openInBrowser } from '../../common/WantUitl'
 import { ReloadController } from '../../common/BasicDataSource'
 import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
+import { LengthUnit } from '@ohos.arkui.node'
 
 export const THREAD_PER_PAGE = 50
 
@@ -372,12 +373,16 @@ struct ThreadListPage {
                     .fontColor(this.appTheme.fontEmphasize).transition(OpacityTransition)
                 }
               }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .lineSpacing({
+                value: this.appState.contentLineSpace,
+                unit: LengthUnit.VP
+              })
               .width('100%')
               .padding({
                 left: 18,
                 right: 18,
-                top: 9,
-                bottom: 9
+                top: this.appState.threadItemGap,
+                bottom: this.appState.threadItemGap
               })
             }
             .enabled(this.threadReadAccess >= threadInfo.item.readperm)
