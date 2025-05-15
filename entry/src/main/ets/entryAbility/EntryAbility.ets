@@ -11,6 +11,7 @@ import { initJsonStorage } from '../common/dataStore/JsonPersist';
 import { Event } from '../common/Events';
 import { PropKey, SafeArea } from '../common/Constants';
 import { CacheDbInit } from '../common/dataStore/ApiCacheData';
+import { SmilyImageCacheInit } from '../common/dataStore/SmilyCache';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -18,6 +19,7 @@ export default class EntryAbility extends UIAbility {
     HistoryDbInit(this.context)
     DraftDbInit(this.context)
     CacheDbInit(this.context)
+    SmilyImageCacheInit(this.context)
     initAccountManager()
     initJsonStorage(this.context.filesDir)
     AppStorage.setOrCreate(PropKey.currentColorMode, this.context.config.colorMode)
