@@ -216,7 +216,7 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('主题帖间距')
-                    Text(`调整每条主题帖之间的空白大小。默认: ${defaultApplicationConfig.thread_item_gap}单位`)
+                    Text(`调整主题帖列表页面，每条主题帖之间的空白大小。\n默认: ${defaultApplicationConfig.thread_item_gap}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
@@ -234,7 +234,7 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('内容文字间距')
-                    Text(`调整主题帖标题、内容的两行之间空白大小。默认: ${defaultApplicationConfig.content_line_space}单位`)
+                    Text(`调整主题帖标题、内容的两行之间空白大小。\n默认: ${defaultApplicationConfig.content_line_space}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
@@ -248,7 +248,7 @@ export struct PreferencePage {
                     this.appState.contentLineSpace = v
                   })
                 }).showTips(true, this.appState.contentLineSpace.toString())
-                Text(`示例文本：欢迎使用${this.context.resourceManager.getStringSync($r('app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
+                Text(`内容文字间距示例文本：欢迎使用${this.context.resourceManager.getStringSync($r('app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .lineSpacing({
                     value: this.appState.contentLineSpace,
