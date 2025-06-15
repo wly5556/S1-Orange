@@ -216,7 +216,7 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('主题帖间距')
-                    Text(`调整主题帖列表页面，每条主题帖之间的空白大小。\n默认: ${defaultApplicationConfig.thread_item_gap}单位`)
+                    Text(`调整主题帖页、收藏页、历史页，每条主题帖之间的空白大小。\n默认: ${defaultApplicationConfig.thread_item_gap}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)

@@ -11,6 +11,7 @@ import { openThreadPost, ThreadPostParam } from './ThreadPostList'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey } from '../../common/Constants'
+import { LengthUnit } from '@kit.ArkUI'
 
 class HistoryDataSource extends DbPageDataSource<ViewHistoryItem> {
   override queryDatabase(offset: number, size: number): Promise<ViewHistoryItem[]> {
@@ -51,8 +52,18 @@ export struct ViewHistory {
               Text(item.title)
                 .textAlign(TextAlign.Start)
                 .width('100%')
-                .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
-            }.padding(12).clickEffect({ level: ClickEffectLevel.HEAVY })
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                .lineSpacing({
+                  value: this.appState.contentLineSpace,
+                  unit: LengthUnit.VP
+                })
+                .padding({
+                  left: 18,
+                  right: 18,
+                  top: this.appState.threadItemGap,
+                  bottom: this.appState.threadItemGap
+                })
+            }.clickEffect({ level: ClickEffectLevel.HEAVY })
             .onClick(e => {
               const param: ThreadPostParam = {
                 tid: item.thread_id.toString(),

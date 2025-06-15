@@ -33,15 +33,15 @@ export struct LongPressDelete {
       Row() {
         if (this.doingDelete) {
           LoadingProgress()
-            .width(30)
-            .height(30)
+            .width(FontSizeEnum[this.appState.fontSize].vp32)
+            .height(FontSizeEnum[this.appState.fontSize].vp32)
             .color($r('sys.color.ohos_id_color_emphasize'))
         } else {
           Button('删除')
             .buttonStyle(ButtonStyleMode.TEXTUAL)
             .fontColor(Color.Red)
             .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-            .height(30)
+            .height(FontSizeEnum[this.appState.fontSize].vp32)
         }
       }.width(DELETE_AREA_WIDTH)
       .flexShrink(0)
