@@ -241,104 +241,102 @@ struct SearchResultPage {
   }
 
   build() {
-    Stack() {
-      List() {
-        if (this.searchRequestType == SearchType.Thread) {
-          LazyForEach(this.threadDataSource, (item: ThreadSearchResult) => {
-            ListItem() {
-              Column() {
-                Column({ space: 8 }) {
-                  Column() {
-                    Text() {
-                      ForEach(item.subjectVM, (textItem: contentHighlight) => {
-                        Span(textItem.text)
-                          .fontColor(textItem.highlight ? HIGHLIGHT_FONT_COLOR : this.appTheme.fontEmphasize)
-                      })
-                    }.fontSize(FontSizeEnum[this.appState.fontSize].vp20)
+    List() {
+      if (this.searchRequestType == SearchType.Thread) {
+        LazyForEach(this.threadDataSource, (item: ThreadSearchResult) => {
+          ListItem() {
+            Column() {
+              Column({ space: 8 }) {
+                Column() {
+                  Text() {
+                    ForEach(item.subjectVM, (textItem: contentHighlight) => {
+                      Span(textItem.text)
+                        .fontColor(textItem.highlight ? HIGHLIGHT_FONT_COLOR : this.appTheme.fontEmphasize)
+                    })
+                  }.fontSize(FontSizeEnum[this.appState.fontSize].vp18)
 
-                    Text(item.dateTime).opacity(.7).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
-                      .padding({ bottom: 12 })
-                    Text() {
-                      ForEach(item.contentVM, (textItem: contentHighlight) => {
-                        Span(textItem.text).fontColor(textItem.highlight ? HIGHLIGHT_FONT_COLOR : undefined)
-                      })
-                    }.opacity(.95).maxLines(4)
-                    .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                  }.onClick(e => {
-                    const param: ThreadPostParam = {
-                      tid: item.tid,
-                      subject: item.subject
-                    }
-                    openThreadPost(param, this.pathStack)
-                  }).alignItems(HorizontalAlign.Start)
-                  .width('100%')
-
-                  Text(item.views).fontSize(FontSizeEnum[this.appState.fontSize].vp15).opacity(.7)
-                  Row({ space: 12 }) {
-                    Text(item.username).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
-                    Text(item.forumName).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
-                  }.opacity(.7)
-                }.backgroundColor(this.appTheme.backgroundSecondary)
-                .alignItems(HorizontalAlign.Start)
-                .width('100%')
-                .padding(12)
-              }.padding({ bottom: 1 })
-              .backgroundColor(this.appTheme.backgroundTertiary)
-              .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
-            }
-          }, (item: ThreadSearchResult) => item.tid)
-        } else if (this.searchRequestType == SearchType.User || this.searchRequestType == SearchType.Friend) {
-          LazyForEach(this.userDataSource, (item: UserSearchItem) => {
-            ListItem() {
-              Column() {
-                Row({ space: 8 }) {
-                  Avatar({
-                    uid: item.uid,
-                    avatarSize: 40,
-                    transitionIndex: 'SearchPageAvatar' + item.uid
-                  })
-                  Column() {
-                    Text(item.username)
-                    Text(item.credit)
-                      .alignSelf(ItemAlign.End)
-                      .opacity(.7)
-                      .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                  }.flexGrow(1)
-                  .flexShrink(1)
-                  .justifyContent(FlexAlign.SpaceBetween)
-                  .alignItems(HorizontalAlign.Start)
-                }.backgroundColor(this.appTheme.backgroundSecondary)
-                .width('100%')
-                .padding(12)
-                .onClick(e => {
-                  const param: UserSpaceParam = {
-                    uid: item.uid,
-                    username: item.username,
-                    avatarTransitionIndex: 'SearchPageAvatar' + item.uid
+                  Text(item.dateTime).opacity(.7).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
+                    .padding({ bottom: 12 })
+                  Text() {
+                    ForEach(item.contentVM, (textItem: contentHighlight) => {
+                      Span(textItem.text).fontColor(textItem.highlight ? HIGHLIGHT_FONT_COLOR : undefined)
+                    })
+                  }.opacity(.95).maxLines(4)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                }.onClick(e => {
+                  const param: ThreadPostParam = {
+                    tid: item.tid,
+                    subject: item.subject
                   }
-                  openUserSpace(param, this.pathStack)
+                  openThreadPost(param, this.pathStack)
+                }).alignItems(HorizontalAlign.Start)
+                .width('100%')
+
+                Text(item.views).fontSize(FontSizeEnum[this.appState.fontSize].vp15).opacity(.7)
+                Row({ space: 12 }) {
+                  Text(item.username).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
+                  Text(item.forumName).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
+                }.opacity(.7)
+              }.backgroundColor(this.appTheme.backgroundSecondary)
+              .alignItems(HorizontalAlign.Start)
+              .width('100%')
+              .padding(12)
+            }.padding({ bottom: 1 })
+            .backgroundColor(this.appTheme.backgroundTertiary)
+            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+          }
+        }, (item: ThreadSearchResult) => item.tid)
+      } else if (this.searchRequestType == SearchType.User || this.searchRequestType == SearchType.Friend) {
+        LazyForEach(this.userDataSource, (item: UserSearchItem) => {
+          ListItem() {
+            Column() {
+              Row({ space: 8 }) {
+                Avatar({
+                  uid: item.uid,
+                  avatarSize: 40,
+                  transitionIndex: 'SearchPageAvatar' + item.uid
                 })
-              }.padding({ bottom: 1 })
-              .backgroundColor(this.appTheme.backgroundTertiary)
-              .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
-            }
-          }, (item: UserSearchItem) => item.uid)
-        }
-        ListItem() {
-          BottomSafeArea()
-        }
+                Column() {
+                  Text(item.username)
+                  Text(item.credit)
+                    .alignSelf(ItemAlign.End)
+                    .opacity(.7)
+                    .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                }.flexGrow(1)
+                .flexShrink(1)
+                .justifyContent(FlexAlign.SpaceBetween)
+                .alignItems(HorizontalAlign.Start)
+              }.backgroundColor(this.appTheme.backgroundSecondary)
+              .width('100%')
+              .padding(12)
+              .onClick(e => {
+                const param: UserSpaceParam = {
+                  uid: item.uid,
+                  username: item.username,
+                  avatarTransitionIndex: 'SearchPageAvatar' + item.uid
+                }
+                openUserSpace(param, this.pathStack)
+              })
+            }.padding({ bottom: 1 })
+            .backgroundColor(this.appTheme.backgroundTertiary)
+            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+          }
+        }, (item: UserSearchItem) => item.uid)
       }
-      .cachedCount(5)
-      .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .backgroundColor(this.appTheme.backgroundSecondary)
-      .nestedScroll({
-        scrollForward: NestedScrollMode.PARENT_FIRST,
-        scrollBackward: NestedScrollMode.PARENT_FIRST
-      })
-      .edgeEffect(EdgeEffect.None)
+      ListItem() {
+        BottomSafeArea()
+      }
     }
+    .cachedCount(5)
+    .width('100%')
+    .height('100%')
+    .scrollBar(BarState.Off)
+    .backgroundColor(this.appTheme.backgroundSecondary)
+    .nestedScroll({
+      scrollForward: NestedScrollMode.PARENT_FIRST,
+      scrollBackward: NestedScrollMode.PARENT_FIRST
+    })
+    .edgeEffect(EdgeEffect.None)
   }
 }
 
