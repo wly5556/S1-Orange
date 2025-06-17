@@ -403,8 +403,7 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
       if (href.length > 0) {
         const linkStyle: TextStyleControl = {
           href: href,
-          underline: true,
-          color: '#ff317af7'
+          underline: true
         }
         TextStyle.combine(linkStyle, () => {
           if (node.elements?.length == 0) {
@@ -536,7 +535,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
     Text() {
       ForEach(param.uiRoot.block,
         (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
-          FontSizeEnum[param.fontSize], param.fontSizeOverride),
+          FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
         (node: GeneralNode, index: number) => index.toString())
     }.width('100%')
     .copyOption(param.copyOption)
@@ -581,7 +580,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
     Text() {
       ForEach(param.uiRoot.block,
         (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
-          FontSizeEnum[param.fontSize], param.fontSizeOverride),
+          FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
         (node: GeneralNode, index: number) => index.toString())
     }
     .width('100%')
@@ -660,15 +659,15 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
 
 @Builder
 function TextContentBuilder(node: GeneralNode, index: number, onLinkClick: (href: string) => void, fontSize: FontSize,
-  fontSizeOverride: FontSizeOverride) {
+  fontSizeOverride: FontSizeOverride, fontEmphasizeColor: ResourceColor = $r('sys.color.font_emphasize')) {
   if (node.name == UINodeName.Text) {
     if (node.styleControl.href) {
-      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride))
+      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor))
         .onClick(() => {
           onLinkClick(node.styleControl.href!)
         })
     } else {
-      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride))
+      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor))
     }
   } else if (node.name == UINodeName.ImgSmily) {
     ImageSmily({
@@ -684,15 +683,20 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
   style: TextStyleControl
   fontSize: FontSize
   fontSizeOverride: FontSizeOverride
+  emphasizeColor: ResourceColor
 
-  constructor(style: TextStyleControl, fontSize: FontSize, fontSizeUniform: FontSizeOverride) {
+  constructor(style: TextStyleControl, fontSize: FontSize, fontSizeUniform: FontSizeOverride, fontEmphasizeColor: ResourceColor) {
     this.style = style
     this.fontSize = fontSize
     this.fontSizeOverride = fontSizeUniform
+    this.emphasizeColor = fontEmphasizeColor
   }
 
   applyNormalAttribute(instance: SpanAttribute): void {
     const style = this.style
+    if (style.href) {
+      style.color = style.color ?? this.emphasizeColor
+    }
     if (style.weight) {
       instance.fontWeight(style.weight)
     }
@@ -705,13 +709,13 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
     if (style.underline) {
       instance.decoration({
         type: TextDecorationType.Underline,
-        color: style.color || $r('sys.color.font_primary')
+        color: style.color || this.emphasizeColor
       })
     }
     if (style.strike) {
       instance.decoration({
         type: TextDecorationType.LineThrough,
-        color: style.color || $r('sys.color.font_primary')
+        color: style.color || this.emphasizeColor
       })
     }
     if (style.backgroundColor) {
