@@ -15,6 +15,7 @@ import { CopyHyperLink, ShareImage } from '../ShareKit'
 import { displaySync } from '@kit.ArkGraphics2D'
 import { openInBrowser } from '../WantUitl'
 import { SafeArea } from '../Constants'
+import { Queue } from '@kit.ArkTS'
 
 export interface ImageViewerParam {
   urls: string[],
@@ -261,13 +262,14 @@ export struct ImageViewer {
           }))
           .gesture(PanGesture({ distance: 0.1 }).onActionStart(e => {
           }).onActionStart(e => {
-            this.imgTransform[this.swiperIndex].beginTranslate()
+            this.imgTransform[this.swiperIndex].beginTranslate(e.timestamp)
           }).onActionUpdate(e => {
-            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY))
+            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
             this.updateImageTransformMatrix()
           }).onActionEnd(e => {
-            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY))
-            this.imgTransform[this.swiperIndex].beginFling()
+            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
+            this.imgTransform[this.swiperIndex].beginFling(e.timestamp)
+            this.updateImageTransformMatrix()
             useFrameSync(ts => {
               const moved = this.imgTransform[this.swiperIndex].fling(ts) || false
               this.updateImageTransformMatrix()
@@ -481,17 +483,17 @@ class matrixHelper {
     this.limitInScreen()
   }
 
-  beginTranslate() {
-    this.translate.begin()
+  beginTranslate(nanoTs: number) {
+    this.translate.reset(nanoTs)
   }
 
-  updateTranslate(offsetX: number, offsetY: number) {
-    this.translate.updatePos(offsetX / this.scaleRatio, offsetY / this.scaleRatio)
+  updateTranslate(offsetX: number, offsetY: number, nanoTs: number) {
+    this.translate.updatePos(offsetX / this.scaleRatio, offsetY / this.scaleRatio, nanoTs)
     this.limitInScreen()
   }
 
-  beginFling() {
-    this.translate.beginFling()
+  beginFling(nanoTs: number) {
+    this.translate.beginFling(nanoTs)
   }
 
   fling(ts: number) {
@@ -524,9 +526,17 @@ class matrixHelper {
 }
 
 
-const FLING_DECL = 0.3
-const MAX_FLING_VEL = 1000
-const MIN_FLING_VEL = 30
+const SHORT_DRAG_DISTANCE_CLAMP = 5 // vp
+const LONG_DRAG_DISTANCE_CLAMP = 60 // vp
+
+const MIN_FRICTION = 0.1
+const MAX_FRICTION = 5
+
+const STOP_FLING_VEL = vp2px(3e-8) // vp / ns
+
+const INPUT_PAUSE_THRESHOLD_NS = 60_000_000
+const VELOCITY_HALF_LIFE_NS = 10_000_000
+const VELOCITY_TAU_MS = VELOCITY_HALF_LIFE_NS / Math.LN2
 
 /**
  * 辅助处理惯性滚动
@@ -534,68 +544,105 @@ const MIN_FLING_VEL = 30
 class TranslateHelper {
   X: number = 0
   Y: number = 0
-  private startX: number = 0
+  private startX: number = 0 // 完整拖拽的起止点
   private startY: number = 0
-  private lastX: number = 0
-  private lastY: number = 0
-  private lastTime: number = Date.now()
-  lastVelX: number = 0
-  lastVelY: number = 0
+  private lastTime: number = 0
+  private velocityX: number = 0 // px / ns
+  private velocityY: number = 0 // px / ns
+  private pauseX: number = 0 // 拖拽过程中的停顿位置
+  private pauseY: number = 0
 
-  begin() {
-    this.startX = this.lastX = this.X
-    this.startY = this.lastY = this.Y
-    this.lastTime = Date.now()
+  reset(lastTime: number) {
+    this.startX = this.pauseX = this.X
+    this.startY = this.pauseY = this.Y
+    this.lastTime = lastTime
+    this.velocityX = 0
+    this.velocityY = 0
+    this.flingTs = 0
   }
 
-  updatePos(dx: number, dy: number) {
-    const now = Date.now()
-    const deltaTime = (now - this.lastTime) / 1000
+  updatePos(dx: number, dy: number, nanoTs: number) {
+    const deltaTimeNs = nanoTs - this.lastTime
 
-    if (deltaTime > 0) {
-      const velX = (this.X - this.lastX) / deltaTime
-      const velY = (this.Y - this.lastY) / deltaTime
-      this.lastX = this.X
-      this.lastY = this.Y
-      this.lastVelX = velX
-      this.lastVelY = velY
-      this.lastTime = now
+    if (deltaTimeNs <= 0) {
+      this.lastTime = nanoTs
+      this.X = dx + this.startX
+      this.Y = dy + this.startY
+      return
     }
-    this.X = dx + this.startX
-    this.Y = dy + this.startY
+
+    const newX = dx + this.startX
+    const newY = dy + this.startY
+    const instVelX = (newX - this.X) / deltaTimeNs
+    const instVelY = (newY - this.Y) / deltaTimeNs
+
+    // 发生停顿，将速度重置为0，记录停顿点
+    if (deltaTimeNs > INPUT_PAUSE_THRESHOLD_NS) {
+      this.velocityX = 0
+      this.velocityY = 0
+      this.pauseX = newX
+      this.pauseY = newY
+    }
+
+    const alpha = 1 - Math.exp(-deltaTimeNs / VELOCITY_TAU_MS)
+
+    this.velocityX = alpha * instVelX + (1 - alpha) * this.velocityX
+    this.velocityY = alpha * instVelY + (1 - alpha) * this.velocityY
+
+    this.X = newX
+    this.Y = newY
+    this.lastTime = nanoTs
   }
 
   private flingInitialVelX: number = 0
   private flingInitialVelY: number = 0
   private flingTs: number = 0
+  private flingFriction: number = MAX_FRICTION
 
-  beginFling() {
-    this.flingInitialVelX = Math.sign(this.lastVelX) * Math.min(MAX_FLING_VEL, Math.abs(this.lastVelX))
-    this.flingInitialVelY = Math.sign(this.lastVelY) * Math.min(MAX_FLING_VEL, Math.abs(this.lastVelY))
-    this.begin()
-    this.flingTs = 0
+  calculateFling() {
+    const dragDistance = Math.hypot(px2vp(this.X - this.pauseX), px2vp(this.Y - this.pauseY))
+    const t = Math.min(1, Math.max(0,
+      (dragDistance - SHORT_DRAG_DISTANCE_CLAMP) /
+        (LONG_DRAG_DISTANCE_CLAMP - SHORT_DRAG_DISTANCE_CLAMP)
+    )) // t -> [0,1]，和拖动距离成正比
+    // 距离越短摩擦越大
+    this.flingFriction = MAX_FRICTION + t * (MIN_FRICTION - MAX_FRICTION)
+
+    this.flingInitialVelX = this.velocityX
+    this.flingInitialVelY = this.velocityY
+  }
+
+  beginFling(nanoTs: number) {
+    this.calculateFling()
+    this.reset(nanoTs)
   }
 
   fling(nanoTs: number) {
-    if (this.flingTs == 0) {
+    if (this.flingTs === 0) {
       this.flingTs = nanoTs
       return true
     }
-    const elapsedTime = nanoTs - this.flingTs
+    const elapsedTime = (nanoTs - this.flingTs) / 1e9 // s
     if (elapsedTime <= 0) {
-      return
+      return true
     }
-    const decay = Math.pow(FLING_DECL, elapsedTime / 1e9)
-    const currentVelX = this.flingInitialVelX * decay
-    const currentVelY = this.flingInitialVelY * decay
+    const decayFactor = Math.exp(-this.flingFriction * elapsedTime);
 
-    if (Math.abs(currentVelX) < MIN_FLING_VEL &&
-      Math.abs(currentVelY) < MIN_FLING_VEL) {
+    const currentVelX = this.flingInitialVelX * decayFactor
+    const currentVelY = this.flingInitialVelY * decayFactor
+
+    // px / ns
+    if (Math.hypot(currentVelX, currentVelY) < STOP_FLING_VEL) {
       return false
     }
-    const dx = this.flingInitialVelX * (1 - decay) / (1 - FLING_DECL)
-    const dy = this.flingInitialVelY * (1 - decay) / (1 - FLING_DECL)
-    this.updatePos(dx, dy)
+
+    const displacementFactor = (1 - decayFactor) / this.flingFriction
+    const dx = this.flingInitialVelX * 1e9 * displacementFactor
+    const dy = this.flingInitialVelY * 1e9 * displacementFactor
+
+    this.X = this.startX + dx
+    this.Y = this.startY + dy
+
     return true
   }
 }
