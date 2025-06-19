@@ -11,6 +11,7 @@ import { blockKeywordList } from '../dataStore/BlockKeyword'
 import { FontSize, FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { FontSizeIndex, FontSizeOverride } from '../../config/v1/default'
 import { generateImageViewerTransitionKey } from './ImageViewer'
+import { CopyText } from '../ShareKit'
 
 enum XMLNodeType {
   element = 'element',
@@ -423,7 +424,7 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
       }
     } else if (node.name == UINodeName.Em) {
       if (node.attributes && node.attributes['onclick']?.includes('copycode')) {
-
+        // html中原本的复制代码按钮，不处理它，在Code块渲染逻辑内另外做复制按钮
       } else {
         TextStyle.combine(italicStyle, () => node.elements?.forEach((n): void => ContentParser(n, post)))
       }
@@ -485,11 +486,11 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
         post.push(new GeneralNode(UINodeName.Br, ''))
       }
       if (listMode == UINodeName.Ul) {
-        post.push(new GeneralNode(UINodeName.Text, '·').style(TextStyle.peek()))
+        post.push(new GeneralNode(UINodeName.Text, '·', UINodeName.Ul).style(TextStyle.peek()))
       } else if (listMode == UINodeName.Ol) {
         TextStyle.combine({
           color: $r('sys.color.font_tertiary')
-        }, (): void => post!.push(new GeneralNode(UINodeName.Text, listRowCounter + ' ').style(TextStyle.peek())))
+        }, (): void => post!.push(new GeneralNode(UINodeName.Text, listRowCounter + ' ', UINodeName.Ol).style(TextStyle.peek())))
       }
       node.elements?.forEach((n): void => ContentParser(n, post))
     } else if (node.name == UINodeName.Table) {
@@ -577,17 +578,42 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
     }.width('100%')
     .alignItems(HorizontalAlign.Start)
   } else if (param.uiRoot.type == UINodeName.Code) {
-    Text() {
-      ForEach(param.uiRoot.block,
-        (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
-          FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
-        (node: GeneralNode, index: number) => index.toString())
-    }
-    .width('100%')
-    .wordBreak(WordBreak.BREAK_ALL)
-    .fontFeature('"ss01" on')
-    .copyOption(param.copyOption)
-    .textAlign(param.uiRoot.textAlign)
+    Column() {
+      Row() {
+        Text("代码").fontSize(FontSizeEnum[param.fontSize].vp16).fontColor(param.appTheme.fontSecondary)
+        Text("复制").fontSize(FontSizeEnum[param.fontSize].vp16).fontColor(param.appTheme.fontEmphasize).opacity(.8)
+          .onClick(() => {
+            let code = ''
+            for(const node of param.uiRoot.block) {
+              if (node.name == UINodeName.Text) {
+                if (!node.attribute) { // 对于用作代码行号的Ol节点，它们的node.name也为Text，但node.attribute为Ol，需要排除
+                  code += node.content
+                }
+              } else if (node.name == UINodeName.Br) {
+                code += '\n'
+              }
+            }
+
+            CopyText(code, "代码已复制")
+          })
+      }.justifyContent(FlexAlign.SpaceBetween)
+      .width('100%')
+      Divider().margin({
+        top: 4,
+        bottom: 4
+      })
+      Text() {
+        ForEach(param.uiRoot.block,
+          (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
+            FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
+          (node: GeneralNode, index: number) => index.toString())
+      }
+      .width('100%')
+      .wordBreak(WordBreak.BREAK_ALL)
+      .fontFeature('"ss01" on')
+      .copyOption(param.copyOption)
+      .textAlign(param.uiRoot.textAlign)
+    }.width('100%')
     .border({
       color: param.appTheme.fontPrimary,
       width: 1,
