@@ -1,3 +1,5 @@
+import { AniSpeed } from "../Animation"
+
 export enum PullToRefreshStage {
   unactivated,
   pullDownBegin,
@@ -70,7 +72,7 @@ export struct PullToRefresh {
               (thresholdDoLoadingOffsetY - initialLoadingIconOffsetY))
           })
           .opacity(this.stage == PullToRefreshStage.doLoading ? 0 : 1)
-          .animation({ duration: 100 })
+          .animation({ duration: AniSpeed.ms100 })
           .fillColor(this.panGestureFulfilled() ? $r('sys.color.ohos_id_color_emphasize') :
             '#99000000')
         LoadingProgress()
@@ -78,16 +80,15 @@ export struct PullToRefresh {
           .height(48)
           .color($r('sys.color.ohos_id_color_emphasize'))
           .opacity(this.stage == PullToRefreshStage.doLoading ? 1 : 0)
-          .animation({ duration: 100 })
+          .animation({ duration: AniSpeed.ms100 })
       }
       .translate({
         y: this.stage == PullToRefreshStage.unactivated ?
         initialLoadingIconOffsetY :
         this.loadingIconOffsetY
       })
-      .animation({ duration: 50 })
       .opacity(this.stage == PullToRefreshStage.unactivated ? 0 : 1)
-      .animation({ duration: 100 })
+      .animation({ duration: AniSpeed.ms100 })
     }.alignContent(Alignment.Top)
     .onTouch(event => {
       if (!this.enable || event.touches.length == 0) {

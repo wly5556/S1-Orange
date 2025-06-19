@@ -21,7 +21,7 @@ import {
 import { openUserSpace, UserSpaceParam } from './UserSpace'
 import { openS1LinkLike } from '../../common/WantUitl'
 import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
-import { HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, HeavyClickEffect, Spring035s } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { openWriteReply, WriteReplyMode, WriteReplyParam, WriteReplyPopData } from './WriteReply'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -167,7 +167,7 @@ export struct PmDetail {
         param: this.imgViewer,
         showUp: this.imgViewerShow
       })
-    }.transition(TransitionEffect.opacity(.99).animation({ duration: 200 })) // 避免退出时没有转场动画就直接消失
+    }.transition(TransitionEffect.opacity(.99).animation({ duration: AniSpeed.ms200 })) // 避免退出时没有转场动画就直接消失
   }
 
   popBack() {
@@ -205,7 +205,7 @@ export struct PmDetail {
           .width(50)
           .height(50)
           .clickEffect(HeavyClickEffect)
-          .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+          .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
           .onClick(() => {
             const param: WriteReplyParam = {
               defaultTransition: true,
@@ -265,7 +265,7 @@ export struct PmDetail {
                           })
                         })
                       }
-                      .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+                      .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
                       .flexGrow(1)
                       .flexShrink(1)
                       .padding(12)

@@ -1,4 +1,4 @@
-import { AppearDisappearAni } from '../Animation';
+import { AniSpeed, AppearDisappearAni } from '../Animation';
 import { login, LoginResult } from './AccountManager';
 import { common } from '@kit.AbilityKit';
 
@@ -102,7 +102,7 @@ export struct LoginDialog {
             .margin({ left: 10 })
             .layoutWeight(1)
             .opacity(this.readyToLogin() ? 1 : 0.4)
-            .animation({ duration: 100 })
+            .animation({ duration: AniSpeed.ms100 })
             .enabled(this.readyToLogin())
             .tabIndex(2)
             .onClick(e => {

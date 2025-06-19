@@ -10,7 +10,7 @@ import { RectSize } from '../../common/component/ImageContainer'
 import { Avatar } from '../../common/component/Avatar'
 import { common } from '@kit.AbilityKit'
 import { openUserSpace, UserSpaceParam } from './UserSpace'
-import { HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, HeavyClickEffect, Spring035s } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { PageNameEnum } from '../PageNameEnum'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
@@ -262,7 +262,7 @@ export struct ThreadPostList {
           }).combine(TransitionEffect.OPACITY).animation(Spring035s))
           .onClick(() => {
             animateTo({
-              duration: 300,
+              duration: AniSpeed.ms300,
               curve: Curve.Friction,
               onFinish: () => {
                 if (this.replyButtonExpand) {
@@ -337,7 +337,7 @@ export struct ThreadPostList {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo({ duration: 300 }, () => {
+        this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
           this.imgViewerShow = false
         })
       }),
@@ -357,7 +357,7 @@ export struct ThreadPostList {
         param: this.imgViewer,
         showUp: this.imgViewerShow
       })
-    }.transition(TransitionEffect.opacity(.999).animation({ duration: 300 })) // 避免退出时没有转场动画就直接消失
+    }.transition(TransitionEffect.opacity(.999).animation({ duration: AniSpeed.ms300 })) // 避免退出时没有转场动画就直接消失
   }
 }
 
@@ -1126,7 +1126,7 @@ struct SinglePostPage {
         .justifyContent(FlexAlign.Center)
         .width('100%')
         .position({ top: '100%' })
-        .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+        .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
         .translate({ y: this.showBottomLoading * -BOTTOM_LOADING_AREA })
       }
     }.width('100%')

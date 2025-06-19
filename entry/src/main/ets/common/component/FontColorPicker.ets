@@ -1,5 +1,5 @@
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
-import { Spring035s } from '../Animation'
+import { AniSpeed, Spring035s } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { AppThemeColor } from '../theme/basic/basic'
 import { BottomSafeArea } from './BottomSafeArea'
@@ -31,7 +31,7 @@ export struct FontColorPicker {
 
         Text('这是一条示例文字。 ')
           .fontColor(WEB_COLOR_PICKER[this.pickedColor].colorValue).fontSize(FontSizeEnum[this.appState.fontSize].vp20)
-          .animation({ duration: 200 })
+          .animation({ duration: AniSpeed.ms200 })
       }.padding(12)
       .alignItems(HorizontalAlign.Start)
       .width('100%')

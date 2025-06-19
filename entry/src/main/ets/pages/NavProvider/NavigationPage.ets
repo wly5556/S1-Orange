@@ -6,7 +6,7 @@
  * 另有侧边栏内容，位于pages/NavProvider/SideMenu.ets
  */
 import { ForumInfo } from '../../api/model/forumGroup'
-import { AppearDisappearAni } from '../../common/Animation'
+import { AnimationSetUp, AniSpeed, AppearDisappearAni } from '../../common/Animation'
 import { ForumGroupView } from './ForumGroup'
 import { ThreadListView } from './ThreadList'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
@@ -38,8 +38,7 @@ enum NavigationProvider {
 }
 
 export enum SideBarLayout {
-  width = 280,
-  animationDuration = 100
+  width = 280
 }
 
 /**
@@ -121,6 +120,7 @@ struct NavigationPage {
       this.appState.splitMode = conf.split_mode
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
+      AnimationSetUp(conf.ani_speed_ratio)
       PostSignature.init(conf.post_signature,
         this.context.resourceManager.getStringSync($r('app.string.app_name').id),
         conf.post_signature_device_info)
@@ -201,7 +201,7 @@ struct NavigationPage {
       .width('100%')
       .backgroundColor(Color.Black)
       .opacity(this.sideMenuShow * 0.4)
-      .animation({ duration: SideBarLayout.animationDuration, curve: Curve.EaseIn })
+      .animation({ duration: AniSpeed.ms120, curve: Curve.EaseIn })
       .onClick(() => this.sideMenuShow = 0)
       .enabled(this.sideMenuShow == 1)
 
@@ -212,7 +212,7 @@ struct NavigationPage {
       .width(SideBarLayout.width)
       .backgroundColor(this.appTheme.backgroundSecondary)
       .offset({ top: 0, left: (this.sideMenuShow - 1) * SideBarLayout.width })
-      .animation({ duration: SideBarLayout.animationDuration })
+      .animation({ duration: AniSpeed.ms120 })
       .gesture(PanGesture({ direction: PanDirection.Left, distance: 1 })
         .onActionUpdate(e => {
           this.sideMenuShow = Math.min(1, Math.max(1 - (-e.offsetX / SideBarLayout.width), 0))

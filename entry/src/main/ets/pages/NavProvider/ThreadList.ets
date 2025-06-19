@@ -7,7 +7,9 @@ import { SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/Sw
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { TitleBar } from '../../common/component/TitleBar'
 import { common } from '@kit.AbilityKit'
-import { AppearDisappearAni, ClickDarkenEffect, HeavyClickEffect, OpacityTransition } from '../../common/Animation'
+import {
+  AniSpeed,
+  AppearDisappearAni, ClickDarkenEffect, HeavyClickEffect, OpacityTransition } from '../../common/Animation'
 import { openThreadPost, ThreadPostParam } from '../NavDest/ThreadPostList'
 import { Event } from '../../common/Events'
 import { unescapeAll } from '../../common/XmlParser'
@@ -291,7 +293,7 @@ struct ThreadListPage {
       const tidSet: Set<string> = new Set()
       this.threadList.forEach(t => tidSet.add(t.tid))
       if (viewData.filter(t => tidSet.has(t.tid)).length > THREAD_PER_PAGE * 0.1) {
-        animateTo({ duration: 200, curve: Curve.EaseInOut }, () => {
+        animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseInOut }, () => {
           this.threadList = viewData
         })
       } else {
@@ -418,7 +420,7 @@ struct ThreadListPage {
           .key(item => item.tid + item.replies)
         BottomSafeArea()
       }.opacity(this.dataLoading ? 0.6 : 1)
-      .animation({ duration: 100 })
+      .animation({ duration: AniSpeed.ms100 })
       .constraintSize({
         minHeight: '100%'
       })

@@ -2,7 +2,7 @@ import { URL } from '../../api/base'
 import request from '../../api/request'
 import { ForumGroup, ForumInfo } from '../../api/model/forumGroup'
 import wrapper from '../../api/wrapper'
-import { ClickDarkenEffect, HeavyClickEffect } from '../../common/Animation'
+import { AniSpeed, ClickDarkenEffect, HeavyClickEffect } from '../../common/Animation'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefresh, PullToRefreshStage } from '../../common/component/PullToRefresh'
 import { TitleBar, TitleBarLeftButtonType } from '../../common/component/TitleBar'
@@ -121,7 +121,7 @@ export struct ForumGroupView {
             }
             .padding(12)
             .offset({ top: this.forumGroupItemOffsetY.get(fid) })
-            .animation({ duration: 300, curve: Curve.EaseOut })
+            .animation({ duration: AniSpeed.ms300, curve: Curve.EaseOut })
             .height(FontSizeEnum[this.appState.fontSize].vp48)
             .width('100%')
             .backgroundEffect({

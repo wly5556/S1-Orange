@@ -2,7 +2,7 @@ import { URL } from '../../api/base'
 import { Extcredits, Space, SpaceInfo } from '../../api/model/space'
 import request from '../../api/request'
 import wrapper from '../../api/wrapper'
-import { AvatarTransition, HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, AvatarTransition, HeavyClickEffect, Spring035s } from '../../common/Animation'
 import { ReloadController } from '../../common/BasicDataSource'
 import { Avatar } from '../../common/component/Avatar'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
@@ -210,7 +210,7 @@ export struct UserSpace {
                   .width(50)
                   .height(50)
                   .borderRadius(25)
-                  .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+                  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
                   .backgroundColor('#11000000')
                   .position({
                     bottom: 12,
@@ -351,7 +351,7 @@ export struct UserSpace {
                   }
                 }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
                 .transition(TransitionEffect.translate({ y: -45 }).animation(Spring035s))
-              }.transition(TransitionEffect.OPACITY.animation({ duration: 300 }))
+              }.transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
             } else {
               LoadingProgress()
                 .width(64)
@@ -401,7 +401,7 @@ export struct UserSpace {
         },
         showUp: this.imgViewerShow
       })
-    }.transition(TransitionEffect.opacity(.99).animation({ duration: 200 })) // 避免退出时没有转场动画就直接消失
+    }.transition(TransitionEffect.opacity(.99).animation({ duration: AniSpeed.ms200 })) // 避免退出时没有转场动画就直接消失
   }
 }
 

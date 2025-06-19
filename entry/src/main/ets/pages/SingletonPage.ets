@@ -1,5 +1,6 @@
 import { PageNameEnum } from './PageNameEnum'
 import { Callback } from '@kit.BasicServicesKit'
+import { AniSpeed } from '../common/Animation'
 
 /**
  * 打开新页面或跳转到已存在的目标页面
@@ -7,7 +8,7 @@ import { Callback } from '@kit.BasicServicesKit'
  * @param pathStack: NavPathStack
  * @param pageName: PageNameEnum  目标页面名称，对应route_map.json中的name
  * @param param  （可选）页面所需参数
- * @param animated  （可选）转场动画，默认为true
+ * @param animated  （可选）转场动画，默认为true，当关闭动画（AniSpeed.ratio = 0）时强制为0
  * @param equalsTo  （可选）自定义参数匹配函数，详见下面的行为描述。仅指定了equalsTo时，能用该方法打开多个同名页面
  * @param callback  （可选）对应NavPathStack.pushPathByName方法的同名参数，用于页面出栈时触发该回调处理返回结果。仅pop中设置result参数后触发
  *
@@ -18,6 +19,9 @@ import { Callback } from '@kit.BasicServicesKit'
  */
 export function openOrJumpTo(pathStack: NavPathStack, pageName: PageNameEnum, param?: object, animated = true,
   equalsTo?: (obj: object) => boolean, callback?: Callback<PopInfo>) {
+  if (AniSpeed.ratio === 0) {
+    animated = false
+  }
   const pgIndex = pathStack.getIndexByName(pageName)
   let pgExisted = false
   if (pgIndex.length > 0) {

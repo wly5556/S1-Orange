@@ -3,6 +3,7 @@ import request from '../../api/request'
 import { openPostRatingDetail, PostRatingDetailParam, PostRatingPopData } from '../../pages/NavDest/PostRatingDetail'
 import { openUserSpace, UserSpaceParam } from '../../pages/NavDest/UserSpace'
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
+import { AniSpeed } from '../Animation'
 import { PropKey } from '../Constants'
 import { blockUserList } from '../dataStore/BlockUser'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
@@ -146,7 +147,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
   }.margin({ top: 20 })
   .geometryTransition(data.transitionIndex, { follow: true })
   .alignSelf(ItemAlign.End)
-  .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
 }
 
 @Extend(Text)

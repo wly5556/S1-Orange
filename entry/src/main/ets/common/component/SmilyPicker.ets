@@ -1,6 +1,6 @@
 import { URL } from '../../api/base';
 import request from '../../api/request';
-import { ClickDarkenEffect, HeavyClickEffect } from '../Animation';
+import { AniSpeed, ClickDarkenEffect, HeavyClickEffect } from '../Animation';
 import { BasicDataSource } from '../BasicDataSource';
 import { AppThemeColor } from '../theme/basic/basic';
 import { BottomSafeArea } from './BottomSafeArea';
@@ -158,7 +158,7 @@ export struct SmilyPicker {
               scrollBackward: NestedScrollMode.PARENT_FIRST
             })
             .scrollBar(BarState.Off)
-            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+            .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
           })
         }
         .index($$this.smilyGroupIndex)

@@ -6,7 +6,7 @@ import { LengthUnit, promptAction, window } from '@kit.ArkUI'
 import { TitleBar } from '../../common/component/TitleBar'
 import request from '../../api/request'
 import { URL } from '../../api/base'
-import { ClickDarkenEffect, HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, ClickDarkenEffect, HeavyClickEffect, Spring035s } from '../../common/Animation'
 import { SmilyPicker } from '../../common/component/SmilyPicker'
 import { extractReplyPageInfo, ReplyImagePicker } from '../../common/component/ReplyImagePicker'
 import wrapper from '../../api/wrapper'
@@ -419,7 +419,7 @@ export struct WriteReply {
               .opacity(0.9)
               .backgroundColor(this.appTheme.isDark ? '#1fffffff' : '#0f000000')
               .width('100%')
-              .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+              .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
 
               Divider().margin(12)
             }

@@ -17,6 +17,7 @@ import { PreferenceManager } from '../../config/UserConfig'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PropKey } from '../../common/Constants'
+import { AniSpeed } from '../../common/Animation'
 
 export enum SearchType {
   Thread = 0,
@@ -283,7 +284,7 @@ struct SearchResultPage {
               .padding(12)
             }.padding({ bottom: 1 })
             .backgroundColor(this.appTheme.backgroundTertiary)
-            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+            .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
           }
         }, (item: ThreadSearchResult) => item.tid)
       } else if (this.searchRequestType == SearchType.User || this.searchRequestType == SearchType.Friend) {
@@ -319,7 +320,7 @@ struct SearchResultPage {
               })
             }.padding({ bottom: 1 })
             .backgroundColor(this.appTheme.backgroundTertiary)
-            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+            .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
           }
         }, (item: UserSearchItem) => item.uid)
       }

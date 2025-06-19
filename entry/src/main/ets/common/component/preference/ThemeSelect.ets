@@ -6,6 +6,7 @@ import { ThemeIndex } from '../../../config/v1/default'
 import { FontSizeEnum } from '../../fontSize/FontSizeEnum'
 import { PreferenceState } from '../../../pages/NavProvider/NavigationPage'
 import { AppThemeColor } from '../../theme/basic/basic'
+import { AniSpeed } from '../../Animation'
 
 @Component
 export struct ThemeSelectPanel {
@@ -80,9 +81,9 @@ export function ColorGridPicker(param: ColorGridPickerParam) {
             .maxLines(1)
             .fontSize(FontSizeEnum[param.appState.fontSize].vp16)
             .fontWeight(index == param.selected ? FontWeight.Bold : FontWeight.Regular)
-            .animation({ duration: 100 })
+            .animation({ duration: AniSpeed.ms100 })
             .fontColor(index == param.selected ? $r('sys.color.font_emphasize') : undefined)
-            .animation({ duration: 100 })
+            .animation({ duration: AniSpeed.ms100 })
           Blank()
           Row()
             .height(32)
@@ -95,7 +96,7 @@ export function ColorGridPicker(param: ColorGridPickerParam) {
         .borderRadius(12)
         .backgroundColor(index == param.selected ? param.selectedColor :
         param.backgroundColor)
-        .animation({ duration: 100 })
+        .animation({ duration: AniSpeed.ms100 })
         .padding({ left: 12, right: 12 })
         .onClick(() => param.onChange(index))
       }

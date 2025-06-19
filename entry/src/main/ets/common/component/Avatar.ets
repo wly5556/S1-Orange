@@ -6,6 +6,7 @@ import { PreferenceManager } from '../../config/UserConfig'
 import { readJson, writeJson } from '../dataStore/JsonPersist'
 import { ReloadController } from '../BasicDataSource'
 import { waitFor } from '../AwaitUtil'
+import { AniSpeed } from '../Animation'
 
 let cacheMap: Map<string, CacheInfo> = new Map()
 const expiredUid: string[] = []
@@ -152,14 +153,14 @@ export struct Avatar {
         .height(this.avatarSize)
         .width(this.avatarSize)
         .opacity(this.hideDefaultAvatar ? 1 : 0)
-        .animation({ duration: 100 })
+        .animation({ duration: AniSpeed.ms100 })
         .draggable(false)
       if (!this.hideDefaultAvatar) {
         Image($r("app.media.avatar_base"))
           .height(this.avatarSize)
           .width(this.avatarSize)
           .borderRadius(this.avatarSize / 2)
-          .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+          .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
           .draggable(false)
       }
     }.onVisibleAreaChange([0.02, 1], () => {

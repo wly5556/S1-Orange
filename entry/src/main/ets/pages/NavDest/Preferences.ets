@@ -28,7 +28,7 @@ import {
   getApiCacheState
 } from '../../common/dataStore/ApiCacheData'
 import { PostSignature } from '../../common/PostSignature'
-import { OpacityTransition } from '../../common/Animation'
+import { AnimationSetUp, AniSpeed, OpacityTransition } from '../../common/Animation'
 import { FoldMenu } from '../../common/component/FoldMenu'
 import BuildProfile from 'BuildProfile'
 import { LengthUnit } from '@ohos.arkui.node'
@@ -55,6 +55,7 @@ export struct PreferencePage {
   @State postSignatureDeviceInfo: boolean = defaultApplicationConfig.post_signature_device_info
   @State apiCacheUsage?: ApiCacheState = undefined
   @State postSignatureDisplayText: string = PostSignature.displayText()
+  @State aniSpeedRatio: number = AniSpeed.ratio
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -70,6 +71,14 @@ export struct PreferencePage {
   appStateChanged() {
     this.settingRow = new SettingRow(FontSizeEnum[this.appState.fontSize])
     this.textSecondary = new TextSecondary(this.appState.fontSize)
+  }
+
+  setAniSpeedRatio(ratio: number) {
+    PreferenceManager.modify(conf => {
+      conf.ani_speed_ratio = ratio
+      this.aniSpeedRatio = ratio
+      AnimationSetUp(ratio)
+    })
   }
 
   @LocalBuilder
@@ -142,7 +151,7 @@ export struct PreferencePage {
               }.attributeModifier(this.settingRow)
               .enabled(!this.darkModeFollowSys)
               .opacity(this.darkModeFollowSys ? 0.6 : 1)
-              .animation({ duration: 100 })
+              .animation({ duration: AniSpeed.ms100 })
 
               SettingDivider()
               Row() {
@@ -182,7 +191,7 @@ export struct PreferencePage {
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('宽屏时使用双栏界面')
-                  Text('开启后，在宽屏设备上浏览时，将使用左右两侧分栏显示的界面。中心分界线可拖动，以调整界面宽度。')
+                  Text('开启后，在宽屏设备上浏览时，将使用左右两侧分栏显示的界面。中心分界线可拖动，以调整界面宽度')
                     .attributeModifier(this.textSecondary)
                 }.SettingColumn()
 
@@ -210,6 +219,26 @@ export struct PreferencePage {
                 })
               }.attributeModifier(this.settingRow)
 
+              Row() {
+                Column({ space: SettingColumnSpace }) {
+                  this.TextPrimary('动画时长调节')
+                  Text(`调节部分动画的过渡时长，越高倍数则动画越缓慢。设为0倍将同时关闭系统默认提供的页面转场动画。需要重新进入使得配置完全生效\n当前：${this.aniSpeedRatio >
+                    0 ? this.aniSpeedRatio.toPrecision(3) + 'x' : '关闭动画'}`)
+                    .attributeModifier(this.textSecondary)
+                }.SettingColumn()
+              }.attributeModifier(this.settingRow)
+
+              Row() {
+                Slider({
+                  value: this.aniSpeedRatio,
+                  min: 0,
+                  step: 0.05,
+                  max: 3
+                }).onChange(v => this.setAniSpeedRatio(v)).flexShrink(1)
+                Button('重置').buttonStyle(ButtonStyleMode.TEXTUAL)
+                  .onClick(() => this.setAniSpeedRatio(1))
+              }.width('100%')
+
               FoldMenu({
                 title: '调整间距'
               }) {
@@ -220,6 +249,7 @@ export struct PreferencePage {
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
                 Slider({
                   value: this.appState.threadItemGap,
                   min: 0,
@@ -238,6 +268,7 @@ export struct PreferencePage {
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
                 Slider({
                   value: this.appState.contentLineSpace,
                   min: 0,
@@ -319,7 +350,9 @@ export struct PreferencePage {
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('回帖尾巴')
-                  Text(this.postSignatureDisplayText).attributeModifier(this.textSecondary).wordBreak(WordBreak.BREAK_ALL)
+                  Text(this.postSignatureDisplayText)
+                    .attributeModifier(this.textSecondary)
+                    .wordBreak(WordBreak.BREAK_ALL)
                 }.SettingColumn()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.postSignature }).onChange(isOn => {

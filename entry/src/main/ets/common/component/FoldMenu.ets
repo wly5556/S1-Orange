@@ -1,5 +1,5 @@
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
-import { HeavyClickEffect } from '../Animation'
+import { AniSpeed, HeavyClickEffect } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { AppThemeColor } from '../theme/basic/basic'
 
@@ -36,7 +36,7 @@ export struct FoldMenu {
       .width('100%')
       .height(FontSizeEnum[this.appState.fontSize].vp48)
       .onClick(() => {
-        animateTo({ duration: 100 }, () => {
+        animateTo({ duration: AniSpeed.ms100 }, () => {
           this.expand = !this.expand
         })
       })

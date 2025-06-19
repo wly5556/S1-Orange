@@ -1,6 +1,7 @@
-import { curves } from '@kit.ArkUI'
+import { curves } from "@kit.ArkUI"
 
-export const AppearDisappearAni = TransitionEffect.OPACITY
+
+export let AppearDisappearAni = TransitionEffect.OPACITY
   .combine(
     TransitionEffect.asymmetric(
       TransitionEffect.scale({ x: 1.05, y: 1.05 }),
@@ -15,6 +16,7 @@ export class ClickDarkenEffect implements AttributeModifier<CommonAttribute> {
       brightness: 1
     })
   }
+
   applyPressedAttribute(instance: CommonAttribute): void {
     instance.backgroundEffect({
       radius: 0,
@@ -23,24 +25,80 @@ export class ClickDarkenEffect implements AttributeModifier<CommonAttribute> {
   }
 }
 
-export const MenuFlyDownAni = TransitionEffect.OPACITY
+export let MenuFlyDownAni = TransitionEffect.OPACITY
   .animation({ duration: 120, curve: Curve.EaseIn })
   .combine(
     TransitionEffect.translate({ y: -50 })
   ).animation({ duration: 100 })
 
-export const MenuFlyUpAni = TransitionEffect.OPACITY
+export let MenuFlyUpAni = TransitionEffect.OPACITY
   .animation({ duration: 120, curve: Curve.EaseIn })
   .combine(
     TransitionEffect.translate({ y: 50 })
   ).animation({ duration: 100 })
 
-export const AvatarTransition: AnimateParam = {
+export let AvatarTransition: AnimateParam = {
   duration: 300, curve: Curve.ExtremeDeceleration
 }
 
-export const OpacityTransition = TransitionEffect.OPACITY.animation({ duration: 300, curve: Curve.ExtremeDeceleration })
+export let OpacityTransition = TransitionEffect.OPACITY.animation({ duration: 300, curve: Curve.ExtremeDeceleration })
 
-export const Spring035s: AnimateParam = { curve: curves.springMotion(0.35) }
+export let Spring035s: AnimateParam = { curve: curves.springMotion(0.35) }
 
 export const HeavyClickEffect: ClickEffect = { level: ClickEffectLevel.HEAVY, scale: 0.7 }
+
+interface AniDuration {
+  ratio: number
+  spring: number
+  ms50: number
+  ms100: number
+  ms120: number
+  ms200: number
+  ms300: number
+}
+
+export let AniSpeed: AniDuration
+
+export function AnimationSetUp(ratio: number) {
+  const speed: AniDuration = {
+    ratio: ratio,
+    spring: Math.max(0.35 * ratio, 0.01),
+    ms50: 50 * ratio,
+    ms100: 100 * ratio,
+    ms120: 120 * ratio,
+    ms200: 200 * ratio,
+    ms300: 300 * ratio
+  }
+
+  AppearDisappearAni = TransitionEffect.OPACITY
+    .combine(
+      TransitionEffect.asymmetric(
+        TransitionEffect.scale({ x: 1.05, y: 1.05 }),
+        TransitionEffect.scale({ x: 0.98, y: 0.98 })
+      )
+    ).animation({ duration: speed.ms100 })
+
+  MenuFlyDownAni = TransitionEffect.OPACITY
+    .animation({ duration: speed.ms120, curve: Curve.EaseIn })
+    .combine(
+      TransitionEffect.translate({ y: -50 })
+    ).animation({ duration: speed.ms100 })
+
+  MenuFlyUpAni = TransitionEffect.OPACITY
+    .animation({ duration: speed.ms120, curve: Curve.EaseIn })
+    .combine(
+      TransitionEffect.translate({ y: 50 })
+    ).animation({ duration: speed.ms100 })
+
+  AvatarTransition = {
+    duration: speed.ms300, curve: Curve.ExtremeDeceleration
+  }
+
+  OpacityTransition = TransitionEffect.OPACITY.animation({ duration: speed.ms300, curve: Curve.ExtremeDeceleration })
+
+  Spring035s = { curve: curves.springMotion(speed.spring) }
+
+  AniSpeed = speed
+}
+
+AnimationSetUp(1)
