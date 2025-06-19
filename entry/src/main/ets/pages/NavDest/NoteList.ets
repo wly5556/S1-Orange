@@ -210,7 +210,7 @@ struct SingleNotePage {
           }
 
           Text(item.subject)
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
             .padding(12)
           Text(this.datetime[item.id]).alignSelf(ItemAlign.End).opacity(.6)
         }.alignItems(HorizontalAlign.Start)
