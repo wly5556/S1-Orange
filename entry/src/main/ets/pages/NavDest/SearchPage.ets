@@ -253,7 +253,7 @@ struct SearchResultPage {
                       Span(textItem.text)
                         .fontColor(textItem.highlight ? HIGHLIGHT_FONT_COLOR : this.appTheme.fontEmphasize)
                     })
-                  }.fontSize(FontSizeEnum[this.appState.fontSize].vp18)
+                  }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
 
                   Text(item.dateTime).opacity(.7).fontSize(FontSizeEnum[this.appState.fontSize].vp15)
                     .padding({ bottom: 12 })
