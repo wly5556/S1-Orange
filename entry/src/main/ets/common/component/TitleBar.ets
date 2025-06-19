@@ -80,7 +80,7 @@ export struct TitleBar {
             if (!this.titleCopyable) {
               return
             }
-            CopyText(this.titleContent || '', this.getUIContext(), '标题已复制')
+            CopyText(this.titleContent || '', '标题已复制')
           }))
       }
       this.contentBuilder()

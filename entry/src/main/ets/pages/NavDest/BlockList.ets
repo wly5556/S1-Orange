@@ -299,7 +299,7 @@ export struct BlockListPage {
                 .clickEffect({ level: ClickEffectLevel.HEAVY })
                 .geometryTransition(String(item.date))
                 .gesture(LongPressGesture().onAction(e => {
-                  CopyText(item.regex, this.getUIContext(), '已复制屏蔽规则')
+                  CopyText(item.regex, '已复制屏蔽规则')
                 }))
               }, (item: BlockKeywordInfo, index: number) => String(item.date))
 

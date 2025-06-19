@@ -15,7 +15,6 @@ import { CopyHyperLink, ShareImage } from '../ShareKit'
 import { displaySync } from '@kit.ArkGraphics2D'
 import { openInBrowser } from '../WantUitl'
 import { SafeArea } from '../Constants'
-import { Queue } from '@kit.ArkTS'
 
 export interface ImageViewerParam {
   urls: string[],

@@ -38,7 +38,7 @@ export function ShareImage(path: string, ext: string, context: common.UIAbilityC
   })
 }
 
-export function CopyText(text: string, UIContext: UIContext, toast?: string) {
+export function CopyText(text: string, toast?: string) {
   const plaintext = new unifiedDataChannel.PlainText()
   plaintext.textContent = text
   writeToPasteboard(plaintext, toast)
