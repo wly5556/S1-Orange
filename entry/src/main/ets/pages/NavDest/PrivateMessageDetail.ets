@@ -21,7 +21,7 @@ import {
 import { openUserSpace, UserSpaceParam } from './UserSpace'
 import { openS1LinkLike } from '../../common/WantUitl'
 import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
-import { AniSpeed, HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { openWriteReply, WriteReplyMode, WriteReplyParam, WriteReplyPopData } from './WriteReply'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -205,7 +205,7 @@ export struct PmDetail {
           .width(50)
           .height(50)
           .clickEffect(HeavyClickEffect)
-          .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+          .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
           .onClick(() => {
             const param: WriteReplyParam = {
               defaultTransition: true,
@@ -260,12 +260,12 @@ export struct PmDetail {
                                 urls: pm.imgUrl,
                                 startAt: index
                               }
-                              animateTo(Spring035s, () => this.imgViewerShow = true)
+                              animateTo(SpringCurve, () => this.imgViewerShow = true)
                             }
                           })
                         })
                       }
-                      .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+                      .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
                       .flexGrow(1)
                       .flexShrink(1)
                       .padding(12)
@@ -315,7 +315,7 @@ export struct PmDetail {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo(Spring035s, () => {
+        this.getUIContext().animateTo(SpringCurve, () => {
           this.imgViewerShow = false
         })
       }),

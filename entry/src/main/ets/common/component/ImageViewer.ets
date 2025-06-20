@@ -1,5 +1,5 @@
 import { common } from '@kit.AbilityKit'
-import { AniSpeed, HeavyClickEffect, Spring035s } from '../Animation'
+import { AniSpeed, HeavyClickEffect, SpringCurve } from '../Animation'
 import { ImageContainer, RectSize } from './ImageContainer'
 import { PageIndexDataSource } from './SwipePageViewer'
 import { AppThemeColor } from '../theme/basic/basic'
@@ -244,7 +244,7 @@ export struct ImageViewer {
           })
           .gesture(TapGesture({ count: 2, distanceThreshold: 1 }).onAction(e => {
             this.imgTransform[this.swiperIndex].onTap(vp2px(e.fingerList[0].localX), vp2px(e.fingerList[0].localY))
-            animateTo(Spring035s, () => {
+            animateTo(SpringCurve, () => {
               this.updateImageTransformMatrix()
             })
           }))
@@ -255,7 +255,7 @@ export struct ImageViewer {
             this.updateImageTransformMatrix()
           }).onActionEnd(e => {
             this.imgTransform[this.swiperIndex].endPinch()
-            animateTo(Spring035s, () => {
+            animateTo(SpringCurve, () => {
               this.updateImageTransformMatrix()
             })
           }))
@@ -315,7 +315,7 @@ export struct ImageViewer {
         }.StackBlurButton().ultraThinBlur()
         .onClick(e => {
           this.getUIContext()
-            .animateTo(Spring035s, () => {
+            .animateTo(SpringCurve, () => {
               this.showUp = false
             })
         })
@@ -354,7 +354,7 @@ export struct ImageViewer {
 
   updateButtonVisibility() {
     if (this.imgTransform[this.targetSwiperIndex].scaleRatio == 1 && this.showButton == false) {
-      animateTo(Spring035s, () => {
+      animateTo(SpringCurve, () => {
         this.showButton = true
         this.showStatusBar()
       })

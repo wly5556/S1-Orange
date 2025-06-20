@@ -4,7 +4,7 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
-import { AniSpeed, Spring035s } from '../../common/Animation'
+import { AniSpeed, SpringCurve } from '../../common/Animation'
 import request from '../../api/request'
 import { URL } from '../../api/base'
 import { PollInfoVM, PollOptionVM, PollPanelComp } from '../../common/component/PollPanel'
@@ -98,7 +98,7 @@ export struct PollDetail {
         if (pollData == undefined) {
           return
         }
-        animateTo(Spring035s, () => {
+        animateTo(SpringCurve, () => {
           this.pageParam.pollInfo = getPollInfo(pollData)
           this.pageParam.pollList = getPollList(pollData)
           this.popData.pollAdded = true
@@ -125,7 +125,7 @@ export struct PollDetail {
 
   popBack() {
     this.hideForTransitionAnimation = false
-    animateTo(Spring035s, () => {
+    animateTo(SpringCurve, () => {
       this.pathStack.pop(this.popData, false)
     })
   }
@@ -149,7 +149,7 @@ export struct PollDetail {
           && data.length > 0) {
           setTimeout((): void => this.getVoteUsers(voteIndex, page + 1), 100)
         }
-        animateTo(Spring035s, () => {
+        animateTo(SpringCurve, () => {
           this.pageParam.pollList = temp
           this.votedUserShow = true
         })
@@ -175,12 +175,12 @@ export struct PollDetail {
                   .backgroundColor(this.appTheme.backgroundTertiary)
                   .onClick(() => {
                     if (this.votedUserShow) {
-                      animateTo(Spring035s, () => {
+                      animateTo(SpringCurve, () => {
                         this.votedUserShow = false
                       })
                     } else {
                       if (this.votedUserLoaded) {
-                        animateTo(Spring035s, () => {
+                        animateTo(SpringCurve, () => {
                           this.votedUserShow = true
                         })
                       } else {
@@ -249,7 +249,7 @@ export struct PollDetail {
                       newSelected = newSelected.filter(i => i != index)
                     }
                   }
-                  animateTo(Spring035s, () => {
+                  animateTo(SpringCurve, () => {
                     this.pageParam.pollList = newPollList
                     if (this.multiSelected.length < newSelected.length) {
                       setTimeout((): void => this.selectedScroller.scrollEdge(Edge.Bottom))
@@ -304,7 +304,7 @@ export struct PollDetail {
                           .onClick(e => {
                             const temp = this.pageParam.pollList.slice()
                             temp[itemIndex].selected = false
-                            animateTo(Spring035s, () => {
+                            animateTo(SpringCurve, () => {
                               this.multiSelected = this.multiSelected.filter(i => i != itemIndex)
                               this.pageParam.pollList = temp
                             })
@@ -375,7 +375,7 @@ export function RegisterBuilder() {
 
 export function openPollDetail(pathStack: NavPathStack, param: PollDetailParam,
   popCallback: Callback<PopInfo>) {
-  animateTo(Spring035s, () => {
+  animateTo(SpringCurve, () => {
     openOrJumpTo(pathStack, PageNameEnum.PollDetail, param, false, e => JSON.stringify(e) == JSON.stringify(param),
       popCallback)
   })

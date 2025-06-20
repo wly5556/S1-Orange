@@ -1,5 +1,5 @@
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
-import { AniSpeed, Spring035s } from '../Animation'
+import { AniSpeed, SpringCurve } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { AppThemeColor } from '../theme/basic/basic'
 import { BottomSafeArea } from './BottomSafeArea'
@@ -65,7 +65,7 @@ export struct FontColorPicker {
     .padding(8)
     .transition(TransitionEffect.translate({
       y: 600
-    }).animation(Spring035s))
+    }).animation(SpringCurve))
   }
 }
 

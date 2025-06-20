@@ -2,7 +2,7 @@ import { URL } from '../../api/base'
 import { Extcredits, Space, SpaceInfo } from '../../api/model/space'
 import request from '../../api/request'
 import wrapper from '../../api/wrapper'
-import { AniSpeed, AvatarTransition, HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { AniSpeed, AvatarTransition, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { ReloadController } from '../../common/BasicDataSource'
 import { Avatar } from '../../common/component/Avatar'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
@@ -210,7 +210,7 @@ export struct UserSpace {
                   .width(50)
                   .height(50)
                   .borderRadius(25)
-                  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+                  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
                   .backgroundColor('#11000000')
                   .position({
                     bottom: 12,
@@ -329,7 +329,7 @@ export struct UserSpace {
                     })
                   }
                 }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
-                .transition(TransitionEffect.translate({ y: -35 }).animation(Spring035s))
+                .transition(TransitionEffect.translate({ y: -35 }).animation(SpringCurve))
 
                 Row() {
                   GridRow({ gutter: 1 }) {
@@ -350,7 +350,7 @@ export struct UserSpace {
                     })
                   }
                 }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
-                .transition(TransitionEffect.translate({ y: -45 }).animation(Spring035s))
+                .transition(TransitionEffect.translate({ y: -45 }).animation(SpringCurve))
               }.transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
             } else {
               LoadingProgress()
@@ -384,7 +384,7 @@ export struct UserSpace {
     }).bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.ALPHA,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo(Spring035s, () => {
+        this.getUIContext().animateTo(SpringCurve, () => {
           this.imgViewerShow = false
         })
       }),

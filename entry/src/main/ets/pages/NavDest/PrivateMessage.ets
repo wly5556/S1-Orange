@@ -12,7 +12,7 @@ import wrapper from '../../api/wrapper'
 import { URL } from '../../api/base'
 import { PreferenceManager } from '../../config/UserConfig'
 import { ErrorTips } from '../../common/component/ErrorTips'
-import { HeavyClickEffect, Spring035s } from '../../common/Animation'
+import { HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { PrivateMessageList } from '../../api/model/privateMessage'
 import { Avatar } from '../../common/component/Avatar'
 import { formatRelativeTime } from '../../common/TimeFormat'
@@ -150,7 +150,7 @@ struct PrivateMessagePage {
       .get()
       .then(v => {
         if (v.Variables.list != null && v.Variables.count != null && v.Variables.perpage != null) {
-          animateTo(Spring035s, () => {
+          animateTo(SpringCurve, () => {
             this.totalPage = Math.ceil(parseInt(v.Variables.count!) / parseInt(v.Variables.perpage!))
             this.pmItem = v.Variables.list!.map(pm => ({
               plid: pm.plid,

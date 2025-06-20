@@ -201,7 +201,7 @@ struct NavigationPage {
       .width('100%')
       .backgroundColor(Color.Black)
       .opacity(this.sideMenuShow * 0.4)
-      .animation({ duration: AniSpeed.ms120, curve: Curve.EaseIn })
+      .animation({ duration: AniSpeed.ms150, curve: Curve.EaseIn })
       .onClick(() => this.sideMenuShow = 0)
       .enabled(this.sideMenuShow == 1)
 
@@ -212,7 +212,7 @@ struct NavigationPage {
       .width(SideBarLayout.width)
       .backgroundColor(this.appTheme.backgroundSecondary)
       .offset({ top: 0, left: (this.sideMenuShow - 1) * SideBarLayout.width })
-      .animation({ duration: AniSpeed.ms120 })
+      .animation({ duration: AniSpeed.ms150 })
       .gesture(PanGesture({ direction: PanDirection.Left, distance: 1 })
         .onActionUpdate(e => {
           this.sideMenuShow = Math.min(1, Math.max(1 - (-e.offsetX / SideBarLayout.width), 0))

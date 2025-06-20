@@ -420,7 +420,7 @@ struct ThreadListPage {
           .key(item => item.tid + item.replies)
         BottomSafeArea()
       }.opacity(this.dataLoading ? 0.6 : 1)
-      .animation({ duration: AniSpeed.ms100 })
+      .animation({ duration: AniSpeed.ms120 })
       .constraintSize({
         minHeight: '100%'
       })

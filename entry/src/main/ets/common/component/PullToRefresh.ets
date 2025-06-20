@@ -72,7 +72,7 @@ export struct PullToRefresh {
               (thresholdDoLoadingOffsetY - initialLoadingIconOffsetY))
           })
           .opacity(this.stage == PullToRefreshStage.doLoading ? 0 : 1)
-          .animation({ duration: AniSpeed.ms100 })
+          .animation({ duration: AniSpeed.ms120 })
           .fillColor(this.panGestureFulfilled() ? $r('sys.color.ohos_id_color_emphasize') :
             '#99000000')
         LoadingProgress()
@@ -80,7 +80,7 @@ export struct PullToRefresh {
           .height(48)
           .color($r('sys.color.ohos_id_color_emphasize'))
           .opacity(this.stage == PullToRefreshStage.doLoading ? 1 : 0)
-          .animation({ duration: AniSpeed.ms100 })
+          .animation({ duration: AniSpeed.ms120 })
       }
       .translate({
         y: this.stage == PullToRefreshStage.unactivated ?
@@ -88,7 +88,7 @@ export struct PullToRefresh {
         this.loadingIconOffsetY
       })
       .opacity(this.stage == PullToRefreshStage.unactivated ? 0 : 1)
-      .animation({ duration: AniSpeed.ms100 })
+      .animation({ duration: AniSpeed.ms120 })
     }.alignContent(Alignment.Top)
     .onTouch(event => {
       if (!this.enable || event.touches.length == 0) {

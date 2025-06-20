@@ -36,7 +36,7 @@ export struct FoldMenu {
       .width('100%')
       .height(FontSizeEnum[this.appState.fontSize].vp48)
       .onClick(() => {
-        animateTo({ duration: AniSpeed.ms100 }, () => {
+        animateTo({ duration: AniSpeed.ms120 }, () => {
           this.expand = !this.expand
         })
       })

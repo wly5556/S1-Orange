@@ -158,7 +158,7 @@ export struct SmilyPicker {
               scrollBackward: NestedScrollMode.PARENT_FIRST
             })
             .scrollBar(BarState.Off)
-            .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+            .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
           })
         }
         .index($$this.smilyGroupIndex)

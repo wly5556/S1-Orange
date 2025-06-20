@@ -102,7 +102,7 @@ export struct LoginDialog {
             .margin({ left: 10 })
             .layoutWeight(1)
             .opacity(this.readyToLogin() ? 1 : 0.4)
-            .animation({ duration: AniSpeed.ms100 })
+            .animation({ duration: AniSpeed.ms120 })
             .enabled(this.readyToLogin())
             .tabIndex(2)
             .onClick(e => {

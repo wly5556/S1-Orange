@@ -151,7 +151,7 @@ export struct PreferencePage {
               }.attributeModifier(this.settingRow)
               .enabled(!this.darkModeFollowSys)
               .opacity(this.darkModeFollowSys ? 0.6 : 1)
-              .animation({ duration: AniSpeed.ms100 })
+              .animation({ duration: AniSpeed.ms120 })
 
               SettingDivider()
               Row() {
@@ -219,25 +219,27 @@ export struct PreferencePage {
                 })
               }.attributeModifier(this.settingRow)
 
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('动画时长调节')
-                  Text(`调节部分动画的过渡时长，越高倍数则动画越缓慢。设为0倍将同时关闭系统默认提供的页面转场动画。需要重新进入使得配置完全生效\n当前：${this.aniSpeedRatio >
-                    0 ? this.aniSpeedRatio.toPrecision(3) + 'x' : '关闭动画'}`)
-                    .attributeModifier(this.textSecondary)
-                }.SettingColumn()
-              }.attributeModifier(this.settingRow)
-
-              Row() {
-                Slider({
-                  value: this.aniSpeedRatio,
-                  min: 0,
-                  step: 0.05,
-                  max: 3
-                }).onChange(v => this.setAniSpeedRatio(v)).flexShrink(1)
-                Button('重置').buttonStyle(ButtonStyleMode.TEXTUAL)
-                  .onClick(() => this.setAniSpeedRatio(1))
-              }.width('100%')
+              FoldMenu({
+                title: '动画时长调整'
+              }) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    Text(`调节部分动画的过渡时长，越高倍数则动画越缓慢。设为0倍将同时关闭系统默认提供的页面转场动画。需要重新进入使得配置完全生效\n当前：${this.aniSpeedRatio >
+                      0 ? this.aniSpeedRatio.toPrecision(3) + 'x' : '关闭动画'}`)
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+                Row() {
+                  Slider({
+                    value: this.aniSpeedRatio,
+                    min: 0,
+                    step: 0.05,
+                    max: 3
+                  }).onChange(v => this.setAniSpeedRatio(v)).flexShrink(1)
+                  Button('重置').buttonStyle(ButtonStyleMode.NORMAL)
+                    .onClick(() => this.setAniSpeedRatio(1))
+                }.width('100%')
+              }
 
               FoldMenu({
                 title: '调整间距'

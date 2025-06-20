@@ -81,9 +81,9 @@ export function ColorGridPicker(param: ColorGridPickerParam) {
             .maxLines(1)
             .fontSize(FontSizeEnum[param.appState.fontSize].vp16)
             .fontWeight(index == param.selected ? FontWeight.Bold : FontWeight.Regular)
-            .animation({ duration: AniSpeed.ms100 })
+            .animation({ duration: AniSpeed.ms120 })
             .fontColor(index == param.selected ? $r('sys.color.font_emphasize') : undefined)
-            .animation({ duration: AniSpeed.ms100 })
+            .animation({ duration: AniSpeed.ms120 })
           Blank()
           Row()
             .height(32)
@@ -96,7 +96,7 @@ export function ColorGridPicker(param: ColorGridPickerParam) {
         .borderRadius(12)
         .backgroundColor(index == param.selected ? param.selectedColor :
         param.backgroundColor)
-        .animation({ duration: AniSpeed.ms100 })
+        .animation({ duration: AniSpeed.ms120 })
         .padding({ left: 12, right: 12 })
         .onClick(() => param.onChange(index))
       }

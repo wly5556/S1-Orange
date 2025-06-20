@@ -1,6 +1,6 @@
 import { URL } from '../../api/base';
 import request from '../../api/request';
-import { AniSpeed, Spring035s } from '../Animation';
+import { AniSpeed, SpringCurve } from '../Animation';
 import { AppThemeColor } from '../theme/basic/basic';
 import { BottomSafeArea } from './BottomSafeArea';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
@@ -192,7 +192,7 @@ export struct ReplyImagePicker {
                               .width(48)
                               .height(48)
                               .color($r('sys.color.ohos_id_color_emphasize'))
-                              .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+                              .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
                           } else {
                             Stack() {
                               Image($r('app.media.plus'))
@@ -209,7 +209,7 @@ export struct ReplyImagePicker {
                             .onClick(e => {
                               this.deleteImage(image.id, upIndex).then((confirm) => {
                                 if (confirm) {
-                                  animateTo(Spring035s, () => {
+                                  animateTo(SpringCurve, () => {
                                     this.imageList.splice(index, 1)
                                   })
                                 }
@@ -222,7 +222,7 @@ export struct ReplyImagePicker {
                             })
                             .geometryTransition('attachment' + image.id, { follow: true })
                             .opacity(this.imgLoaded[image.id] ? 1 : 0)
-                            .animation({ duration: AniSpeed.ms100 })
+                            .animation({ duration: AniSpeed.ms120 })
                             .objectFit(ImageFit.Contain)
                             .width('100%')
                             .height('100%')

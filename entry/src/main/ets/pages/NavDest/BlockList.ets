@@ -16,7 +16,7 @@ import {
 import { Avatar } from '../../common/component/Avatar'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { openUserSpace, UserSpaceParam } from './UserSpace'
-import { Spring035s } from '../../common/Animation'
+import { SpringCurve } from '../../common/Animation'
 import {
   BlockKeyword,
   blockKeywordInfo,
@@ -56,7 +56,7 @@ export struct BlockListPage {
   }
 
   reloadBlockUsers() {
-    animateTo(Spring035s, () => {
+    animateTo(SpringCurve, () => {
       this.dataSourceBlockUser.reload(Object.values(blockUserList).sort((a, b) => b.date - a.date))
       this.blockUserListLen = this.dataSourceBlockUser.totalCount()
       this.remoteSyncAt = new Date(blockUserListSyncAt)
@@ -65,7 +65,7 @@ export struct BlockListPage {
   }
 
   reloadBlockKws() {
-    animateTo(Spring035s, () => {
+    animateTo(SpringCurve, () => {
       this.blockKwList = blockKeywordInfo
       this.nowDate = new Date()
     })
@@ -102,7 +102,7 @@ export struct BlockListPage {
                     Text(this.syncTipShow ? '收起说明 <' : '查看说明 >')
                   }.alignSelf(ItemAlign.Start)
                   .onClick(e => {
-                    animateTo(Spring035s, () => {
+                    animateTo(SpringCurve, () => {
                       this.syncTipShow = !this.syncTipShow
                     })
                   })

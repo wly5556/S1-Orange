@@ -9,7 +9,7 @@ import {
   PollPopData,
   VotedUser
 } from '../../pages/NavDest/PollDetail'
-import { Spring035s } from '../Animation'
+import { SpringCurve } from '../Animation'
 import { AppThemeColor } from '../theme/basic/basic'
 import wrapper from '../../api/wrapper'
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
@@ -190,7 +190,7 @@ function RadioButton(selected: boolean) {
         .fill($r('sys.color.ohos_id_color_emphasize'))
         .transition(TransitionEffect.opacity(0.8).combine(TransitionEffect.scale({
           x: 0.8, y: 0.8
-        }).animation(Spring035s)))
+        }).animation(SpringCurve)))
     }
   }
   .width(16)

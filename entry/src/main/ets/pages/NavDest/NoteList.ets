@@ -12,7 +12,7 @@ import wrapper from '../../api/wrapper'
 import { URL } from '../../api/base'
 import { PreferenceManager } from '../../config/UserConfig'
 import { ErrorTips } from '../../common/component/ErrorTips'
-import { Spring035s } from '../../common/Animation'
+import { SpringCurve } from '../../common/Animation'
 import { MyNote } from '../../api/model/note'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { Avatar } from '../../common/component/Avatar'
@@ -155,7 +155,7 @@ struct SingleNotePage {
       .get()
       .then(v => {
         if (v.Variables && v.Variables.list != null && v.Variables.count != null && v.Variables.perpage != null) {
-          animateTo(Spring035s, () => {
+          animateTo(SpringCurve, () => {
             this.totalPage = Math.ceil(parseInt(v.Variables.count!) / parseInt(v.Variables.perpage!))
             this.noteItem = v.Variables.list!.map(note => {
               const item = extractNoteItem(note.note)

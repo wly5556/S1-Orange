@@ -147,7 +147,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
   }.margin({ top: 20 })
   .geometryTransition(data.transitionIndex, { follow: true })
   .alignSelf(ItemAlign.End)
-  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms100 }))
+  .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
 }
 
 @Extend(Text)

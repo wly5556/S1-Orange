@@ -14,7 +14,7 @@ import { FavList } from '../../api/model/favlist'
 import { URL } from '../../api/base'
 import { PreferenceManager } from '../../config/UserConfig'
 import { ErrorTips } from '../../common/component/ErrorTips'
-import { Spring035s } from '../../common/Animation'
+import { SpringCurve } from '../../common/Animation'
 import Account from '../../api/model/account'
 import { LongPressDelete } from '../../common/component/LongPressDelete'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -133,7 +133,7 @@ struct SingleFavPage {
 
   processFavList(v: wrapper<FavList>) {
     if (v.Variables.list != null && v.Variables.count != null && v.Variables.perpage != null) {
-      animateTo(Spring035s, () => {
+      animateTo(SpringCurve, () => {
         this.totalPage = Math.ceil(parseInt(v.Variables.count!) / parseInt(v.Variables.perpage!))
         this.favItem = v.Variables.list!.map(fav => ({
           favid: fav.favid,

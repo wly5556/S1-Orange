@@ -1,5 +1,5 @@
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
-import { Spring035s } from '../Animation'
+import { SpringCurve } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 
 const DELETE_AREA_WIDTH = 70
@@ -56,7 +56,7 @@ export struct LongPressDelete {
       x: this.deleteButtonShow ? -DELETE_AREA_WIDTH : 0
     })
     .width(`calc(100% + ${DELETE_AREA_WIDTH}vp)`)
-    .animation(Spring035s)
+    .animation(SpringCurve)
     .clickEffect({ level: ClickEffectLevel.HEAVY })
     .onClick(e => {
       if (this.deleteButtonShow) {
