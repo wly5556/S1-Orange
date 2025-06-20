@@ -33,6 +33,7 @@ import { FoldMenu } from '../../common/component/FoldMenu'
 import BuildProfile from 'BuildProfile'
 import { LengthUnit } from '@ohos.arkui.node'
 import { clearSmilyImageCache } from '../../common/dataStore/SmilyCache'
+import { SliderReset } from '../../common/component/SliderReset'
 
 export interface PreferenceParam {}
 
@@ -71,14 +72,6 @@ export struct PreferencePage {
   appStateChanged() {
     this.settingRow = new SettingRow(FontSizeEnum[this.appState.fontSize])
     this.textSecondary = new TextSecondary(this.appState.fontSize)
-  }
-
-  setAniSpeedRatio(ratio: number) {
-    PreferenceManager.modify(conf => {
-      conf.ani_speed_ratio = ratio
-      this.aniSpeedRatio = ratio
-      AnimationSetUp(ratio)
-    })
   }
 
   @LocalBuilder
@@ -229,16 +222,20 @@ export struct PreferencePage {
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
-                Row() {
-                  Slider({
-                    value: this.aniSpeedRatio,
-                    min: 0,
-                    step: 0.05,
-                    max: 3
-                  }).onChange(v => this.setAniSpeedRatio(v)).flexShrink(1)
-                  Button('重置').buttonStyle(ButtonStyleMode.NORMAL)
-                    .onClick(() => this.setAniSpeedRatio(1))
-                }.width('100%')
+                SliderReset({
+                  value: this.aniSpeedRatio,
+                  min: 0,
+                  step: 0.05,
+                  max: 3,
+                  resetValue: 1,
+                  onChange: ratio => {
+                    PreferenceManager.modify(conf => {
+                      conf.ani_speed_ratio = ratio
+                      this.aniSpeedRatio = ratio
+                      AnimationSetUp(ratio)
+                    })
+                  }
+                })
               }
 
               FoldMenu({
@@ -247,40 +244,42 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('主题帖间距')
-                    Text(`调整主题帖页、收藏页、历史页，每条主题帖之间的空白大小。\n默认: ${defaultApplicationConfig.thread_item_gap}单位`)
+                    Text(`调整主题帖页、收藏页、历史页，每条主题帖之间的空白大小。\n当前: ${this.appState.threadItemGap}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
-
-                Slider({
+                SliderReset({
                   value: this.appState.threadItemGap,
                   min: 0,
-                  max: defaultApplicationConfig.thread_item_gap * 2
-                }).onChange(v => {
-                  PreferenceManager.modify(conf => {
-                    conf.thread_item_gap = v
-                    this.appState.threadItemGap = v
-                  })
-                }).showTips(true, this.appState.threadItemGap.toString())
+                  max: defaultApplicationConfig.thread_item_gap * 2,
+                  resetValue: defaultApplicationConfig.thread_item_gap,
+                  onChange: v => {
+                    PreferenceManager.modify(conf => {
+                      conf.thread_item_gap = v
+                      this.appState.threadItemGap = v
+                    })
+                  }
+                })
                 Divider()
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('内容文字间距')
-                    Text(`调整主题帖标题、内容的两行之间空白大小。\n默认: ${defaultApplicationConfig.content_line_space}单位`)
+                    Text(`调整主题帖标题、内容的两行之间空白大小。\n当前: ${this.appState.contentLineSpace}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
-
-                Slider({
+                SliderReset({
                   value: this.appState.contentLineSpace,
                   min: 0,
-                  max: defaultApplicationConfig.content_line_space * 3
-                }).onChange(v => {
-                  PreferenceManager.modify(conf => {
-                    conf.content_line_space = v
-                    this.appState.contentLineSpace = v
-                  })
-                }).showTips(true, this.appState.contentLineSpace.toString())
+                  max: defaultApplicationConfig.content_line_space * 3,
+                  resetValue: defaultApplicationConfig.content_line_space,
+                  onChange: v => {
+                    PreferenceManager.modify(conf => {
+                      conf.content_line_space = v
+                      this.appState.contentLineSpace = v
+                    })
+                  }
+                })
                 Text(`内容文字间距示例文本：欢迎使用${this.context.resourceManager.getStringSync($r('app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .lineSpacing({
@@ -397,6 +396,7 @@ export struct PreferencePage {
 
                 Button('清空')
                   .buttonStyle(ButtonStyleMode.NORMAL)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .enabled(this.imageCacheUsage > 0)
                   .opacity(this.imageCacheUsage > 0 ? 1 : 0.7)
                   .onClick(() => {
@@ -442,6 +442,7 @@ export struct PreferencePage {
 
                 if (this.apiCacheUsage) {
                   Button('清空')
+                    .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                     .buttonStyle(ButtonStyleMode.NORMAL)
                     .enabled(this.apiCacheUsage.count > 0)
                     .opacity(this.apiCacheUsage.count > 0 ? 1 : 0.7)
