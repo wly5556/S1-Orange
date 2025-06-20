@@ -82,6 +82,7 @@ export struct PollPanel {
       pollInfo: this.pollInfo,
       transitionIndex: this.compTransitionId,
       expired: this.pollInfo.expirations * 1000 < Date.now(),
+      allowVote: this.pollInfo.allowvote == SpecialPollAllowVote.ALLOW,
       onSelected: (index: number, e: ClickEvent) => {
         const temp = JSON.parse(JSON.stringify(this.pollList)) as PollOptionVM[]
         if (this.pollInfo.allowvote == SpecialPollAllowVote.ALLOW) {
@@ -102,7 +103,7 @@ export interface PollPanelCompData {
   transitionIndex: string
   showVotedUser?: boolean
   onSelected: (index: number, e: ClickEvent) => void
-  voteAlready?: boolean
+  allowVote: boolean
   expired: boolean
 }
 
@@ -127,7 +128,7 @@ export function PollPanelComp(data: PollPanelCompData) {
     ForEach(data.pollList, (item: PollOptionVM, index: number) => {
       Column({ space: 8 }) {
         Row() {
-          if (!data.voteAlready && !data.expired) {
+          if (data.allowVote && !data.expired) {
             if (data.pollInfo.maxchoices == 1) {
               Stack() {
                 RadioButton(item.selected)

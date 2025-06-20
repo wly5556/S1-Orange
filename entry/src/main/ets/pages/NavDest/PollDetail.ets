@@ -4,7 +4,7 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
-import { Spring035s } from '../../common/Animation'
+import { AniSpeed, Spring035s } from '../../common/Animation'
 import request from '../../api/request'
 import { URL } from '../../api/base'
 import { PollInfoVM, PollOptionVM, PollPanelComp } from '../../common/component/PollPanel'
@@ -116,7 +116,7 @@ export struct PollDetail {
       if (!pollDesc.success) {
         return
       }
-      animateTo({ curve: curves.springMotion(0.15) }, () => {
+      animateTo({ curve: curves.springMotion(AniSpeed.ratio * 0.2) }, () => {
         this.voteOvert = pollDesc.data.overt == 1
         this.voteAlready = pollDesc.data.voted
       })
@@ -257,7 +257,7 @@ export struct PollDetail {
                     this.multiSelected = newSelected
                   })
                 },
-                voteAlready: this.voteAlready
+                allowVote: !this.voteAlready && !(this.pageParam.pollInfo.allowvote == SpecialPollAllowVote.FORBIDDEN)
               })
             }
           }.flexGrow(1)
@@ -324,7 +324,7 @@ export struct PollDetail {
                 .backgroundColor(this.appTheme.backgroundTertiary)
                 .enabled(this.multiSelected.length > 0)
                 .opacity(this.multiSelected.length > 0 ? 1 : 0.6)
-                .margin({ top: 6 })
+                .margin({ top: 6, bottom: 6 })
                 .onClick(e => {
                   new request<wrapper<Account>>(URL.VOTE_ACTION, URL.WEB_BASE)
                     .formHash()
