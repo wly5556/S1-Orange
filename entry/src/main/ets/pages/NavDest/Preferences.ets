@@ -9,8 +9,7 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PreferenceManager } from '../../config/UserConfig'
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { PreferenceState } from '../NavProvider/NavigationPage'
-import { FontSizePref } from '../../common/component/preference/FontSizePref'
-import { FontSize, FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { FontSize, FontSizeEnum, FontSizeSetup } from '../../common/fontSize/FontSizeEnum'
 import {
   ContentFontSizeOverridePref,
   FontOverrideModeDesc
@@ -166,7 +165,21 @@ export struct PreferencePage {
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('字体大小')
-                  FontSizePref()
+                  Text(`当前：${this.appState.fontSize}单位`).attributeModifier(this.textSecondary)
+                  SliderReset({
+                    value: this.appState.fontSize,
+                    resetValue: defaultApplicationConfig.font_size,
+                    min: 8,
+                    max: 24,
+                    step: 1,
+                    onChange: fontSize => {
+                      FontSizeSetup(fontSize)
+                      PreferenceManager.modify(conf => {
+                        conf.font_size = fontSize
+                        this.appState.fontSize = fontSize
+                      })
+                    }
+                  })
                 }.SettingColumn()
               }.attributeModifier(this.settingRow)
 

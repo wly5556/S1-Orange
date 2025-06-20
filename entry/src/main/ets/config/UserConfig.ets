@@ -1,6 +1,7 @@
 import { preferences } from '@kit.ArkData';
 import { clearApiCache } from '../common/dataStore/ApiCacheData';
-import { ApplicationConfig } from './v1/default';
+import { FontSizeSetup } from '../common/fontSize/FontSizeEnum';
+import { ApplicationConfig, FontSizeIndex } from './v1/default';
 
 /**
  * Proxy包装@kit.ArkData.preferences来简化使用
@@ -23,20 +24,45 @@ export class PreferencesWrapper implements ProxyHandler<ApplicationConfig> {
   async init(context: Context) {
     const pref = await preferences.getPreferences(context, { name: 'UserPreference' })
     this.preferences = pref
-    const currentVersion = await this.preferences.get('version', '')
-    const targetVersion = '2'
+    let currentVersion = await this.preferences.get('version', '')
+    const targetVersion = '3'
     if (currentVersion === '') {
       await this.preferences.put('version', targetVersion)
       await this.preferences.flush()
     } else {
-      if (currentVersion === '1' && targetVersion === '2') {
-        // 2025/4/16 版本1.3.0：论坛域名更换，需要将api缓存失效。
-        clearApiCache()
-        await this.preferences.put('version', targetVersion)
-        await this.preferences.flush()
-      }
       let storedConfig = await this.preferences.getAll() as ApplicationConfig
       Object.keys(storedConfig).forEach(k => Reflect.set(this.config, k, Reflect.get(storedConfig, k)))
+      if (currentVersion != targetVersion) {
+        if (currentVersion === '1') {
+          // 2025/4/16 版本1.3.0：论坛域名更换，需要将api缓存失效。
+          clearApiCache()
+          currentVersion = '2'
+        }
+        if (currentVersion === '2') {
+          // 2025/6/20 字体大小从枚举改为直接按倍率缩放
+          switch (storedConfig.font_size as FontSizeIndex) {
+            case FontSizeIndex.xs:
+              this.config.font_size = 12
+              break
+            case FontSizeIndex.small:
+              this.config.font_size = 14
+              break
+            case FontSizeIndex.medium:
+              this.config.font_size = 16
+              break
+            case FontSizeIndex.large:
+              this.config.font_size = 20
+              break
+            case FontSizeIndex.xl:
+              this.config.font_size = 24
+              break
+          }
+          FontSizeSetup(this.config.font_size)
+          await this.preferences.put('font_size', this.config.font_size)
+          await this.preferences.flush()
+          currentVersion = '3'
+        }
+      }
     }
 
     this.proxy = new Proxy(this.config, this)

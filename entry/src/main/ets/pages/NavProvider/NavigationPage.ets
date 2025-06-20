@@ -50,7 +50,7 @@ export interface PreferenceState {
   textCopyable: boolean
   postAlphabetIndexer: boolean
   showCredit: boolean
-  fontSize: FontSizeIndex
+  fontSize: number
   fontSizeOverride: FontSizeOverride
   hiddenPostDisplay: HiddenPostDisplay
   splitMode: boolean

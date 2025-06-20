@@ -22,6 +22,9 @@ export enum ThemeIndex {
   purple = 5
 }
 
+/**
+ * @deprecated 换成按倍率缩放
+ */
 export enum FontSizeIndex {
   xs = 0,
   small = 1,
@@ -48,7 +51,7 @@ export interface UserAccount {
 }
 
 export class ApplicationConfig {
-  version = '1'
+  version = '3'
   account_list: Record<string, UserAccount> = {}
   user_name: string = ''
   user_uid: string = ''
@@ -62,7 +65,7 @@ export class ApplicationConfig {
   show_top_thread: boolean = true
   readaccess: number = 0
   show_credit: boolean = false
-  font_size: FontSizeIndex = FontSizeIndex.medium
+  font_size: number = 16
   font_size_override: FontSizeOverride = FontSizeOverride.none
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
