@@ -431,8 +431,20 @@ struct SinglePostPage {
   pullUpStartOffset: number = 0
   pullUpLoadingTs: number = 0
 
-  generateSinglePageKey() {
+  generateDataFetchKey() {
     return `${this.pageToLoad},${this.dataControlCounter}`
+  }
+
+  generateUniquePageKey() {
+    return `${this.pageToLoad},${this.dataControlCounter},${this.pageParam.jumpToPid},${this.pageParam.authorid}`
+  }
+
+  generateAvatarTransKey(compIndex: number) {
+    return compIndex.toString() + ',' + this.generateUniquePageKey()
+  }
+
+  generatePostRatingTransitionId(pid: string) {
+    return `PostRating${pid},${this.generateUniquePageKey()}`
   }
 
   pageLoadedKey: string = ''
@@ -578,7 +590,8 @@ struct SinglePostPage {
     })
 
     this.updatePostDatetime()
-    rawPostList.forEach((p, i) => {
+    for (let i = 0; i < rawPostList.length; i++) {
+      const p = rawPostList[i]
       this.pidMap[i] = p.pid.toString()
       if (this.jumpToPost == p.pid.toString()) {
         if (this.pageParam.jumpToPidWithHighlight) {
@@ -595,7 +608,7 @@ struct SinglePostPage {
           this.jumpToPost = ''
         }, 10)
       }
-    })
+    }
 
     const lastUpdatePostCount = this.postDataSource.totalCount()
     if (this.postDataSource.totalCount() == 0) {
@@ -604,7 +617,7 @@ struct SinglePostPage {
       this.postDataSource.reload(postArray)
     }
     this.loadingFinish()
-    this.pageLoadedKey = this.generateSinglePageKey()
+    this.pageLoadedKey = this.generateDataFetchKey()
     if (lastUpdatePostCount > 0 && postArray.length > lastUpdatePostCount) {
       setTimeout(() => {
         this.scroller.scrollBy(0, this.showBottomLoading * BOTTOM_LOADING_AREA)
@@ -620,7 +633,7 @@ struct SinglePostPage {
   }
 
   requestPostData() {
-    if (this.generateSinglePageKey() == this.pageLoadedKey) {
+    if (this.generateDataFetchKey() == this.pageLoadedKey) {
       return
     }
     this.loadingBegin()
@@ -750,8 +763,7 @@ struct SinglePostPage {
           Row({ space: 12 }) {
             Avatar({
               uid: post.uid,
-              transitionIndex: compIndex.toString() + ',' + this.pageToLoad +
-              genThreadPostViewKey(this.pageParam),
+              transitionIndex: this.generateAvatarTransKey(compIndex),
               avatarSize: 20
             })
             Text(post.username)
@@ -760,8 +772,7 @@ struct SinglePostPage {
             const userSpaceParam: UserSpaceParam = {
               uid: post.uid,
               username: post.username,
-              avatarTransitionIndex: compIndex.toString() + ',' + this.pageToLoad +
-              genThreadPostViewKey(this.pageParam)
+              avatarTransitionIndex: this.generateAvatarTransKey(compIndex)
             }
             openUserSpace(userSpaceParam, this.pathStack)
           })
@@ -783,13 +794,12 @@ struct SinglePostPage {
           Avatar({
             uid: post.uid,
             avatarSize: FontSizeEnum[this.appState.fontSize].vp40,
-            transitionIndex: compIndex.toString() + ',' + this.pageToLoad + genThreadPostViewKey(this.pageParam)
+            transitionIndex: this.generateAvatarTransKey(compIndex)
           }).onClick(() => {
             const userSpaceParam: UserSpaceParam = {
               uid: post.uid,
               username: post.username,
-              avatarTransitionIndex: compIndex.toString() + ',' + this.pageToLoad +
-              genThreadPostViewKey(this.pageParam)
+              avatarTransitionIndex: this.generateAvatarTransKey(compIndex)
             }
             openUserSpace(userSpaceParam, this.pathStack)
           }).bindContextMenu(this.blockUserButton(post.uid, post.username), ResponseType.LongPress)
@@ -879,8 +889,7 @@ struct SinglePostPage {
                     userCount: 0,
                     totalRating: 0,
                     showPanel: true,
-                    transitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
-                      this.generateSinglePageKey()),
+                    transitionId: this.generatePostRatingTransitionId(post.pid),
                     reload: true
                   }
                   openPostRatingDetail(this.pathStack, param, () => {
@@ -942,7 +951,7 @@ struct SinglePostPage {
             pollList: this.pollList,
             pollInfo: this.pollInfo,
             tid: this.pageParam.tid,
-            compTransitionId: 'Vote' + this.generateSinglePageKey() + this.pageParam.tid
+            compTransitionId: 'Vote' + this.generateUniquePageKey()
           })
         }
 
@@ -984,8 +993,7 @@ struct SinglePostPage {
           PostRating({
             pid: post.pid,
             tid: this.pageParam.tid,
-            compTransitionId: generatePostRatingTransitionId(post.pid, this.pageToLoad,
-              this.generateSinglePageKey())
+            compTransitionId: this.generatePostRatingTransitionId(post.pid)
           })
         }
       }
@@ -1202,8 +1210,4 @@ export function openThreadPostByLink(href: string,
 
 function generateS1WebPostLink(tid: string, page: number) {
   return `${URL.WEB_BASE}thread-${tid}-${page}-1.html`
-}
-
-function generatePostRatingTransitionId(pid: string, page: number, pageId: string) {
-  return 'PostRating' + pid + pageId + page
 }
