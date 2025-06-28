@@ -512,7 +512,7 @@ struct SinglePostPage {
             this.indexerFloorCompIndex[this.indexerFloorNum.length] = i
             this.indexerFloorNum.push(floorNum.toString())
           }
-          if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position) { // 置顶楼层
+          if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position && this.pageParam.authorid === undefined) { // 置顶楼层
             this.postFloorNumber.set(PinnedPostFloorIndex, p.position + '(置顶)')
             const parsed = parseXML([p])
             if (parsed.length > 0) {
