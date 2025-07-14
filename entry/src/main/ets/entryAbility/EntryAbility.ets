@@ -64,6 +64,8 @@ export default class EntryAbility extends UIAbility {
             AppStorage.setOrCreate(SafeArea.top, data.area.topRect.height)
           } else if (data.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
             AppStorage.setOrCreate(SafeArea.bottom, data.area.bottomRect.height)
+          } else if (data.type == window.AvoidAreaType.TYPE_KEYBOARD) {
+            AppStorage.setOrCreate(SafeArea.keyboard, data.area.bottomRect.height)
           }
         })
       }).catch((err: BusinessError) => {

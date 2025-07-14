@@ -1,6 +1,7 @@
 export enum SafeArea {
   top = 'SafeAreaTop',
-  bottom = 'SafeAreaBottom'
+  bottom = 'SafeAreaBottom', // 整个底部的避让区高度
+  keyboard = 'SafeAreaKeyboard' // 仅包含软键盘部分的避让高度
 }
 
 export enum PropKey {
