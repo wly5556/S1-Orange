@@ -97,11 +97,8 @@ export struct ReplyImagePicker {
     PreferenceManager.modify(conf => {
       conf.image_upload_service = index
     })
-    if (this.uploaders[index].inited) {
-      return
-    }
     if (this.getWriteHandler) {
-      this.uploaders[index].init(this.getWriteHandler(), this.currentMode).then(state => {
+      this.uploaders[index].getState(this.getWriteHandler(), this.currentMode).then(state => {
         this.uploaderState[index] = state
         this.unusedImage.set(index, state.unused)
         if (state.using) {
@@ -369,7 +366,7 @@ function extractAttachUrl(html: string) {
 }
 
 abstract class Uploader {
-  inited: boolean = false
+  private state?: UploaderState
 
   getMime(buf: ArrayBuffer) {
     const uint8Array = new Uint8Array(buf.slice(0, 4))
@@ -407,9 +404,16 @@ abstract class Uploader {
     return split.length > 1 ? split[1] : ''
   }
 
+  async getState(writeHandler: WriteHandler, mode: WriteReplyMode) {
+    if (this.state == undefined) {
+      this.state = await this.init(writeHandler, mode)
+    }
+    return this.state!
+  }
+
   abstract sizeLimitMB(): number
 
-  abstract init(writeHandler: WriteHandler, mode: WriteReplyMode): Promise<UploaderState>
+  protected abstract init(writeHandler: WriteHandler, mode: WriteReplyMode): Promise<UploaderState>
 
   abstract idToUrl(id: string): Promise<string>
 
@@ -439,37 +443,31 @@ class AttachmentUploader extends Uploader {
     return `[attachimg]${id}[/attachimg]`
   }
 
-  override async init(writeHandler: WriteHandler, mode: WriteReplyMode) {
+  override async init(writeHandler: WriteHandler, mode: WriteReplyMode): Promise<UploaderState> {
     if (mode == WriteReplyMode.NEW_PM) {
-      const state: UploaderState = {
+      return {
         available: false,
         errorMsg: '不能在私信里发送附件图片，请使用其它图床',
         unused: []
       }
-      this.inited = true
-      return state
     }
     let html = await writeHandler.getWebpage()
     const info = extractReplyPageInfo(html)
     if (info.uid == null || info.hash == null) {
       const msg = html.match(/errorhandle_\('([\s\S]*?)'/)
-      const state: UploaderState = {
+      return {
         available: false,
         errorMsg: (msg && msg[1]) || '该帖子不允许添加附件图片',
         unused: []
       }
-      this.inited = true
-      return state
     }
     this.pageInfo = info
     this.sizeLimit = info.attachSizeLimit ? parseInt(info.attachSizeLimit) : 4
-    const state: UploaderState = {
+    return {
       available: true,
       unused: info.unusedImage,
       using: Array.from(info.usingImage.keys())
     }
-    this.inited = true
-    return state
   }
 
   override async idToUrl(id: string): Promise<string> {
@@ -524,6 +522,7 @@ class AttachmentUploader extends Uploader {
         .formHash()
         .toText()
         .get()
+      removeText(`[attachimg]${id}[/attachimg]`)
       return true
     }
   }
@@ -582,13 +581,11 @@ class RipUploader extends Uploader {
     return `[img]${this.imgs.get(id)!.url}[/img]`
   }
 
-  override async init(_: WriteHandler) {
-    const state: UploaderState = {
+  override async init(_: WriteHandler): Promise<UploaderState> {
+    return {
       available: true,
       unused: []
     }
-    this.inited = true
-    return state
   }
 
   override async idToUrl(id: string): Promise<string> {

@@ -2,7 +2,7 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
-import { LengthUnit, promptAction, window } from '@kit.ArkUI'
+import { LengthUnit, promptAction, KeyboardAvoidMode, window } from '@kit.ArkUI'
 import { TitleBar } from '../../common/component/TitleBar'
 import request from '../../api/request'
 import { URL } from '../../api/base'
@@ -118,8 +118,8 @@ export struct WriteReply {
   writeHandler: WriteHandler = new EmptyWriteHandler()
   @State threadTypeList: ThreadType[] = []
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
-  @State keyboardAvoidHeight: number = 0
-  @State keyboardHeight: number = 350
+  @State keyboardHeight: number = 0
+  @State keyboardExpendHeight: number = 350
   @State showTools: boolean = false
   @StorageProp(PropKey.userId) @Watch('loadUser') uid?: string = undefined
   @State quote?: Quote = undefined
@@ -129,11 +129,15 @@ export struct WriteReply {
   popData: WriteReplyPopData = {
     replied: false
   }
-  cursorRePos?: number = undefined
+  caretRePos?: number = undefined
   controller: TextAreaController = new TextAreaController()
   toolPanelController: SwiperController = new SwiperController()
   lastRequestReply: number = 0
   popped: boolean = false
+  selectionStart: number = 0
+  selectionEnd: number = 0
+  selectionStartRePos?: number = undefined
+  selectionEndRePos?: number = undefined
 
   popBack() {
     if (!this.popped) {
@@ -143,22 +147,19 @@ export struct WriteReply {
   }
 
   aboutToAppear(): void {
+    this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE)
     window.getLastWindow(getContext(this)).then(currentWindow => {
       currentWindow.on('keyboardHeightChange', (data: number) => {
-        if (data != 0) {
-          this.keyboardHeight = px2vp(data)
+        this.keyboardHeight = px2vp(data)
+        if (this.keyboardHeight > 0) {
+          this.keyboardExpendHeight = this.keyboardHeight
         }
-      })
-      currentWindow.on('avoidAreaChange', data => {
-        if (data.type !== window.AvoidAreaType.TYPE_KEYBOARD) {
-          return
-        }
-        this.keyboardAvoidHeight = px2vp(data.area.bottomRect.height)
       })
     })
   }
 
   aboutToDisappear(): void {
+    this.getUIContext().setKeyboardAvoidMode(KeyboardAvoidMode.OFFSET)
     if (!this.popData.replied) {
       if (!this.fieldToInput.equalsTo(this.initialFieldToInput)) {
         if (this.fieldToInput.equalsTo(new FieldToInput())) {
@@ -187,17 +188,35 @@ export struct WriteReply {
   }
 
   insertText(text: string) {
-    const cursor = this.controller.getCaretOffset().index
+    const selectionStart = this.selectionStart
+    const selectionEnd = this.selectionEnd
     this.fieldToInput.content =
-      this.fieldToInput.content.slice(0, cursor) + text + this.fieldToInput.content.slice(cursor)
-    this.cursorRePos = cursor + text.length
+      this.fieldToInput.content.slice(0, selectionStart)
+        + text
+        + this.fieldToInput.content.slice(selectionEnd)
+    if (selectionStart != selectionEnd) {
+      this.selectionStartRePos = this.selectionStart
+      this.selectionEndRePos = this.selectionStart + text.length
+    } else {
+      this.caretRePos = selectionStart + text.length
+    }
   }
 
   wrapText(prefix: string, suffix: string) {
-    const cursor = this.controller.getCaretOffset().index
+    const selectionStart = this.selectionStart
+    const selectionEnd = this.selectionEnd
     this.fieldToInput.content =
-      this.fieldToInput.content.slice(0, cursor) + prefix + suffix + this.fieldToInput.content.slice(cursor)
-    this.cursorRePos = cursor + prefix.length
+      this.fieldToInput.content.slice(0, selectionStart)
+        + prefix
+        + this.fieldToInput.content.slice(selectionStart, selectionEnd)
+        + suffix
+        + this.fieldToInput.content.slice(selectionEnd)
+    if (selectionStart != selectionEnd) {
+      this.selectionStartRePos = selectionStart
+      this.selectionEndRePos = selectionEnd + prefix.length + suffix.length
+    } else {
+      this.caretRePos = selectionStart + prefix.length
+    }
   }
 
   @LocalBuilder
@@ -217,9 +236,12 @@ export struct WriteReply {
     .clickEffect(HeavyClickEffect)
     .padding({ left: 40, right: 40 })
     .onClick(e => {
-      this.toolPanelController.changeIndex(index, this.showTools ? true : false)
-      this.showTools = true
-      this.getUIContext().getFocusController().clearFocus()
+      if (!this.showTools) {
+        this.showTools = true
+        this.toolPanelController.changeIndex(index, false)
+      } else {
+        this.toolPanelController.changeIndex(index, true)
+      }
     })
   }
 
@@ -429,11 +451,26 @@ export struct WriteReply {
               placeholder: '写点内容吧...',
             })
               .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-              .onChange(() => {
-                if (this.cursorRePos) {
-                  this.controller.caretPosition(this.cursorRePos)
-                  this.cursorRePos = undefined
+              .customKeyboard(this.showTools ? this.blankKeyboard() : undefined)
+              .onClick(e => {
+                if (this.showTools) {
+                  this.showTools = false
                 }
+              })
+              .onChange(() => {
+                if (this.caretRePos) {
+                  this.controller.caretPosition(this.caretRePos)
+                  this.caretRePos = undefined
+                }
+                if (this.selectionEndRePos) {
+                  this.controller.setTextSelection(this.selectionStartRePos, this.selectionEndRePos)
+                  this.selectionStartRePos = undefined
+                  this.selectionEndRePos = undefined
+                }
+              })
+              .onTextSelectionChange((start, end) => {
+                this.selectionStart = start
+                this.selectionEnd = end
               })
               .lineSpacing({
                 value: 8,
@@ -445,10 +482,6 @@ export struct WriteReply {
               .backgroundColor('#00000000')
               .padding(0)
               .borderRadius(0)
-              .onFocus(() => {
-                this.showTools = false
-                this.toolPanelController.changeIndex(0)
-              })
           }
         }
         .nestedScroll({
@@ -575,12 +608,12 @@ export struct WriteReply {
             .loop(false)
             .cachedCount(0)
             .indicator(false)
+            .opacity(this.showTools ? 1 : 0)
           }
           .backgroundColor(this.appTheme.backgroundTertiary)
           .expandSafeArea([SafeAreaType.KEYBOARD, SafeAreaType.SYSTEM])
-          .height(Math.max(
-            this.showTools ? this.keyboardHeight : this.keyboardAvoidHeight,
-            px2vp(this.bottomRectHeight)))
+          .height(this.showTools ? this.keyboardExpendHeight : this.keyboardHeight === 0 ? px2vp(this.bottomRectHeight) : 0)
+          .clip(true)
           .animation(SpringCurve)
           .width('100%')
         }
@@ -623,6 +656,12 @@ export struct WriteReply {
     }).bindSheet($$this.fontColorPickerShow, buildFontColorPicker((colorValue) => {
       this.wrapText(`[color=${colorValue}]`, '[color]')
     }), FontColorPickerSheetOption)
+  }
+
+  @Builder
+  blankKeyboard() {
+    // 希望收起系统键盘，但不希望像clearFocus那样失去输入框的焦点
+    // 所以用一个空的键盘替代系统键盘来达成效果
   }
 
   replySucceed(msg: string = '已发表回帖') {
