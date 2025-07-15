@@ -20,3 +20,15 @@ export function extractFileExtension(url: string): string | null {
   const match = url.match(/\.([a-zA-Z0-9]+)(?=[?#]*$)/)
   return match ? match[1] : null
 }
+
+interface TextRangeNonUndefined {
+  start: number,
+  end: number
+}
+
+export function dupTextRange(range?: TextRange): TextRangeNonUndefined {
+  return {
+    start: range?.start || 0,
+    end: range?.end || 0
+  }
+}

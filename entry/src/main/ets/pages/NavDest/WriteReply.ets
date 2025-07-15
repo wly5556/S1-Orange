@@ -25,6 +25,7 @@ import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { PostSignature } from '../../common/PostSignature'
+import { dupTextRange } from '../../common/TextUtil'
 
 export enum WriteReplyMode {
   NEW_THREAD,
@@ -134,10 +135,8 @@ export struct WriteReply {
   toolPanelController: SwiperController = new SwiperController()
   lastRequestReply: number = 0
   popped: boolean = false
-  selectionStart: number = 0
-  selectionEnd: number = 0
-  selectionStartRePos?: number = undefined
-  selectionEndRePos?: number = undefined
+  selection?: TextRange = undefined
+  selectionRePos?: TextRange = undefined
 
   updateKeyboardExpendHeight() {
     if (this.keyboardHeight > 0) {
@@ -185,34 +184,36 @@ export struct WriteReply {
   }
 
   insertText(text: string) {
-    const selectionStart = this.selectionStart
-    const selectionEnd = this.selectionEnd
+    const selection = dupTextRange(this.selection)
     this.fieldToInput.content =
-      this.fieldToInput.content.slice(0, selectionStart)
+      this.fieldToInput.content.slice(0, selection.start)
         + text
-        + this.fieldToInput.content.slice(selectionEnd)
-    if (selectionStart != selectionEnd) {
-      this.selectionStartRePos = this.selectionStart
-      this.selectionEndRePos = this.selectionStart + text.length
+        + this.fieldToInput.content.slice(selection.end)
+    if (selection.start != selection.end) {
+      this.selectionRePos = {
+        start: selection.start,
+        end: selection.start + text.length
+      }
     } else {
-      this.caretRePos = selectionStart + text.length
+      this.caretRePos = selection.start + text.length
     }
   }
 
   wrapText(prefix: string, suffix: string) {
-    const selectionStart = this.selectionStart
-    const selectionEnd = this.selectionEnd
+    const selection = dupTextRange(this.selection)
     this.fieldToInput.content =
-      this.fieldToInput.content.slice(0, selectionStart)
+      this.fieldToInput.content.slice(0, selection.start)
         + prefix
-        + this.fieldToInput.content.slice(selectionStart, selectionEnd)
+        + this.fieldToInput.content.slice(selection.start, selection.end)
         + suffix
-        + this.fieldToInput.content.slice(selectionEnd)
-    if (selectionStart != selectionEnd) {
-      this.selectionStartRePos = selectionStart
-      this.selectionEndRePos = selectionEnd + prefix.length + suffix.length
+        + this.fieldToInput.content.slice(selection.end)
+    if (selection.start != selection.end) {
+      this.selectionRePos = {
+        start: selection.start,
+        end: selection.end + prefix.length + suffix.length
+      }
     } else {
-      this.caretRePos = selectionStart + prefix.length
+      this.caretRePos = selection.start + prefix.length
     }
   }
 
@@ -455,19 +456,19 @@ export struct WriteReply {
                 }
               })
               .onChange(() => {
-                if (this.caretRePos) {
+                if (this.caretRePos !== undefined) {
                   this.controller.caretPosition(this.caretRePos)
                   this.caretRePos = undefined
                 }
-                if (this.selectionEndRePos) {
-                  this.controller.setTextSelection(this.selectionStartRePos, this.selectionEndRePos)
-                  this.selectionStartRePos = undefined
-                  this.selectionEndRePos = undefined
+                if (this.selectionRePos !== undefined) {
+                  this.controller.setTextSelection(this.selectionRePos.start, this.selectionRePos.end)
+                  this.selectionRePos = undefined
                 }
               })
               .onTextSelectionChange((start, end) => {
-                this.selectionStart = start
-                this.selectionEnd = end
+                this.selection = {
+                  start, end
+                }
               })
               .lineSpacing({
                 value: 8,
@@ -609,7 +610,8 @@ export struct WriteReply {
           }
           .backgroundColor(this.appTheme.backgroundTertiary)
           .expandSafeArea([SafeAreaType.KEYBOARD, SafeAreaType.SYSTEM])
-          .height(this.showTools ? px2vp(this.keyboardExpendHeight) : this.keyboardHeight === 0 ? px2vp(this.bottomRectHeight) : px2vp(this.keyboardHeight))
+          .height(this.showTools ? px2vp(this.keyboardExpendHeight) :
+            this.keyboardHeight === 0 ? px2vp(this.bottomRectHeight) : px2vp(this.keyboardHeight))
           .clip(true)
           .animation(SpringCurve)
           .width('100%')
