@@ -1,6 +1,5 @@
 export enum URL {
   DOMAIN = 'stage1st.com',
-  PRIMARY_DOMAIN = 'stage1st.com',
   DOMAIN_APP = 'app.stage1st.com',
   DOMAIN_WEB = 'stage1st.com',
   WEB_BASE = 'https://stage1st.com/2b/',
@@ -51,7 +50,8 @@ export enum URL {
   BLOCKLIST_WEB = 'home.php?mod=space&do=friend&view=blacklist',
   BLOCK_ACTION = 'home.php?mod=spacecp&ac=friend&op=blacklist',
   ATTENDANCE_WEB = 'study_daily_attendance-daily_attendance.html?inajax=1&version=1',
-  ATTACHMENT_DOWNLOAD = 'forum.php?mod=attachment&aid='
+  ATTACHMENT_DOWNLOAD = 'forum.php?mod=attachment&aid=',
+  REPORT_POST = 'misc.php?mod=report&inajax=1'
 }
 
 export const DomainRegex = new RegExp(`^https:\/\/(?:[^\/]*\.)?${URL.DOMAIN.replaceAll('.','\.')}(?:\/.*)?$`)

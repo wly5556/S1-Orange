@@ -19,5 +19,6 @@ export enum PageNameEnum {
   BlockList = "BlockList",
   AboutApp = "AboutApp",
   SplitModeShortcut = "SplitModeShortcut",
-  UserGuide = "UserGuide"
+  UserGuide = "UserGuide",
+  ReportPost = "ReportPost"
 }

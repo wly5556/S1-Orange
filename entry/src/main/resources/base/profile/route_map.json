@@ -89,6 +89,11 @@
       "name": "UserGuide",
       "pageSourceFile": "src/main/ets/pages/NavDest/UserGuide.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "ReportPost",
+      "pageSourceFile": "src/main/ets/pages/NavDest/ReportPost.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

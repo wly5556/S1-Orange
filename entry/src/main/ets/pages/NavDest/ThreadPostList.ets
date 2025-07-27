@@ -26,7 +26,7 @@ import {
   RecordThreadViewHistory
 } from '../../common/dataStore/HistoryData'
 import { ArrayDataSource, ReloadController } from '../../common/BasicDataSource'
-import { openInBrowser, openS1LinkLike } from '../../common/WantUitl'
+import { generateS1WebPostLink, openInBrowser, openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
 import { CopyHyperLink, ShareText } from '../../common/ShareKit'
@@ -57,6 +57,7 @@ import { HiddenPostDisplay } from '../../config/v1/default'
 import { LengthUnit } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { DownloadFile } from '../../api/download'
+import { openReportPost } from './ReportPost'
 
 interface PostViewModel {
   node: UIRootNode[]
@@ -524,7 +525,8 @@ struct SinglePostPage {
             this.indexerFloorCompIndex[this.indexerFloorNum.length] = i
             this.indexerFloorNum.push(floorNum.toString())
           }
-          if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position && this.pageParam.authorid === undefined) { // 置顶楼层
+          if (this.pageToLoad == 1 && floorNum === 2 && p.number != p.position &&
+            this.pageParam.authorid === undefined) { // 置顶楼层
             this.postFloorNumber.set(PinnedPostFloorIndex, p.position + '(置顶)')
             const parsed = parseXML([p])
             if (parsed.length > 0) {
@@ -895,6 +897,17 @@ struct SinglePostPage {
                   openPostRatingDetail(this.pathStack, param, () => {
                   })
                 }
+              },
+              {
+                value: "举报",
+                action: () => {
+                  openReportPost({
+                    tid: this.pageParam.tid,
+                    fid: this.pageParam.fid ?? '',
+                    rid: post.pid,
+                    page: this.pageToLoad
+                  }, this.pathStack)
+                }
               }]
             })
           }.alignItems(HorizontalAlign.Start)
@@ -1206,8 +1219,4 @@ export function openThreadPostByLink(href: string,
     }
     openThreadPost(param, pathStack)
   }, onFailed)
-}
-
-function generateS1WebPostLink(tid: string, page: number) {
-  return `${URL.WEB_BASE}thread-${tid}-${page}-1.html`
 }

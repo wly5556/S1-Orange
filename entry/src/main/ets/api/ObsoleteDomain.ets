@@ -7,7 +7,7 @@ export namespace ObsoleteDomain {
   export function replace(url: string) {
     for (const p of patterns) {
       url = url.replace(p, (match, subdomain: string, path: string) => {
-        return `https://${subdomain || ''}${URL.PRIMARY_DOMAIN}${path || ''}`;
+        return `https://${subdomain || ''}${URL.DOMAIN}${path || ''}`;
       });
     }
     return url
