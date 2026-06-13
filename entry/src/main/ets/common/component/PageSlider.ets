@@ -12,6 +12,7 @@ export struct PageSlider {
   @Consume appTheme: AppThemeColor
   @Consume appState: PreferenceState
   hideTotal: boolean = false
+  clickable: boolean = true
   doJump: (page: number) => void = () => {
   }
   sliderDialog: CustomDialogController = new CustomDialogController({
@@ -40,17 +41,19 @@ export struct PageSlider {
     }
     .height(50)
     .attributeModifier(this.clickEffectModifier)
-    .clickEffect({
+    .clickEffect(this.clickable ? {
       level: ClickEffectLevel.MIDDLE,
       scale: 0.9
-    })
+    } : undefined)
     .constraintSize({
       minWidth: 50
     })
     .borderRadius(10)
     .onClick(e => {
-      this.sliderDialog.open()
+      if (this.clickable) {
+        this.sliderDialog.open()
+      }
     })
-    .enabled(this.totalPage > 1)
+    .enabled(this.clickable && this.totalPage > 1)
   }
 }

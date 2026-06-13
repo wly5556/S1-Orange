@@ -23,7 +23,7 @@ import { themeColorDark } from '../../common/theme/basic/dark'
 import { ThemeColorLight } from '../../common/theme/basic/light'
 import { SetStatusBarColor } from '../../common/theme/SetStatusBarColor'
 import { openS1LinkLike } from '../../common/WantUitl'
-import { defaultApplicationConfig, FontSizeIndex, FontSizeOverride, HiddenPostDisplay } from '../../config/v1/default'
+import { defaultApplicationConfig, FontSizeIndex, FontSizeOverride, HiddenPostDisplay, UpdateCheckInterval } from '../../config/v1/default'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { openSplitModeShortcut } from '../NavDest/SplitModeShortcut'
 import { PageNameEnum } from '../PageNameEnum'
@@ -31,6 +31,7 @@ import { GotoThreadDialog } from '../../common/component/GotoThreadDialog'
 import { openUserGuide } from '../NavDest/UserGuide'
 import { promptAction } from '@kit.ArkUI'
 import { PostSignature } from '../../common/PostSignature'
+import { checkVersionOnStartup } from '../../common/VersionCheck'
 
 enum NavigationProvider {
   ForumGroupView = 'ForumGroupView',
@@ -56,6 +57,7 @@ export interface PreferenceState {
   splitMode: boolean
   threadItemGap: number
   contentLineSpace: number
+  updateCheckInterval: UpdateCheckInterval
 }
 
 @Entry
@@ -76,7 +78,8 @@ struct NavigationPage {
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
     splitMode: defaultApplicationConfig.split_mode,
     threadItemGap: defaultApplicationConfig.thread_item_gap,
-    contentLineSpace: defaultApplicationConfig.content_line_space
+    contentLineSpace: defaultApplicationConfig.content_line_space,
+    updateCheckInterval: defaultApplicationConfig.update_check_interval
   }
   appThemeWhenLightMode: AppThemeColor = new ThemeColorLight()
   @Provide @Watch('updateStatesBarColor') appTheme: AppThemeColor = new ThemeColorLight()
@@ -120,6 +123,7 @@ struct NavigationPage {
       this.appState.splitMode = conf.split_mode
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
+      this.appState.updateCheckInterval = conf.update_check_interval
       AnimationSetUp(conf.ani_speed_ratio)
       PostSignature.init(conf.post_signature,
         this.context.resourceManager.getStringSync($r('app.string.app_name').id),
@@ -143,6 +147,7 @@ struct NavigationPage {
       ImageKnife.getInstance()
         .initFileCache(this.context, 65536, ImageCacheSize[conf.image_cache_size] * 1024 * 1024)
         .then((): void => removeExpiredAvatar())
+      checkVersionOnStartup(this.context)
     })
     this.context.eventHub.on(Event.OpenLoginDialog, () => {
       this.loginDialog.open()

@@ -45,6 +45,15 @@ export enum HiddenPostDisplay {
   visibleWithoutHiddenReason = 2
 }
 
+/**
+ * 应用版本检查的间隔
+ */
+export enum UpdateCheckInterval {
+  monthly = 0,
+  weekly = 1,
+  never = 2
+}
+
 export interface UserAccount {
   name: string
   lastSign: number
@@ -76,6 +85,10 @@ export class ApplicationConfig {
   thread_item_gap: number = 9
   content_line_space: number = 8
   ani_speed_ratio: number = 1
+  update_check_interval: UpdateCheckInterval = UpdateCheckInterval.monthly
+  update_last_check: number = 0
+  update_badge_hash: string = ''
+  update_new_version: boolean = false
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

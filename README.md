@@ -24,7 +24,9 @@
 
 ## 获取更新
 
-目前应用内没有主动获取更新的功能，需要自行从最新源代码构建更新的版本。对于版本号变动，在github releases和[论坛专楼](https://stage1st.com/2b/thread-2244111-1-1.html)内会提供版本说明。
+应用支持启动时自动检查是否有新版本。检测到新版本时会弹窗提醒，“关于”页面可调整检查更新间隔，或关闭自动检查。也可自行从最新源代码构建更新的版本。
+
+对于版本号变动，在github releases和[论坛专楼](https://stage1st.com/2b/thread-2244111-1-1.html)内会提供版本说明。
 
 ## 衍生项目
 [S1-OrangeX](https://github.com/cG77hR/S1-OrangeX): 利用ArkUI-X让本项目跨平台到Android来使用的实验性项目

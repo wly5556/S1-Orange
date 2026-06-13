@@ -5,5 +5,6 @@ export enum Event {
   OpenImageViewer = 'EventOpenImageViewer',
   ReturnToHomePage = "EventReturnToHomePage",
   WantWithUri = "EventWantWithUri",
-  OpenGotoThreadDialog = "EventOpenGotoThreadDialog"
+  OpenGotoThreadDialog = "EventOpenGotoThreadDialog",
+  NewVersionDismissed = "EventNewVersionDismissed"
 }

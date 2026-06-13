@@ -35,9 +35,13 @@ export struct SideMenu {
   @State clickEffectModifier: AttributeModifier<CommonAttribute> = new ClickDarkenEffect()
   @State switchingIntoAccount: string = ''
   @State newReply: number = 0
+  @State hasNewVersion: boolean = false
 
   aboutToAppear(): void {
     this.updateState()
+    this.context.eventHub.on(Event.NewVersionDismissed, () => {
+      this.hasNewVersion = false
+    })
   }
 
   updateState() {
@@ -251,9 +255,15 @@ export struct SideMenu {
             this.MenuButton($r('app.media.gearshape'), '设置', () => {
               openPreferences(this.pathStack)
             })
-            this.MenuButton($r('app.media.questionmark_circle'), '关于', () => {
-              openAboutApp(this.pathStack)
-            })
+            Badge({
+              value: this.hasNewVersion ? 'New' : undefined,
+              style: {},
+              position: BadgePosition.Right,
+            }) {
+              this.MenuButton($r('app.media.questionmark_circle'), '关于', () => {
+                openAboutApp(this.pathStack)
+              })
+            }
           }.transition(MenuFlyUpAni)
           .padding(20)
         }
@@ -275,6 +285,9 @@ export struct SideMenu {
         if (currentRatio == 1) {
           const notice = getUserNotice()
           this.newReply = parseInt(notice.newmypost)
+          PreferenceManager.readonly(conf => {
+            this.hasNewVersion = conf.update_new_version
+          })
         }
       })
     }.scrollBar(BarState.Off)
