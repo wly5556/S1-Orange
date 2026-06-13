@@ -199,7 +199,9 @@ export default class request<T> {
         this.responseCookie = resp.cookies
         this.updateCookie()
         if (resp.statusCode == 200) {
-          if (resp.headers['content-type']?.includes('application/json') || this.respToJSON) {
+          if (this.respToText) {
+            fulfill(resp.toString() as T)
+          } else if (resp.headers['content-type']?.includes('application/json') || this.respToJSON) {
             let data: T
             if (this.processDirtyJson) {
               const jsonRegex = /\{.*?\}/s
@@ -253,8 +255,6 @@ export default class request<T> {
               putCache(this.cacheKey, data as Object)
             }
             fulfill(data)
-          } else if (this.respToText) {
-            fulfill(resp.toString() as T)
           } else {
             fulfill(resp.body as T)
           }

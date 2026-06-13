@@ -49,9 +49,13 @@ export enum URL {
   NOTELIST = 'index.php?module=mynotelist&view=mypost&type=post&version=3',
   BLOCKLIST_WEB = 'home.php?mod=space&do=friend&view=blacklist',
   BLOCK_ACTION = 'home.php?mod=spacecp&ac=friend&op=blacklist',
+  DARKROOM = 'forum.php?mod=misc&action=showdarkroom&ajaxdata=json',
   ATTENDANCE_WEB = 'study_daily_attendance-daily_attendance.html?inajax=1&version=1',
   ATTACHMENT_DOWNLOAD = 'forum.php?mod=attachment&aid=',
   REPORT_POST = 'misc.php?mod=report&inajax=1'
 }
+
+export const GITHUB_RELEASE_BADGE = 'https://raster.shields.io/github/v/release/wly5556/S1-Orange?style=for-the-badge&label='
+export const GITHUB_RELEASE_PAGE = 'https://github.com/wly5556/S1-Orange/releases'
 
 export const DomainRegex = new RegExp(`^https:\/\/(?:[^\/]*\.)?${URL.DOMAIN.replaceAll('.','\.')}(?:\/.*)?$`)

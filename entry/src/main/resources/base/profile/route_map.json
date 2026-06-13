@@ -94,6 +94,11 @@
       "name": "ReportPost",
       "pageSourceFile": "src/main/ets/pages/NavDest/ReportPost.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "DarkRoom",
+      "pageSourceFile": "src/main/ets/pages/NavDest/DarkRoom.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }
