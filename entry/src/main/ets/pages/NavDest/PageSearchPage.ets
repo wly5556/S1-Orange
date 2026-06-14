@@ -120,20 +120,20 @@ export struct PageSearchPage {
             this.popBack()
           }
         })
-
-        Search({
-          value: $$this.keywordInput,
-          placeholder: '用空格分隔关键词'
-        }).margin(12)
-          .backgroundColor(this.appTheme.backgroundSecondary)
-          .searchButton('搜索')
-          .defaultFocus(true)
-          .onChange((value: string) => {
-            this.doSearch(value)
-          })
-          .onSubmit(() => {
-            this.doSearch(this.keywordInput)
-          })
+        Row() {
+          Search({
+            value: $$this.keywordInput,
+            placeholder: '用空格分隔关键词'
+          }).margin(12)
+            .searchButton('搜索')
+            .defaultFocus(true)
+            .onChange((value: string) => {
+              this.doSearch(value)
+            })
+            .onSubmit(() => {
+              this.doSearch(this.keywordInput)
+            })
+        }.backgroundColor(this.appTheme.backgroundSecondary)
 
         List() {
           if (this.noResult) {

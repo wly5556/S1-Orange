@@ -218,6 +218,7 @@ struct SearchResultPage {
               result[i].subjectVM = highlightText(kws, result[i].subject)
             }
             this.threadDataSource.reload(result)
+            this.hasResult = result.length > 0
           } else if (this.searchRequestType == SearchType.User || this.searchRequestType == SearchType.Friend) {
             PreferenceManager.readonly(conf => {
               let result: UserSearchResult
@@ -228,6 +229,7 @@ struct SearchResultPage {
               }
               this.totalPage = result.page
               this.userDataSource.reload(result.users)
+              this.hasResult = result.users.length > 0
               if (result.errorMsg) {
                 this.getUIContext().getPromptAction().showToast({
                   message: result.errorMsg,
@@ -244,6 +246,16 @@ struct SearchResultPage {
 
   build() {
     List() {
+      if (!this.hasResult) {
+        ListItem() {
+          Text('搜索无结果')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp15)
+            .fontColor(this.appTheme.fontSecondary)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .margin({ top: 40 })
+        }
+      }
       if (this.searchRequestType == SearchType.Thread) {
         LazyForEach(this.threadDataSource, (item: ThreadSearchResult) => {
           ListItem() {
