@@ -22,5 +22,6 @@ export enum PageNameEnum {
   UserGuide = "UserGuide",
   ReportPost = "ReportPost",
   DarkRoom = "DarkRoom",
-  PageSearch = "PageSearch"
+  PageSearch = "PageSearch",
+  LongScreenshot = "LongScreenshot"
 }

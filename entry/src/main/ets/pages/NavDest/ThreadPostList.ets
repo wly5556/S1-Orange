@@ -62,14 +62,20 @@ import { plainTextSerializer } from '../../common/component/ThreadPostContentSer
 import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSearch'
 import { UserTagDialog } from '../../common/component/UserTagDialog'
 import { getUserTagsCopy } from '../../common/dataStore/UserTag'
+import { LongScreenshotPageParam, openLongScreenshot } from './LongScreenshot'
 
-interface PostViewModel {
+export interface PostViewModel {
   node: UIRootNode[]
   uid: string,
   username: string,
   pid: string,
   timestamp: Date,
   userCredit: string
+}
+
+export interface LongScreenshotPost {
+  post: PostViewModel
+  floorNumber: string
 }
 
 export interface ThreadPostParam {
@@ -100,6 +106,7 @@ export struct ThreadPostList {
   context = getContext(this) as common.UIAbilityContext
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   @Consume appTheme: AppThemeColor
+  @Consume appState: PreferenceState
   @Provide @Watch('onPageParamUpdate') pageParam: ThreadPostParam = {
     tid: ''
   }
@@ -115,6 +122,9 @@ export struct ThreadPostList {
   @Provide pageScrollOffset: Map<number, number> = new Map
   @Provide searchItemsByPage: Map<number, PostSearchItem[]> = new Map
   @State replyButtonExpand: boolean = false
+  @Provide longScreenshotMode: boolean = false
+  @Provide @Watch('selectedPostsChanged') selectedPosts: Map<string, LongScreenshotPost> = new Map
+  @State selectedCount: number = 0
   @Provide contentVisible: boolean = true
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
   reloadCtrl: ReloadController = new ReloadController()
@@ -146,6 +156,28 @@ export struct ThreadPostList {
     return `${URL.WEB_BASE}thread-${this.pageParam.tid}-${this.currentPage}-1.html`
   }
 
+  selectedPostsChanged() {
+    this.selectedCount = this.selectedPosts.size
+  }
+
+  exitLongScreenshotMode() {
+    this.longScreenshotMode = false
+    this.selectedPosts = new Map
+  }
+
+  async generateLongScreenshot() {
+    if (this.selectedPosts.size == 0) {
+      return
+    }
+    const param: LongScreenshotPageParam = {
+      subject: this.pageParam.subject || '',
+      tid: this.pageParam.tid,
+      posts: Array.from(this.selectedPosts.values())
+    }
+    openLongScreenshot(this.pathStack, param)
+    this.exitLongScreenshotMode()
+  }
+
   @Builder
   threadPostPageBuilder(page: number, index: number, loadingIcon: SwipePageLoadingIcon, scroller?: Scroller) {
     SinglePostPage({
@@ -166,8 +198,13 @@ export struct ThreadPostList {
             titleContent: `${this.pageParam.subject || ""}`,
             titleCopyable: true,
             clickLeftButton: () => {
-              this.pathStack.pop()
+              if (this.longScreenshotMode) {
+                this.exitLongScreenshotMode()
+              } else {
+                this.pathStack.pop()
+              }
             },
+            useRightMenu: !this.longScreenshotMode,
             menu: [{
               value: '刷新',
               action: () => {
@@ -223,6 +260,11 @@ export struct ThreadPostList {
                   this.context)
               }
             }, {
+              value: '长截图',
+              action: () => {
+                this.longScreenshotMode = true
+              }
+            }, {
               value: '复制链接',
               action: () => {
                 CopyHyperLink(generateS1WebPostLink(this.pageParam.tid, this.currentPage), this.pageParam.subject)
@@ -254,7 +296,26 @@ export struct ThreadPostList {
           }
         }
 
-        if (this.allowPullDownRefresh || this.replyButtonExpand) {
+        if (this.longScreenshotMode) {
+          Row({ space: 8 }) {
+            Text(`已选 ${this.selectedCount} 楼`)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .fontColor(Color.White)
+              .fontWeight(FontWeight.Medium)
+            Image($r('app.media.share')).width(24).height(24)
+              .fillColor(Color.White)
+          }
+          .height(56)
+          .padding({ left: 20, right: 20 })
+          .borderRadius(28)
+          .backgroundColor(this.appTheme.fontEmphasize)
+          .position({ bottom: 40, right: 30 })
+          .clickEffect(HeavyClickEffect)
+          .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+          .enabled(this.selectedCount > 0)
+          .opacity(this.selectedCount > 0 ? 1 : 0.5)
+          .onClick(() => this.generateLongScreenshot())
+        } else if (this.allowPullDownRefresh || this.replyButtonExpand) {
           Stack() {
             Image($r('app.media.ellipsis_message_fill')).width(30).height(30)
               .fillColor(Color.White)
@@ -348,6 +409,10 @@ export struct ThreadPostList {
       FlushThreadViewHistory(this.pageParam.tid)
     })
     .onBackPressed(() => {
+      if (this.longScreenshotMode) {
+        this.exitLongScreenshotMode()
+        return true
+      }
       if (this.replyButtonExpand) {
         this.getUIContext().animateTo(SpringCurve, () => {
           this.replyButtonExpand = false
@@ -424,6 +489,8 @@ struct SinglePostPage {
   @Consume allowPullDownRefresh: boolean
   @Consume pageScrollOffset: Map<number, number>
   @Consume searchItemsByPage: Map<number, PostSearchItem[]>
+  @Consume longScreenshotMode: boolean
+  @Consume selectedPosts: Map<string, LongScreenshotPost>
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
   postStringify: Map<string, string> = new Map
@@ -811,6 +878,28 @@ struct SinglePostPage {
     return this.postFloorNumber.get(compIndex) ?? ''
   }
 
+  selectedPostKey(compIndex: number) {
+    return `${this.pageToLoad}-${compIndex}`
+  }
+
+  isPostSelected(compIndex: number) {
+    return this.selectedPosts.has(this.selectedPostKey(compIndex))
+  }
+
+  togglePostSelect(post: PostViewModel, compIndex: number, checked: boolean) {
+    const key = this.selectedPostKey(compIndex)
+    const newMap = new Map(this.selectedPosts)
+    if (checked) {
+      newMap.set(key, {
+        post,
+        floorNumber: this.getFloorNumber(compIndex)
+      })
+    } else {
+      newMap.delete(key)
+    }
+    this.selectedPosts = newMap
+  }
+
   @LocalBuilder
   buildPostContent(nodes: UIRootNode[]) {
     ForEach(nodes, (uiRoot: UIRootNode) => {
@@ -827,7 +916,8 @@ struct SinglePostPage {
         },
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
-        }
+        },
+        lazyLoadImage: true
       })
     },
       (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize + this.appState.fontSizeOverride)
@@ -924,7 +1014,17 @@ struct SinglePostPage {
           .padding({ left: 12 })
 
           Column() {
-            this.buildFloorNumber({
+            if (this.longScreenshotMode) {
+              Checkbox({ name: this.selectedPostKey(compIndex) })
+                .select(this.isPostSelected(compIndex))
+                .selectedColor(this.appTheme.fontEmphasize)
+                .width(28)
+                .height(28)
+                .onChange((checked: boolean) => {
+                  this.togglePostSelect(post, compIndex, checked)
+                })
+            } else {
+              this.buildFloorNumber({
               floorNumber: this.getFloorNumber(compIndex),
               menu: [{
                 value: '回复',
@@ -986,6 +1086,7 @@ struct SinglePostPage {
                   }
                 }]
             })
+            }
           }.alignItems(HorizontalAlign.Start)
           .height('100%')
         }.width('100%')
@@ -1111,7 +1212,9 @@ struct SinglePostPage {
     .brightness(this.pageParam.jumpToPid == post.pid && this.pageParam.jumpToPidWithHighlight ?
       (this.appTheme.isDark ? 1.1 : 0.9) : 1)
     .animation({ duration: 300, iterations: 2 })
-    .backgroundColor(this.appTheme.backgroundSecondary)
+    .backgroundColor(this.isPostSelected(compIndex) ?
+      (this.appTheme.isDark ? 'rgba(90,142,137,0.25)' : 'rgba(10,89,247,0.12)') :
+      this.appTheme.backgroundSecondary)
     .padding({
       left: PostContentHorizontalPadding,
       top: PostContentVerticalPadding,

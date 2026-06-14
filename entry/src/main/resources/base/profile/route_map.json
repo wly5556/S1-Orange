@@ -104,6 +104,11 @@
       "name": "PageSearch",
       "pageSourceFile": "src/main/ets/pages/NavDest/ThreadPostSearch.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "LongScreenshot",
+      "pageSourceFile": "src/main/ets/pages/NavDest/LongScreenshot.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

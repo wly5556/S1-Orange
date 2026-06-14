@@ -171,6 +171,7 @@ interface ThreadPostUINodeRenderParam {
   onLinkClick: (href: string) => void
   onImgClick: (url: string, index: number) => void
   lineSpace: number
+  lazyLoadImage: boolean
 }
 
 
@@ -564,6 +565,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
         if (node.name == UINodeName.Img && node.content) {
           ImageContainer({
             src: node.content,
+            lazyLoad: param.lazyLoadImage,
             onImgClick: () => param.onImgClick(node.content, parseInt(node.attribute))
           }).geometryTransition(generateImageViewerTransitionKey(node.content, node.attribute))
         } else if (node.name == UINodeName.IEdit) {
@@ -677,7 +679,8 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         fontSizeOverride: param.fontSizeOverride,
         copyOption: param.copyOption,
         onLinkClick: param.onLinkClick,
-        onImgClick: param.onImgClick
+        onImgClick: param.onImgClick,
+        lazyLoadImage: param.lazyLoadImage
       })
     })
   }

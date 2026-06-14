@@ -261,7 +261,8 @@ export struct PmDetail {
                                 startAt: index
                               }
                               animateTo(SpringCurve, () => this.imgViewerShow = true)
-                            }
+                            },
+                            lazyLoadImage: true
                           })
                         })
                       }

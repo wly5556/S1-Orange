@@ -304,7 +304,8 @@ export struct UserSpace {
                           },
                           onImgClick: (url: string, index: number): void => {
 
-                          }
+                          },
+                          lazyLoadImage: true
                         })
                       })
                     }.padding(4)
