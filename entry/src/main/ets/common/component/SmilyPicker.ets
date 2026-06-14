@@ -10,8 +10,14 @@ import { PreferenceState } from '../../pages/NavProvider/NavigationPage';
 import { ImageSmilyLazy } from './ImageSmilyLazy';
 import { promptAction } from '@kit.ArkUI';
 import { TabBarSelector } from './TabBarSelector';
+import {
+  getFrequentSmilyList,
+  loadFrequentSmily,
+  recordFrequentSmily
+} from '../dataStore/FrequentSmily';
 
 const SMILY_COL_NUM = 8
+const FREQUENT_GROUP_NAME = '常用'
 
 class SmilyGroupSource extends BasicDataSource<Smily[]> {
   private group: Smily[][] = []
@@ -102,7 +108,20 @@ export struct SmilyPicker {
       promptAction.showToast({
         message: '表情包功能初次加载，耗时较长'
       })
-    }).then(cache => {
+    }).then(async cache => {
+      await loadFrequentSmily()
+      const frequent = getFrequentSmilyList()
+      if (frequent.length > 0) {
+        const frequentSmilies: Smily[] = frequent.map((v): Smily => {
+          return { text: v.text, filename: v.filename, path: v.path }
+        })
+        cache.data.unshift(frequentSmilies)
+        cache.group.unshift({
+          type_id: 'frequent',
+          name: FREQUENT_GROUP_NAME,
+          path: ''
+        })
+      }
       this.smilyGroup = cache.group
       this.smilyGroupSource.load(cache.data)
     })
@@ -139,6 +158,13 @@ export struct SmilyPicker {
                         src: getSmilyUrl(smily, this.smilyGroup[groupIndex])
                       })
                     }.onClick(() => {
+                      const group = this.smilyGroup[groupIndex]
+                      const path = group.type_id == 'frequent' && smily.path ? smily.path : group.path
+                      recordFrequentSmily({
+                        text: smily.text,
+                        filename: smily.filename,
+                        path: path
+                      })
                       this.onPicked(smily.text)
                     }).padding({ top: 8, bottom: 8 })
                     .clickEffect(HeavyClickEffect)
@@ -178,6 +204,7 @@ export struct SmilyPicker {
 interface Smily {
   text: string
   filename: string
+  path?: string
 }
 
 interface SmiliesInfo {
@@ -239,5 +266,6 @@ function extractSmiliesArray(input: string, smilies: Record<string, SmiliesInfo>
 }
 
 function getSmilyUrl(smily: Smily, group: SmilyGroup) {
-  return URL.SMILY_HOST_A + group.path + '/' + smily.filename
+  const path = smily.path ? smily.path : group.path
+  return URL.SMILY_HOST_A + path + '/' + smily.filename
 }
