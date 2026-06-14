@@ -11,9 +11,7 @@ import { ImageSmilyLazy } from './ImageSmilyLazy';
 import { promptAction } from '@kit.ArkUI';
 import { TabBarSelector } from './TabBarSelector';
 import {
-  getFrequentSmilyList,
-  loadFrequentSmily,
-  recordFrequentSmily
+  getFrequentSmilyList, loadFrequentSmily, recordFrequentSmily
 } from '../dataStore/FrequentSmily';
 
 const SMILY_COL_NUM = 8
@@ -50,6 +48,9 @@ let memoryCache: SmilyInfoCache
 
 function loadCache(cacheMissed: () => void) {
   return new Promise<SmilyInfoCache>(res => {
+    if (memoryCache) {
+      res(memoryCache)
+    }
     readJson<SmilyInfoCache>('smilies', 'smilies_list').then(data => {
       if (data == null) {
         throw new Error
@@ -111,19 +112,21 @@ export struct SmilyPicker {
     }).then(async cache => {
       await loadFrequentSmily()
       const frequent = getFrequentSmilyList()
+      const cacheGroup = cache.group.slice()
+      const cacheData = cache.data.slice()
       if (frequent.length > 0) {
         const frequentSmilies: Smily[] = frequent.map((v): Smily => {
           return { text: v.text, filename: v.filename, path: v.path }
         })
-        cache.data.unshift(frequentSmilies)
-        cache.group.unshift({
+        cacheGroup.unshift({
           type_id: 'frequent',
           name: FREQUENT_GROUP_NAME,
           path: ''
         })
+        cacheData.unshift(frequentSmilies)
       }
-      this.smilyGroup = cache.group
-      this.smilyGroupSource.load(cache.data)
+      this.smilyGroup = cacheGroup
+      this.smilyGroupSource.load(cacheData)
     })
   }
 
@@ -157,7 +160,8 @@ export struct SmilyPicker {
                       ImageSmilyLazy({
                         src: getSmilyUrl(smily, this.smilyGroup[groupIndex])
                       })
-                    }.onClick(() => {
+                    }
+                    .onClick(() => {
                       const group = this.smilyGroup[groupIndex]
                       const path = group.type_id == 'frequent' && smily.path ? smily.path : group.path
                       recordFrequentSmily({
@@ -166,12 +170,14 @@ export struct SmilyPicker {
                         path: path
                       })
                       this.onPicked(smily.text)
-                    }).padding({ top: 8, bottom: 8 })
+                    })
+                    .padding({ top: 8, bottom: 8 })
                     .clickEffect(HeavyClickEffect)
                     .attributeModifier(this.clickEffectModifier)
                     .borderRadius(8)
                   })
                 }
+
                 BottomSafeArea()
               }.constraintSize({
                 minHeight: '100%'
