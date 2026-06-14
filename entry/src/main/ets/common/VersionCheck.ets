@@ -13,10 +13,11 @@ import { openInBrowser } from './WantUitl'
  *
  * 通过对比 GitHub shields.io 提供的版本 badge 图像哈希，判断远端是否发布了新版本：
  * - update_badge_hash：作为基准的 badge 图像哈希（上次记录的）
- * - update_new_version：是否存在未处理的新版本（驱动设置/侧边栏的 "new" 标签）
+ * - update_show_new_version：是否存在未处理的新版本（驱动侧边栏 "New" 标签）
  *
  * 首次检查会记录当前哈希作为基准（不弹窗）；后续若拉取到的哈希与基准不同，
- * 则更新基准并标记 update_new_version=true，弹出提醒。用户查看或忽略后清除该标记。
+ * 则更新基准并标记 update_show_new_version=true，弹出提醒。用户选择"下次检查再提醒"
+ * 才清除该标记；选择"查看"或直接 dismiss 则保留提示，直到下次检查更新再提醒。
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -97,15 +98,16 @@ function showUpdateDialog(context: common.UIAbilityContext) {
     title: '发现新版本',
     message: '是否前往Release页面查看？',
     buttons: [
-      { text: '此版本不提醒', color: $r('sys.color.font_secondary') },
+      { text: '下次检查再提醒', color: $r('sys.color.font_secondary') },
       { text: '查看', color: $r('sys.color.ohos_id_color_primary') }
     ]
   }).then(res => {
-    PreferenceManager.modify(conf => {
-      conf.update_new_version = false
-    })
-    notifyDismissed(context)
-    if (res.index === 1) {
+    if (res.index === 0) {
+      PreferenceManager.modify(conf => {
+        conf.update_show_new_version = false
+      })
+      notifyDismissed(context)
+    } else if (res.index === 1) {
       openInBrowser(context, GITHUB_RELEASE_PAGE)
     }
   }).catch(() => {
@@ -131,7 +133,7 @@ export async function checkVersionOnStartup(context: common.UIAbilityContext): P
       conf.update_badge_hash = freshHash
     } else if (conf.update_badge_hash !== freshHash) {
       conf.update_badge_hash = freshHash
-      conf.update_new_version = true
+      conf.update_show_new_version = true
       hasNewVersion = true
     }
   })

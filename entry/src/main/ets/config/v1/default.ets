@@ -88,7 +88,7 @@ export class ApplicationConfig {
   update_check_interval: UpdateCheckInterval = UpdateCheckInterval.monthly
   update_last_check: number = 0
   update_badge_hash: string = ''
-  update_new_version: boolean = false
+  update_show_new_version: boolean = false
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

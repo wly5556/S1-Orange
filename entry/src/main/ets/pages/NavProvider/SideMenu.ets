@@ -286,7 +286,7 @@ export struct SideMenu {
           const notice = getUserNotice()
           this.newReply = parseInt(notice.newmypost)
           PreferenceManager.readonly(conf => {
-            this.hasNewVersion = conf.update_new_version
+            this.hasNewVersion = conf.update_show_new_version
           })
         }
       })
