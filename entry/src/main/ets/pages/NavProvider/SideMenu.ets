@@ -1,4 +1,4 @@
-import { common } from '@kit.AbilityKit'
+import { common, ConfigurationConstant } from '@kit.AbilityKit'
 import { getUserNotice } from '../../api/request'
 import { logout, removeAccount, switchAccount } from '../../common/account/AccountManager'
 import { ClickDarkenEffect, HeavyClickEffect, MenuFlyDownAni, MenuFlyUpAni } from '../../common/Animation'
@@ -9,6 +9,7 @@ import { Event } from '../../common/Events'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PreferenceManager } from '../../config/UserConfig'
 import { UserAccount } from '../../config/v1/default'
+import { promptAction } from '@kit.ArkUI'
 import { openAboutApp } from '../NavDest/AboutApp'
 import { openBlockList } from '../NavDest/BlockList'
 import { openDraftPage } from '../NavDest/DraftPage'
@@ -36,6 +37,8 @@ export struct SideMenu {
   @State switchingIntoAccount: string = ''
   @State newReply: number = 0
   @State hasNewVersion: boolean = false
+  @StorageProp(PropKey.currentColorMode) currentColorMode: number =
+    ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
 
   aboutToAppear(): void {
     this.updateState()
@@ -141,42 +144,77 @@ export struct SideMenu {
     })
   }
 
+  toggleColorMode(): void {
+    const isDark = this.currentColorMode == ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+    PreferenceManager.modify(conf => {
+      if (conf.dark_mode_follow_system) {
+        conf.dark_mode_follow_system = false
+        promptAction.showToast({ message: '深浅色跟随系统：已关闭' })
+      }
+      conf.light_dark_mode_prefer = isDark
+        ? ConfigurationConstant.ColorMode.COLOR_MODE_LIGHT
+        : ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+      this.context.getApplicationContext().setColorMode(conf.light_dark_mode_prefer)
+    })
+  }
+
   build() {
     Scroll() {
       Column() {
-        Column({ space: 12 }) {
-          Row()
-          Avatar({
-            avatarSize: 70,
-            uid: this.currUid
-          }).geometryTransition(avatarTransitionId)
-            .onClick(v => {
-              if (this.currUid) {
-                const userSpaceParam: UserSpaceParam = {
-                  uid: this.currUid,
-                  username: this.currUsername,
-                  avatarTransitionIndex: avatarTransitionId
+        Stack({ alignContent: Alignment.TopEnd }) {
+          Column({ space: 12 }) {
+            Row()
+            Avatar({
+              avatarSize: 70,
+              uid: this.currUid
+            }).geometryTransition(avatarTransitionId)
+              .onClick(v => {
+                if (this.currUid) {
+                  const userSpaceParam: UserSpaceParam = {
+                    uid: this.currUid,
+                    username: this.currUsername,
+                    avatarTransitionIndex: avatarTransitionId
+                  }
+                  openUserSpace(userSpaceParam, this.pathStack)
+                  this.sideMenuShow = 0
+                } else {
+                  this.context.eventHub.emit(Event.OpenLoginDialog)
                 }
-                openUserSpace(userSpaceParam, this.pathStack)
-                this.sideMenuShow = 0
-              } else {
-                this.context.eventHub.emit(Event.OpenLoginDialog)
-              }
-            })
-          Text(this.currUsername && this.currUsername.length > 0 ? this.currUsername : '未登录')
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
-            .height(30)
-            .fontWeight(FontWeight.Medium)
+              })
+            Text(this.currUsername && this.currUsername.length > 0 ? this.currUsername : '未登录')
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
+              .height(30)
+              .fontWeight(FontWeight.Medium)
+          }
+          .clickEffect({ level: ClickEffectLevel.LIGHT })
+          .onClick(() => {
+            this.showAccounts = !this.showAccounts
+          })
+          .width('100%')
+          .padding({ left: 30, bottom: 20 })
+          .height(150)
+          .justifyContent(FlexAlign.End)
+          .alignItems(HorizontalAlign.Start)
+          // -----
+          Row() {
+            Image(this.currentColorMode == ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+              ? $r('app.media.sun')
+              : $r('app.media.moon'))
+              .width(20)
+              .height(20)
+              .fillColor($r('sys.color.font_primary'))
+          }
+          .width(36)
+          .height(36)
+          .borderRadius(18)
+          .backgroundColor($r('sys.color.background_tertiary'))
+          .opacity(0.6)
+          .justifyContent(FlexAlign.Center)
+          .clickEffect({ level: ClickEffectLevel.LIGHT })
+          .onClick(() => this.toggleColorMode())
+          .position({ top: 16, right: 16 })
         }
-        .clickEffect({ level: ClickEffectLevel.LIGHT })
-        .onClick(() => {
-          this.showAccounts = !this.showAccounts
-        })
         .width('100%')
-        .padding({ left: 30, bottom: 20 })
-        .height(150)
-        .justifyContent(FlexAlign.End)
-        .alignItems(HorizontalAlign.Start)
 
         Divider()
         if (this.showAccounts) {
