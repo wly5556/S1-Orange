@@ -58,8 +58,8 @@ import { LengthUnit } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { DownloadFile } from '../../api/download'
 import { openReportPost } from './ReportPost'
-import { plainTextSerializer } from '../../common/component/ContentSerializer'
-import { openPageSearch, PageSearchParam, PostSearchItem } from './PageSearchPage'
+import { plainTextSerializer } from '../../common/component/ThreadPostContentSerializer'
+import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSearch'
 
 interface PostViewModel {
   node: UIRootNode[]

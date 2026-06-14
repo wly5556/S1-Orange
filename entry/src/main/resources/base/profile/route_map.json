@@ -102,7 +102,7 @@
     },
     {
       "name": "PageSearch",
-      "pageSourceFile": "src/main/ets/pages/NavDest/PageSearchPage.ets",
+      "pageSourceFile": "src/main/ets/pages/NavDest/ThreadPostSearch.ets",
       "buildFunction": "RegisterBuilder"
     }
   ]
