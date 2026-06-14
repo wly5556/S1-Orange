@@ -99,6 +99,11 @@
       "name": "DarkRoom",
       "pageSourceFile": "src/main/ets/pages/NavDest/DarkRoom.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "PageSearch",
+      "pageSourceFile": "src/main/ets/pages/NavDest/PageSearchPage.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

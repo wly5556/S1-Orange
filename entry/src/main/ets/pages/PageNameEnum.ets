@@ -21,5 +21,6 @@ export enum PageNameEnum {
   SplitModeShortcut = "SplitModeShortcut",
   UserGuide = "UserGuide",
   ReportPost = "ReportPost",
-  DarkRoom = "DarkRoom"
+  DarkRoom = "DarkRoom",
+  PageSearch = "PageSearch"
 }

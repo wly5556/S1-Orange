@@ -58,6 +58,8 @@ import { LengthUnit } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { DownloadFile } from '../../api/download'
 import { openReportPost } from './ReportPost'
+import { plainTextSerializer } from '../../common/component/ContentSerializer'
+import { openPageSearch, PageSearchParam, PostSearchItem } from './PageSearchPage'
 
 interface PostViewModel {
   node: UIRootNode[]
@@ -109,6 +111,7 @@ export struct ThreadPostList {
   @Provide allowPullDownRefresh: boolean = true
   @Provide allowPullUpRefresh: boolean = false
   @Provide pageScrollOffset: Map<number, number> = new Map
+  @Provide searchItemsByPage: Map<number, PostSearchItem[]> = new Map
   @State replyButtonExpand: boolean = false
   @Provide contentVisible: boolean = true
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
@@ -167,6 +170,26 @@ export struct ThreadPostList {
               value: '刷新',
               action: () => {
                 this.reloadCtrl.reload()
+              }
+            }, {
+              value: '搜索本页',
+              action: () => {
+                const items = this.searchItemsByPage.get(this.currentPage)
+                if (!items || items.length == 0) {
+                  this.getUIContext().getPromptAction().showToast({
+                    message: '本页内容尚未加载完成'
+                  })
+                  return
+                }
+                const param: PageSearchParam = {
+                  tid: this.pageParam.tid,
+                  fid: this.pageParam.fid,
+                  subject: this.pageParam.subject,
+                  replies: this.pageParam.replies,
+                  page: this.currentPage,
+                  posts: items
+                }
+                openPageSearch(this.pathStack, param)
               }
             }, {
               value: '收藏',
@@ -398,6 +421,7 @@ struct SinglePostPage {
   @Consume allowPullUpRefresh: boolean
   @Consume allowPullDownRefresh: boolean
   @Consume pageScrollOffset: Map<number, number>
+  @Consume searchItemsByPage: Map<number, PostSearchItem[]>
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
   postStringify: Map<string, string> = new Map
@@ -590,6 +614,21 @@ struct SinglePostPage {
       this.postStringify.set(vm.pid, JSON.stringify(post.node))
       postArray.push(vm)
     })
+
+    const searchItems: PostSearchItem[] = []
+    for (let i = 0; i < postArray.length; i++) {
+      const vm = postArray[i]
+      const floor = this.getFloorNumber(i) || String((this.pageToLoad - 1) * POST_PER_PAGE + i + 1)
+      searchItems.push({
+        pid: vm.pid,
+        uid: vm.uid,
+        username: vm.username,
+        floor,
+        dateline: vm.timestamp.getTime(),
+        plainText: plainTextSerializer.convert(vm.node)
+      })
+    }
+    this.searchItemsByPage.set(this.pageToLoad, searchItems)
 
     this.updatePostDatetime()
     for (let i = 0; i < rawPostList.length; i++) {

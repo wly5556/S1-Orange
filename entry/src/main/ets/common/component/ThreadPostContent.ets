@@ -18,7 +18,7 @@ enum XMLNodeType {
   text = 'text',
 }
 
-enum UINodeName {
+export enum UINodeName {
   Root = 'root',
   Br = 'br',
   Img = 'img',
@@ -226,7 +226,7 @@ class TextStyle {
 }
 
 
-class GeneralNode {
+export class GeneralNode {
   name: UINodeName
   content: string
   attribute: string

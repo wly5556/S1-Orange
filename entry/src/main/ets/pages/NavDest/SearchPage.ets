@@ -36,7 +36,7 @@ enum SearchTypeParam {
   'user'
 }
 
-const HIGHLIGHT_FONT_COLOR = '#edff3939'
+export const HIGHLIGHT_FONT_COLOR = '#edff3939'
 
 @Component
 export struct SearchPage {
@@ -193,6 +193,7 @@ struct SearchResultPage {
   context = getContext(this) as common.UIAbilityContext
   @Consume totalPage: number
   loadingIcon?: SwipePageLoadingIcon
+  @State hasResult: boolean = true
 
   aboutToAppear(): void {
     this.requestPageData()
@@ -361,7 +362,7 @@ function extractThreadSearchInfo(html: string): SearchInfo {
   }
 }
 
-interface contentHighlight {
+export interface contentHighlight {
   text: string,
   highlight: boolean
 }
@@ -495,7 +496,7 @@ function extractSelfFriendResult(html: string): UserSearchResult {
   }
 }
 
-function highlightText(keywords: string[], str: string): contentHighlight[] {
+export function highlightText(keywords: string[], str: string): contentHighlight[] {
   const keywordRegex = new RegExp(`(${keywords.join('|')})`, 'gi')
   const result: contentHighlight[] = [];
   let lastIndex = 0;
