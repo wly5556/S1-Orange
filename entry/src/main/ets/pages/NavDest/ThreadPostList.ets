@@ -1,4 +1,4 @@
-import { DomainRegex, URL } from '../../api/base'
+﻿import { DomainRegex, URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
 import { Attachment, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
@@ -60,6 +60,8 @@ import { DownloadFile } from '../../api/download'
 import { openReportPost } from './ReportPost'
 import { plainTextSerializer } from '../../common/component/ThreadPostContentSerializer'
 import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSearch'
+import { UserTagDialog } from '../../common/component/UserTagDialog'
+import { getUserTagsCopy } from '../../common/dataStore/UserTag'
 
 interface PostViewModel {
   node: UIRootNode[]
@@ -455,6 +457,20 @@ struct SinglePostPage {
   @State pinnedPost: PostViewModel | undefined = undefined
   pullUpStartOffset: number = 0
   pullUpLoadingTs: number = 0
+  @State tagDialogPost: PostViewModel | undefined = undefined
+  @State tagMap: Map<string, string[]> = new Map
+  userTagDialogController: CustomDialogController = new CustomDialogController({
+    builder: UserTagDialog({
+      uid: this.tagDialogPost ? this.tagDialogPost.uid : '',
+      username: this.tagDialogPost ? this.tagDialogPost.username : '',
+      userCredit: this.tagDialogPost ? this.tagDialogPost.userCredit : '',
+      onTagChanged: (uid: string) => {
+        this.tagMap.set(uid, getUserTagsCopy(uid))
+      }
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center
+  })
 
   generateDataFetchKey() {
     return `${this.pageToLoad},${this.dataControlCounter}`
@@ -500,6 +516,17 @@ struct SinglePostPage {
       })
       this.pageScrollOffset.delete(this.pageToLoad)
     }
+  }
+
+  syncTagMap(posts: PostViewModel[]) {
+    posts.forEach(p => {
+      const tags = getUserTagsCopy(p.uid)
+      if (tags.length > 0) {
+        this.tagMap.set(p.uid, tags)
+      } else {
+        this.tagMap.delete(p.uid)
+      }
+    })
   }
 
   processPostListV4(v: wrapper<PostListV4>) {
@@ -651,6 +678,8 @@ struct SinglePostPage {
       }
     }
 
+    this.syncTagMap(postArray)
+
     const lastUpdatePostCount = this.postDataSource.totalCount()
     if (this.postDataSource.totalCount() == 0) {
       animateTo({ duration: 150, curve: Curve.ExtremeDeceleration }, () => this.postDataSource.reload(postArray))
@@ -739,16 +768,24 @@ struct SinglePostPage {
   }
 
   @Builder
-  blockUserButton(uid: string, username: string) {
-    Button(this.blockList.has(uid) ? '取消屏蔽' : '屏蔽', {
-      buttonStyle: ButtonStyleMode.TEXTUAL
-    }).onClick(() => {
-      if (this.blockList.has(uid)) {
-        UnblockUser(uid)
-      } else {
-        BlockUser(uid, username)
-      }
-    })
+  avatarLongPressMenu(post: PostViewModel) {
+    Menu() {
+      MenuItem({
+        content: this.blockList.has(post.uid) ? '取消屏蔽' : '屏蔽'
+      }).onClick(() => {
+        if (this.blockList.has(post.uid)) {
+          UnblockUser(post.uid)
+        } else {
+          BlockUser(post.uid, post.username)
+        }
+      })
+      MenuItem({
+        content: '编辑标签'
+      }).onClick(() => {
+        this.tagDialogPost = post
+        this.userTagDialogController.open()
+      })
+    }
   }
 
   @Builder
@@ -843,7 +880,7 @@ struct SinglePostPage {
               avatarTransitionIndex: this.generateAvatarTransKey(compIndex)
             }
             openUserSpace(userSpaceParam, this.pathStack)
-          }).bindContextMenu(this.blockUserButton(post.uid, post.username), ResponseType.LongPress)
+          }).bindContextMenu(this.avatarLongPressMenu(post), ResponseType.LongPress)
             .draggable(false)
             .clickEffect(HeavyClickEffect)
           Column() {
@@ -937,23 +974,44 @@ struct SinglePostPage {
                   })
                 }
               },
-              {
-                value: "举报",
-                action: () => {
-                  openReportPost({
-                    tid: this.pageParam.tid,
-                    fid: this.pageParam.fid ?? '',
-                    rid: post.pid,
-                    page: this.pageToLoad
-                  }, this.pathStack)
-                }
-              }]
+                {
+                  value: "举报",
+                  action: () => {
+                    openReportPost({
+                      tid: this.pageParam.tid,
+                      fid: this.pageParam.fid ?? '',
+                      rid: post.pid,
+                      page: this.pageToLoad
+                    }, this.pathStack)
+                  }
+                }]
             })
           }.alignItems(HorizontalAlign.Start)
           .height('100%')
         }.width('100%')
         .height(50)
         .margin({ bottom: 10 })
+
+        if ((this.tagMap.get(post.uid) ?? []).length > 0) {
+          Flex({ wrap: FlexWrap.Wrap }) {
+            ForEach(this.tagMap.get(post.uid), (tag: string) => {
+              Text(tag)
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+                .padding({
+                  left: 8,
+                  right: 8,
+                  top: 3,
+                  bottom: 3
+                })
+                .borderRadius(11)
+                .backgroundColor(this.appTheme.backgroundTertiary)
+                .margin({ right: 6, bottom: 6 })
+            })
+          }.width('100%')
+          .margin({ bottom: 6 })
+        }
 
         if (!this.postHidden.has(post.pid) ||
           this.appState.hiddenPostDisplay == HiddenPostDisplay.visibleWithoutHiddenReason) {
