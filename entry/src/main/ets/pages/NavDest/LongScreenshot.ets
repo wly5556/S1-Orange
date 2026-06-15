@@ -154,7 +154,9 @@ export struct LongScreenshotPage {
 
   private async snapAndMerge() {
     this.scrollYOffsets.push(this.curYOffset)
-    const pixelMap = await this.getUIContext().getComponentSnapshot().get(LIST_ID)
+    const pixelMap = await this.getUIContext().getComponentSnapshot().get(LIST_ID, {
+      waitUntilRenderFinished: true
+    })
     const area = await getSnapshotArea(pixelMap, this.scrollYOffsets, this.listComponentWidth,
       this.listComponentHeight)
     this.areaArray.push(area)

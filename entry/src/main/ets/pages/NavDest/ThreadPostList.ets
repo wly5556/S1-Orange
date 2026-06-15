@@ -54,7 +54,7 @@ import { BLOCK_USER_LIST_STATE, BlockUser, UnblockUser } from '../../common/data
 import { ThreadDataApp } from '../../api/model/app/thread'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { HiddenPostDisplay } from '../../config/v1/default'
-import { LengthUnit } from '@kit.ArkUI'
+import { LengthUnit, promptAction } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { DownloadFile } from '../../api/download'
 import { openReportPost } from './ReportPost'
@@ -126,7 +126,9 @@ export struct ThreadPostList {
   @Provide searchItemsByPage: Map<number, PostSearchItem[]> = new Map
   @State replyButtonExpand: boolean = false
   @Provide longScreenshotMode: boolean = false
-  @Provide @Watch('selectedPostsChanged') selectedPosts: Map<string, LongScreenshotPost> = new Map
+  @Provide @Watch('selectedPostsChanged') selectedPostsForShot: Map<string, LongScreenshotPost> = new Map
+  @Provide @Watch('consumePostForShot') mainPostForShot?: LongScreenshotPost = undefined
+  mainPostReturnPage: number = -1
   @State selectedCount: number = 0
   @Provide contentVisible: boolean = true
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
@@ -160,19 +162,67 @@ export struct ThreadPostList {
   }
 
   selectedPostsChanged() {
-    this.selectedCount = this.selectedPosts.size
+    this.selectedCount = this.selectedPostsForShot.size
   }
 
   exitLongScreenshotMode() {
     this.longScreenshotMode = false
-    this.selectedPosts = new Map
+    this.selectedPostsForShot = new Map
+  }
+
+  consumePostForShot() {
+    if (!this.longScreenshotMode || this.mainPostReturnPage < 0) {
+      return
+    }
+    const pageToReturn = this.mainPostReturnPage
+    this.trySelectMainPostForShot()
+    this.mainPostReturnPage = -1
+    this.jumpToPage = pageToReturn
+  }
+
+  private mainPostKey(): string {
+    return '1-0'
+  }
+
+  private isMainPostSelected(): boolean {
+    return this.selectedPostsForShot.has(this.mainPostKey())
+  }
+
+  private trySelectMainPostForShot(): void {
+    if (this.mainPostForShot === undefined) {
+      return
+    }
+    if (this.isMainPostSelected()) {
+      return
+    }
+    const newMap = new Map(this.selectedPostsForShot)
+    newMap.set(this.mainPostKey(), this.mainPostForShot)
+    this.selectedPostsForShot = newMap
+  }
+
+  private toggleMainPostSelect(checked: boolean): void {
+    const newMap = new Map(this.selectedPostsForShot)
+    if (checked) {
+      if (this.mainPostForShot !== undefined) {
+        newMap.set(this.mainPostKey(), this.mainPostForShot)
+      } else {
+        promptAction.showToast({
+          message: '正在选中主楼，请等待自动返回'
+        })
+        this.mainPostReturnPage = this.currentPage
+        this.jumpToPage = 1
+      }
+    } else {
+      newMap.delete(this.mainPostKey())
+    }
+    this.selectedPostsForShot = newMap
   }
 
   async generateLongScreenshot() {
-    if (this.selectedPosts.size == 0) {
+    if (this.selectedPostsForShot.size == 0) {
       return
     }
-    const posts = Array.from(this.selectedPosts.values())
+    const posts = Array.from(this.selectedPostsForShot.values())
     const ratingInfoMap = new Map<string, ThreadRatingInfo>()
     posts.forEach(p => {
       if (p.ratingInfo) {
@@ -276,6 +326,7 @@ export struct ThreadPostList {
               value: '长截图',
               action: () => {
                 this.longScreenshotMode = true
+                this.trySelectMainPostForShot()
               }
             }, {
               value: '复制链接',
@@ -310,24 +361,47 @@ export struct ThreadPostList {
         }
 
         if (this.longScreenshotMode) {
-          Row({ space: 8 }) {
-            Text(`已选 ${this.selectedCount} 楼`)
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-              .fontColor(Color.White)
-              .fontWeight(FontWeight.Medium)
-            Image($r('app.media.share')).width(24).height(24)
-              .fillColor(Color.White)
+          Column({ space: 8 }) {
+            Row({ space: 6 }) {
+              Text('主楼')
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                .fontWeight(FontWeight.Medium)
+              Checkbox({ name: 'longScreenshotMainPost' })
+                .select(this.isMainPostSelected())
+                .selectedColor(this.appTheme.fontEmphasize)
+                .width(20)
+                .height(20)
+                .borderRadius(10)
+                .onChange((checked: boolean) => {
+                  this.toggleMainPostSelect(checked)
+                })
+            }
+            .height(36)
+            .padding({ left: 14, right: 10 })
+            .borderRadius(18)
+            .backgroundColor(this.appTheme.backgroundSecondary)
+            .shadow(ShadowStyle.OUTER_DEFAULT_SM)
+
+            Row({ space: 8 }) {
+              Text(`已选 ${this.selectedCount} 楼`)
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                .fontColor(Color.White)
+                .fontWeight(FontWeight.Medium)
+              Image($r('app.media.share')).width(24).height(24)
+                .fillColor(Color.White)
+            }
+            .height(56)
+            .padding({ left: 20, right: 20 })
+            .borderRadius(28)
+            .backgroundColor(this.appTheme.fontEmphasize)
+            .clickEffect(HeavyClickEffect)
+            .shadow(ShadowStyle.OUTER_DEFAULT_MD)
+            .enabled(this.selectedCount > 0)
+            .opacity(this.selectedCount > 0 ? 1 : 0.5)
+            .onClick(() => this.generateLongScreenshot())
           }
-          .height(56)
-          .padding({ left: 20, right: 20 })
-          .borderRadius(28)
-          .backgroundColor(this.appTheme.fontEmphasize)
+          .alignItems(HorizontalAlign.End)
           .position({ bottom: 40, right: 30 })
-          .clickEffect(HeavyClickEffect)
-          .shadow(ShadowStyle.OUTER_DEFAULT_MD)
-          .enabled(this.selectedCount > 0)
-          .opacity(this.selectedCount > 0 ? 1 : 0.5)
-          .onClick(() => this.generateLongScreenshot())
         } else if (this.allowPullDownRefresh || this.replyButtonExpand) {
           Stack() {
             Image($r('app.media.ellipsis_message_fill')).width(30).height(30)
@@ -503,7 +577,8 @@ struct SinglePostPage {
   @Consume pageScrollOffset: Map<number, number>
   @Consume searchItemsByPage: Map<number, PostSearchItem[]>
   @Consume longScreenshotMode: boolean
-  @Consume selectedPosts: Map<string, LongScreenshotPost>
+  @Consume selectedPostsForShot: Map<string, LongScreenshotPost>
+  @Consume mainPostForShot?: LongScreenshotPost
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
   postStringify: Map<string, string> = new Map
@@ -607,6 +682,14 @@ struct SinglePostPage {
         this.tagMap.delete(p.uid)
       }
     })
+  }
+
+  async pushMainPostForShot(posts: PostViewModel[]) {
+    if (this.pageToLoad != 1 || this.pageParam.authorid !== undefined || posts.length == 0) {
+      return
+    }
+    const mainPost = await this.makePostForShot(posts[0], 0)
+    this.mainPostForShot = mainPost
   }
 
   processPostListV4(v: wrapper<PostListV4>) {
@@ -762,6 +845,7 @@ struct SinglePostPage {
     }
 
     this.syncTagMap(postArray)
+    this.pushMainPostForShot(postArray)
 
     const lastUpdatePostCount = this.postDataSource.totalCount()
     if (this.postDataSource.totalCount() == 0) {
@@ -894,36 +978,40 @@ struct SinglePostPage {
     return this.postFloorNumber.get(compIndex) ?? ''
   }
 
-  selectedPostKey(compIndex: number) {
+  selectedPostKeyForShot(compIndex: number) {
     return `${this.pageToLoad}-${compIndex}`
   }
 
-  isPostSelected(compIndex: number) {
-    return this.selectedPosts.has(this.selectedPostKey(compIndex))
+  isPostSelectedForShot(compIndex: number) {
+    return this.selectedPostsForShot.has(this.selectedPostKeyForShot(compIndex))
   }
 
-  async togglePostSelect(post: PostViewModel, compIndex: number, checked: boolean) {
-    const key = this.selectedPostKey(compIndex)
-    const newMap = new Map(this.selectedPosts)
-    if (checked) {
-      let ratingInfo: ThreadRatingInfo | undefined = undefined
-      if (this.postRatingInfo.has(post.pid)) {
-        ratingInfo = this.postRatingInfo.get(post.pid)
-        if (ratingInfo === undefined) {
-          const ratingInfoData = await requestRating(post.pid, this.pageParam.tid)
-          this.postRatingInfo.set(post.pid, ratingInfoData)
-          ratingInfo = ratingInfoData
-        }
+  async makePostForShot(post: PostViewModel, compIndex: number): Promise<LongScreenshotPost> {
+    let ratingInfo: ThreadRatingInfo | undefined = undefined
+    if (this.postRatingInfo.has(post.pid)) {
+      ratingInfo = this.postRatingInfo.get(post.pid)
+      if (ratingInfo === undefined) {
+        const ratingInfoData = await requestRating(post.pid, this.pageParam.tid)
+        this.postRatingInfo.set(post.pid, ratingInfoData)
+        ratingInfo = ratingInfoData
       }
-      newMap.set(key, {
-        post,
-        floorNumber: this.getFloorNumber(compIndex),
-        ratingInfo,
-      })
+    }
+    return {
+      post,
+      floorNumber: this.getFloorNumber(compIndex),
+      ratingInfo,
+    }
+  }
+
+  async togglePostSelectForShot(post: PostViewModel, compIndex: number, checked: boolean) {
+    const key = this.selectedPostKeyForShot(compIndex)
+    const newMap = new Map(this.selectedPostsForShot)
+    if (checked) {
+      newMap.set(key, await this.makePostForShot(post, compIndex))
     } else {
       newMap.delete(key)
     }
-    this.selectedPosts = newMap
+    this.selectedPostsForShot = newMap
   }
 
   @LocalBuilder
@@ -1042,13 +1130,13 @@ struct SinglePostPage {
 
           Column() {
             if (this.longScreenshotMode) {
-              Checkbox({ name: this.selectedPostKey(compIndex) })
-                .select(this.isPostSelected(compIndex))
+              Checkbox({ name: this.selectedPostKeyForShot(compIndex) })
+                .select(this.isPostSelectedForShot(compIndex))
                 .selectedColor(this.appTheme.fontEmphasize)
                 .width(28)
                 .height(28)
                 .onChange((checked: boolean) => {
-                  this.togglePostSelect(post, compIndex, checked)
+                  this.togglePostSelectForShot(post, compIndex, checked)
                 })
             } else {
               this.buildFloorNumber({
@@ -1239,7 +1327,7 @@ struct SinglePostPage {
     .brightness(this.pageParam.jumpToPid == post.pid && this.pageParam.jumpToPidWithHighlight ?
       (this.appTheme.isDark ? 1.1 : 0.9) : 1)
     .animation({ duration: 300, iterations: 2 })
-    .backgroundColor(this.isPostSelected(compIndex) ?
+    .backgroundColor(this.isPostSelectedForShot(compIndex) ?
       (this.appTheme.isDark ? 'rgba(90,142,137,0.16)' : 'rgba(10,89,247,0.07)') :
       this.appTheme.backgroundSecondary)
     .padding({
@@ -1274,7 +1362,7 @@ struct SinglePostPage {
             }.onClick(deviceInfo.apiAvailable(20) ? (() => {
               // buildPost内用BLOCK_DESCENDANTS阻塞了自身及子的hit test，配合这里实现点击长截图模式下整个回帖区域可选中。这个api since 20。
               if (this.longScreenshotMode) {
-                this.togglePostSelect(post, compIndex, !this.isPostSelected(compIndex))
+                this.togglePostSelectForShot(post, compIndex, !this.isPostSelectedForShot(compIndex))
               }
             }) : undefined)
           }
