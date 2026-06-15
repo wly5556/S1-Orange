@@ -76,6 +76,7 @@ export class ApplicationConfig {
   show_credit: boolean = false
   font_size: number = 16
   font_size_override: FontSizeOverride = FontSizeOverride.none
+  dark_mode_content_color_adjust: boolean = true
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
   split_mode: boolean = true

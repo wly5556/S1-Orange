@@ -305,7 +305,8 @@ export struct UserSpace {
                           onImgClick: (url: string, index: number): void => {
 
                           },
-                          lazyLoadImage: true
+                          lazyLoadImage: true,
+                          adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
                         })
                       })
                     }.padding(4)

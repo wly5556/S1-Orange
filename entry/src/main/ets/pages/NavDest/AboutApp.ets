@@ -291,6 +291,17 @@ export struct AboutApp {
               .onClick(() => openInBrowser(this.context,
                 'https://gitee.com/openharmony-tpc/ImageKnife/blob/master/LICENSE'))
               .attributeModifier(this.settingRow)
+
+              Divider()
+              Row({ space: 12 }) {
+                this.TextPrimary('Color.js')
+                Blank()
+                this.ShareIcon()
+              }.alignItems(VerticalAlign.Center)
+              .attributeModifier(this.settingRow)
+              .onClick(() => openInBrowser(this.context,
+                'https://raw.githubusercontent.com/color-js/color.js/refs/heads/main/LICENSE'))
+              .attributeModifier(this.settingRow)
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
           }
           .padding({

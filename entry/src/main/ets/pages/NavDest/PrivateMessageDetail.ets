@@ -262,7 +262,8 @@ export struct PmDetail {
                               }
                               animateTo(SpringCurve, () => this.imgViewerShow = true)
                             },
-                            lazyLoadImage: true
+                            lazyLoadImage: true,
+                            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
                           })
                         })
                       }

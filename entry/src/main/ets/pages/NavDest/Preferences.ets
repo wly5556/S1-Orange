@@ -192,6 +192,21 @@ export struct PreferencePage {
 
               }.attributeModifier(this.settingRow)
 
+              Row() {
+                Column({ space: SettingColumnSpace }) {
+                  this.TextPrimary('深色模式下，调整带颜色帖文的色彩')
+                  Text('来获得跟浅色模式下接近的阅读体验，例如白底白字变为黑底黑字')
+                    .attributeModifier(this.textSecondary)
+                }.SettingColumn()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.appState.darkModeContentColorAdjust }).onChange(isOn => {
+                  PreferenceManager.modify(conf => {
+                    conf.dark_mode_content_color_adjust = isOn
+                    this.appState.darkModeContentColorAdjust = isOn
+                  })
+                })
+              }.attributeModifier(this.settingRow)
+
               SettingDivider()
 
               Row() {

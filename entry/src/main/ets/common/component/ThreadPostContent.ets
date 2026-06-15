@@ -12,6 +12,7 @@ import { FontSize, FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { FontSizeIndex, FontSizeOverride } from '../../config/v1/default'
 import { generateImageViewerTransitionKey } from './ImageViewer'
 import { CopyText } from '../ShareKit'
+import { adjustTextColorForDarkMode } from '../Colorjs'
 
 enum XMLNodeType {
   element = 'element',
@@ -172,6 +173,7 @@ interface ThreadPostUINodeRenderParam {
   onImgClick: (url: string, index: number) => void
   lineSpace: number
   lazyLoadImage: boolean
+  adjustColorForDarkMode: boolean
 }
 
 
@@ -537,7 +539,8 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
     Text() {
       ForEach(param.uiRoot.block,
         (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
-          FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
+          FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize,
+          param.adjustColorForDarkMode),
         (node: GeneralNode, index: number) => index.toString())
     }.width('100%')
     .copyOption(param.copyOption)
@@ -607,7 +610,8 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
       Text() {
         ForEach(param.uiRoot.block,
           (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
-            FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize),
+            FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize,
+            param.adjustColorForDarkMode),
           (node: GeneralNode, index: number) => index.toString())
       }
       .width('100%')
@@ -680,7 +684,8 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         copyOption: param.copyOption,
         onLinkClick: param.onLinkClick,
         onImgClick: param.onImgClick,
-        lazyLoadImage: param.lazyLoadImage
+        lazyLoadImage: param.lazyLoadImage,
+        adjustColorForDarkMode: param.adjustColorForDarkMode
       })
     })
   }
@@ -688,15 +693,20 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
 
 @Builder
 function TextContentBuilder(node: GeneralNode, index: number, onLinkClick: (href: string) => void, fontSize: FontSize,
-  fontSizeOverride: FontSizeOverride, fontEmphasizeColor: ResourceColor = $r('sys.color.font_emphasize')) {
+  fontSizeOverride: FontSizeOverride, fontEmphasizeColor: ResourceColor = $r('sys.color.font_emphasize'),
+  adjustColorForDarkMode: boolean = false) {
   if (node.name == UINodeName.Text) {
     if (node.styleControl.href) {
-      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor))
+      Span(node.content)
+        .attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor,
+          adjustColorForDarkMode))
         .onClick(() => {
           onLinkClick(node.styleControl.href!)
         })
     } else {
-      Span(node.content).attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor))
+      Span(node.content)
+        .attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor,
+          adjustColorForDarkMode))
     }
   } else if (node.name == UINodeName.ImgSmily) {
     ImageSmily({
@@ -713,24 +723,43 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
   fontSize: FontSize
   fontSizeOverride: FontSizeOverride
   emphasizeColor: ResourceColor
+  adjustColorForDarkMode: boolean
 
-  constructor(style: TextStyleControl, fontSize: FontSize, fontSizeUniform: FontSizeOverride, fontEmphasizeColor: ResourceColor) {
+  constructor(style: TextStyleControl, fontSize: FontSize, fontSizeUniform: FontSizeOverride,
+    fontEmphasizeColor: ResourceColor, adjustColorForDarkMode: boolean = false) {
     this.style = style
     this.fontSize = fontSize
     this.fontSizeOverride = fontSizeUniform
     this.emphasizeColor = fontEmphasizeColor
+    this.adjustColorForDarkMode = adjustColorForDarkMode
+  }
+
+  private resolveBackgroundColor(): ResourceColor | undefined {
+    return this.style.backgroundColor
+  }
+
+  private resolveTextColor(): ResourceColor | undefined {
+    if (this.style.color != undefined) {
+      if (this.adjustColorForDarkMode && typeof this.style.color == 'string' && this.style.backgroundColor == undefined) {
+        return adjustTextColorForDarkMode(this.style.color)
+      }
+      return this.style.color
+    }
+    if (this.style.href) {
+      return this.emphasizeColor
+    }
+    return undefined
   }
 
   applyNormalAttribute(instance: SpanAttribute): void {
     const style = this.style
-    if (style.href) {
-      style.color = style.color ?? this.emphasizeColor
-    }
+    const color = this.resolveTextColor()
+    const backgroundColor = this.resolveBackgroundColor()
     if (style.weight) {
       instance.fontWeight(style.weight)
     }
-    if (style.color) {
-      instance.fontColor(style.color)
+    if (color) {
+      instance.fontColor(color)
     }
     if (style.italic) {
       instance.fontStyle(style.italic)
@@ -738,18 +767,18 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
     if (style.underline) {
       instance.decoration({
         type: TextDecorationType.Underline,
-        color: style.color || this.emphasizeColor
+        color: color || this.emphasizeColor
       })
     }
     if (style.strike) {
       instance.decoration({
         type: TextDecorationType.LineThrough,
-        color: style.color || this.emphasizeColor
+        color: color || this.emphasizeColor
       })
     } // TODO: API20 新增文本装饰线样式，支持对文本设置删除线和下划线。 https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-universal-styled-string#constructor20
-    if (style.backgroundColor) {
+    if (backgroundColor) {
       instance.textBackgroundStyle({
-        color: style.backgroundColor
+        color: backgroundColor
       })
     }
     let fontSize: number

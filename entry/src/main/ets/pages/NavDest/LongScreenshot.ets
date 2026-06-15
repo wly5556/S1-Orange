@@ -122,7 +122,8 @@ export struct LongScreenshotPage {
           },
           onImgClick: (url: string, index: number): void => {
           },
-          lazyLoadImage: false
+          lazyLoadImage: false,
+          adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
         })
       }, (uiRoot: UIRootNode, index: number) => index.toString())
 

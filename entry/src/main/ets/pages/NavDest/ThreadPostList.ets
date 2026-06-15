@@ -1031,10 +1031,12 @@ struct SinglePostPage {
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
         },
-        lazyLoadImage: true
+        lazyLoadImage: true,
+        adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
       })
     },
-      (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize + this.appState.fontSizeOverride)
+      (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize +
+        this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark)
   }
 
   @LocalBuilder
