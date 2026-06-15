@@ -61,7 +61,7 @@ export interface ColorGridPickerParam {
 
 @Builder
 export function ColorGridPicker(param: ColorGridPickerParam) {
-  GridRow({ gutter: 1 }) {
+  GridRow({ gutter: 1, columns: 12 }) {
     ForEach(param.colors, (item: ColorGridPickerItem, index: number) => {
       GridCol({
         span: param.compact ? {
