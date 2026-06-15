@@ -61,20 +61,25 @@ export struct LongScreenshotPage {
   postItemBuilder(item: LongScreenshotPost) {
     Column() {
       Row() {
-        ImageKnifeComponent({
-          imageKnifeOption: {
-            loadSrc: avatarPath(item.post.uid),
-            errorholderSrc: $r('app.media.avatar_base'),
-            objectFit: ImageFit.Cover,
-            errorholderObjectFit: ImageFit.Cover,
-            border: {
-              radius: FontSizeEnum[this.appState.fontSize].vp40 / 2
+        Stack() {
+          Image($r('app.media.avatar_base'))
+            .height(FontSizeEnum[this.appState.fontSize].vp40)
+            .width(FontSizeEnum[this.appState.fontSize].vp40)
+            .draggable(false)
+            .borderRadius(FontSizeEnum[this.appState.fontSize].vp40 / 2)
+          ImageKnifeComponent({
+            imageKnifeOption: {
+              loadSrc: avatarPath(item.post.uid),
+              objectFit: ImageFit.Cover,
+              border: {
+                radius: FontSizeEnum[this.appState.fontSize].vp40 / 2
+              }
             }
-          }
-        })
-          .height(FontSizeEnum[this.appState.fontSize].vp40)
-          .width(FontSizeEnum[this.appState.fontSize].vp40)
-          .draggable(false)
+          })
+            .height(FontSizeEnum[this.appState.fontSize].vp40)
+            .width(FontSizeEnum[this.appState.fontSize].vp40)
+            .draggable(false)
+        }
 
         Column() {
           Text(item.post.username)
