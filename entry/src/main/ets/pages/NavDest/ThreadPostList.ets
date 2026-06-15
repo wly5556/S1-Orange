@@ -31,7 +31,7 @@ import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
 import { CopyHyperLink, ShareText } from '../../common/ShareKit'
 import { ErrorTips } from '../../common/component/ErrorTips'
-import { PostRating, ThreadRatingInfo } from '../../common/component/PostRating'
+import { PostRating, requestRating, ThreadRatingInfo } from '../../common/component/PostRating'
 import { openPostRatingDetail, PostRatingDetailParam } from './PostRatingDetail'
 import { PollInfoVM, PollOptionVM, PollPanel } from '../../common/component/PollPanel'
 import { getPollInfo, getPollList } from './PollDetail'
@@ -63,6 +63,7 @@ import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSea
 import { UserTagDialog } from '../../common/component/UserTagDialog'
 import { getUserTagsCopy } from '../../common/dataStore/UserTag'
 import { LongScreenshotPageParam, openLongScreenshot } from './LongScreenshot'
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -76,6 +77,7 @@ export interface PostViewModel {
 export interface LongScreenshotPost {
   post: PostViewModel
   floorNumber: string
+  ratingInfo?: ThreadRatingInfo
 }
 
 export interface ThreadPostParam {
@@ -135,7 +137,7 @@ export struct ThreadPostList {
     }
     // 此时认为真正打开了帖子
     this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
-    Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
+      Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
     if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
       let jumpToPage = this.pageParam.jumpToPage!
       if (jumpToPage < 0) {
@@ -169,10 +171,18 @@ export struct ThreadPostList {
     if (this.selectedPosts.size == 0) {
       return
     }
+    const posts = Array.from(this.selectedPosts.values())
+    const ratingInfoMap = new Map<string, ThreadRatingInfo>()
+    posts.forEach(p => {
+      if (p.ratingInfo) {
+        ratingInfoMap.set(p.post.pid, p.ratingInfo)
+      }
+    })
     const param: LongScreenshotPageParam = {
       subject: this.pageParam.subject || '',
       tid: this.pageParam.tid,
-      posts: Array.from(this.selectedPosts.values())
+      posts,
+      ratingInfoMap
     }
     openLongScreenshot(this.pathStack, param)
     this.exitLongScreenshotMode()
@@ -828,7 +838,7 @@ struct SinglePostPage {
 
   recordViewHistory(postIndex: number) {
     if (this.visiblePage == this.pageToLoad && this.isLoading == false && this.pageParam.authorid === undefined &&
-    this.pageParam.subject && this.pageParam.replies) {
+      this.pageParam.subject && this.pageParam.replies) {
       RecordThreadViewHistory(this.pageParam.tid, this.pageParam.subject, this.pidMap[postIndex], Date.now(),
         this.pageParam.replies, this.pageToLoad)
     }
@@ -886,13 +896,23 @@ struct SinglePostPage {
     return this.selectedPosts.has(this.selectedPostKey(compIndex))
   }
 
-  togglePostSelect(post: PostViewModel, compIndex: number, checked: boolean) {
+  async togglePostSelect(post: PostViewModel, compIndex: number, checked: boolean) {
     const key = this.selectedPostKey(compIndex)
     const newMap = new Map(this.selectedPosts)
     if (checked) {
+      let ratingInfo: ThreadRatingInfo | undefined = undefined
+      if (this.postRatingInfo.has(post.pid)) {
+        ratingInfo = this.postRatingInfo.get(post.pid)
+        if (ratingInfo === undefined) {
+          const ratingInfoData = await requestRating(post.pid, this.pageParam.tid)
+          this.postRatingInfo.set(post.pid, ratingInfoData)
+          ratingInfo = ratingInfoData
+        }
+      }
       newMap.set(key, {
         post,
-        floorNumber: this.getFloorNumber(compIndex)
+        floorNumber: this.getFloorNumber(compIndex),
+        ratingInfo,
       })
     } else {
       newMap.delete(key)
@@ -1025,67 +1045,67 @@ struct SinglePostPage {
                 })
             } else {
               this.buildFloorNumber({
-              floorNumber: this.getFloorNumber(compIndex),
-              menu: [{
-                value: '回复',
-                action: () => {
-                  if (!this.pageParam.subject) {
-                    return
-                  }
-                  const param: WriteReplyParam = {
-                    defaultTransition: true,
-                    tid: this.pageParam.tid,
-                    quotePid: post.pid,
-                    mode: WriteReplyMode.NEW_POST_QUOTE,
-                    subjectToReply: this.pageParam.subject
-                  }
-                  openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                }
-              }, post.uid == this.currentUserUid ? {
-                value: '编辑',
-                action: () => {
-                  if (!this.pageParam.subject) {
-                    return
-                  }
-                  const param: WriteReplyParam = {
-                    defaultTransition: true,
-                    tid: this.pageParam.tid,
-                    fid: this.pageParam.fid,
-                    editPid: post.pid,
-                    mode: WriteReplyMode.EDIT,
-                    subjectToReply: this.pageParam.subject
-                  }
-                  openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                }
-              } : {
-                value: '评分',
-                action: () => {
-                  const param: PostRatingDetailParam = {
-                    rating: [],
-                    pid: post.pid,
-                    tid: this.pageParam.tid,
-                    userCount: 0,
-                    totalRating: 0,
-                    showPanel: true,
-                    transitionId: this.generatePostRatingTransitionId(post.pid),
-                    reload: true
-                  }
-                  openPostRatingDetail(this.pathStack, param, () => {
-                  })
-                }
-              },
-                {
-                  value: "举报",
+                floorNumber: this.getFloorNumber(compIndex),
+                menu: [{
+                  value: '回复',
                   action: () => {
-                    openReportPost({
+                    if (!this.pageParam.subject) {
+                      return
+                    }
+                    const param: WriteReplyParam = {
+                      defaultTransition: true,
                       tid: this.pageParam.tid,
-                      fid: this.pageParam.fid ?? '',
-                      rid: post.pid,
-                      page: this.pageToLoad
-                    }, this.pathStack)
+                      quotePid: post.pid,
+                      mode: WriteReplyMode.NEW_POST_QUOTE,
+                      subjectToReply: this.pageParam.subject
+                    }
+                    openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
                   }
-                }]
-            })
+                }, post.uid == this.currentUserUid ? {
+                  value: '编辑',
+                  action: () => {
+                    if (!this.pageParam.subject) {
+                      return
+                    }
+                    const param: WriteReplyParam = {
+                      defaultTransition: true,
+                      tid: this.pageParam.tid,
+                      fid: this.pageParam.fid,
+                      editPid: post.pid,
+                      mode: WriteReplyMode.EDIT,
+                      subjectToReply: this.pageParam.subject
+                    }
+                    openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
+                  }
+                } : {
+                  value: '评分',
+                  action: () => {
+                    const param: PostRatingDetailParam = {
+                      rating: [],
+                      pid: post.pid,
+                      tid: this.pageParam.tid,
+                      userCount: 0,
+                      totalRating: 0,
+                      showPanel: true,
+                      transitionId: this.generatePostRatingTransitionId(post.pid),
+                      reload: true
+                    }
+                    openPostRatingDetail(this.pathStack, param, () => {
+                    })
+                  }
+                },
+                  {
+                    value: "举报",
+                    action: () => {
+                      openReportPost({
+                        tid: this.pageParam.tid,
+                        fid: this.pageParam.fid ?? '',
+                        rid: post.pid,
+                        page: this.pageToLoad
+                      }, this.pathStack)
+                    }
+                  }]
+              })
             }
           }.alignItems(HorizontalAlign.Start)
           .height('100%')
@@ -1124,7 +1144,7 @@ struct SinglePostPage {
         } else {
           this.buildPostContent(this.postHidden.get(post.pid) || [])
           if (this.appState.hiddenPostDisplay == HiddenPostDisplay.visible ||
-          this.postHiddenExpand.has(post.pid)) {
+            this.postHiddenExpand.has(post.pid)) {
             Column() {
               if (post.node.length > 0) {
                 this.buildPostContent(post.node)
@@ -1213,7 +1233,7 @@ struct SinglePostPage {
       (this.appTheme.isDark ? 1.1 : 0.9) : 1)
     .animation({ duration: 300, iterations: 2 })
     .backgroundColor(this.isPostSelected(compIndex) ?
-      (this.appTheme.isDark ? 'rgba(90,142,137,0.25)' : 'rgba(10,89,247,0.12)') :
+      (this.appTheme.isDark ? 'rgba(90,142,137,0.16)' : 'rgba(10,89,247,0.07)') :
       this.appTheme.backgroundSecondary)
     .padding({
       left: PostContentHorizontalPadding,
@@ -1221,6 +1241,8 @@ struct SinglePostPage {
       bottom: PostContentVerticalPadding,
       right: PostContentHorizontalPadding + (this.appState.postAlphabetIndexer ? 6 : 0)
     })
+    .hitTestBehavior(
+      (deviceInfo.apiAvailable(20) && this.longScreenshotMode) ? HitTestMode.BLOCK_DESCENDANTS : HitTestMode.Default)
   }
 
   @LocalBuilder
@@ -1242,7 +1264,12 @@ struct SinglePostPage {
                 this.buildPost(this.pinnedPost, PinnedPostFloorIndex)
                 this.buildPostDivider()
               }
-            }
+            }.onClick(deviceInfo.apiAvailable(20) ? (() => {
+              // buildPost内用BLOCK_DESCENDANTS阻塞了自身及子的hit test，配合这里实现点击长截图模式下整个回帖区域可选中。这个api since 20。
+              if (this.longScreenshotMode) {
+                this.togglePostSelect(post, compIndex, !this.isPostSelected(compIndex))
+              }
+            }) : undefined)
           }
         }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + index.toString())
         ListItem() {

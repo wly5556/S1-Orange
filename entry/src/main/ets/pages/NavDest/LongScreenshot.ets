@@ -13,15 +13,18 @@ import {
   ThreadPostUINodeRender, UIRootNode
 } from '../../common/component/ThreadPostContent'
 import { LongScreenshotPost } from './ThreadPostList'
+import { ThreadRatingInfo } from '../../common/component/PostRating'
 import { savePixelMapToCache } from '../../common/PixelMapSaver'
 import { ShareImage } from '../../common/ShareKit'
 import { waitFor } from '../../common/AwaitUtil'
 import { getSnapshotArea, mergeImage } from '../../common/LongScreenshotMerger'
+import { promptAction } from '@kit.ArkUI'
 
 export interface LongScreenshotPageParam {
   subject: string
   tid: string
   posts: LongScreenshotPost[]
+  ratingInfoMap: Map<string, ThreadRatingInfo>
 }
 
 const LIST_ID = 'LongScreenshotList'
@@ -39,7 +42,8 @@ export struct LongScreenshotPage {
   @State pageParam: LongScreenshotPageParam = {
     subject: '',
     tid: '',
-    posts: []
+    posts: [],
+    ratingInfoMap: new Map()
   }
   private scroller: Scroller = new Scroller()
   private listComponentWidth: number = 0
@@ -48,6 +52,10 @@ export struct LongScreenshotPage {
   private scrollHeight: number = 0
   private scrollYOffsets: number[] = []
   private areaArray: image.PositionArea[] = []
+
+  private formatRating(total: number): string {
+    return `${total >= 0 ? '+' : ''}${total}`
+  }
 
   @Builder
   postItemBuilder(item: LongScreenshotPost) {
@@ -109,6 +117,20 @@ export struct LongScreenshotPage {
           lazyLoadImage: false
         })
       }, (uiRoot: UIRootNode, index: number) => index.toString())
+
+      if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
+        Row() {
+          Text() {
+            Span(`战斗力 ${this.formatRating(this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating)}`)
+            Span(' / ').opacity(0.7)
+            Span(`${this.pageParam.ratingInfoMap.get(item.post.pid)!.userCount}人评价`)
+          }.fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+          .fontColor(this.appTheme.fontSecondary)
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.End)
+        .margin({ top: 8 })
+      }
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -212,9 +234,14 @@ export struct LongScreenshotPage {
       })
     }
     .hideTitleBar(true)
-    .backgroundColor(this.appTheme.backgroundPrimary)
+    .backgroundColor(this.appTheme.backgroundSecondary)
     .onReady((context: NavDestinationContext) => {
+      promptAction.showToast({
+        message: "请等待截图完成"
+      })
       this.pathStack = context.pathStack
+      const param = context.pathInfo.param as LongScreenshotPageParam
+      param.posts.sort((a, b) => Number(a.floorNumber) - Number(b.floorNumber))
       this.pageParam = context.pathInfo.param as LongScreenshotPageParam
       this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
       waitFor(FIRST_RENDER_DELAY).then((): Promise<void> => this.snapAndMerge())
