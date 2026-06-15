@@ -19,10 +19,13 @@ import { ShareImage } from '../../common/ShareKit'
 import { waitFor } from '../../common/AwaitUtil'
 import { getSnapshotArea, mergeImage } from '../../common/LongScreenshotMerger'
 import { promptAction } from '@kit.ArkUI'
+import { getGroupName, getThreadTypeName } from '../../common/ForumUtil'
 
 export interface LongScreenshotPageParam {
   subject: string
   tid: string
+  fid?: string
+  typeid?: string
   posts: LongScreenshotPost[]
   ratingInfoMap: Map<string, ThreadRatingInfo>
 }
@@ -210,16 +213,23 @@ export struct LongScreenshotPage {
           .margin({ bottom: 8 })
         }, (item: LongScreenshotPost, index: number) => index.toString())
         ListItem() {
-          Text(`帖子 ${this.pageParam.tid}`)
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-            .fontColor(this.appTheme.fontSecondary)
-            .width('100%')
-            .padding({
-              left: PostContentHorizontalPadding,
-              right: PostContentHorizontalPadding,
-              top: 8,
-              bottom: PostContentVerticalPadding
-            })
+          Column({ space: 4 }) {
+            Text(`帖子 ${this.pageParam.tid}`)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+              .fontColor(this.appTheme.fontSecondary)
+              .width('100%')
+            Text(`${getGroupName(this.pageParam.fid)} · ${getThreadTypeName(this.pageParam.fid, this.pageParam.typeid)}`)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+              .fontColor(this.appTheme.fontSecondary)
+              .width('100%')
+          }
+          .width('100%')
+          .padding({
+            left: PostContentHorizontalPadding,
+            right: PostContentHorizontalPadding,
+            top: 8,
+            bottom: PostContentVerticalPadding
+          })
         }
       }
       .id(LIST_ID)

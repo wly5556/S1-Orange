@@ -14,6 +14,7 @@ import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { Event } from '../../common/Events'
+import { setForumGroupNameMap } from '../../common/ForumUtil'
 
 
 @Component
@@ -59,6 +60,7 @@ export struct ForumGroupView {
       this.forumGroupItemOffsetY.set(v.fid, i * FontSizeEnum[this.appState.fontSize].vp48)
       this.forumGroupTodayPost.set(v.fid, v.todayposts)
     })
+    setForumGroupNameMap(this.forumGroupName)
   }
 
   refreshThreadGroup() {

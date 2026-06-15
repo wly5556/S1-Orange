@@ -6,7 +6,7 @@
 
 S1-Orange 是一个为 HarmonyOS Next 开发的 [stage1st.com](https://stage1st.com/) 论坛第三方客户端，使用 **ArkTS**（ArkUI 的 TS 方言，强制静态类型）与 stage 模型。最低 SDK 版本 12。无后端，所有数据来自论坛 web/app 接口或本地存储。
 
-- 构建：`hvigorw`（DevEco Studio 工具链）。仓库根有 `hvigor`、`hvigorfile.ts`、`build-profile.json5`（根）与 `entry/build-profile.json5`（模块）。命令行构建需 Node + hvigorw，IDE 内构建即可。
+- 构建：`hvigorw`（DevEco Studio 工具链）。仓库根有 `hvigor`、`hvigorfile.ts`、`build-profile.json5`（根）与 `entry/build-profile.json5`（模块）。命令行构建需 Node + hvigorw，IDE 内构建即可。AI 协作者不要自行运行构建命令，除非用户明确要求。
 - 版本信息：`BuildProfile`（ArkTS 编译期注入，`import BuildProfile from 'BuildProfile'`）提供 `VERSION_NAME`、`gitHeadHash`、`gitHeadDate`、`buildDate` 等。这些字段在 `entry/build-profile.json5` 的 `arkOptions.buildProfileFields` 中定义（当前为空对象，其余由 DevEco 默认注入）。
 
 ## 目录结构（`entry/src/main/ets`）

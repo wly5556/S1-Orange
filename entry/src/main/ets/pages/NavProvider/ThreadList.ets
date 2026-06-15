@@ -28,6 +28,7 @@ import { ReloadController } from '../../common/BasicDataSource'
 import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
 import { LengthUnit } from '@ohos.arkui.node'
+import { setThreadTypeNameMap } from '../../common/ForumUtil'
 
 export const THREAD_PER_PAGE = 50
 
@@ -40,6 +41,8 @@ interface ThreadListItemViewData {
   subject: string,
   replies: string,
   typeName: string,
+  fid: string,
+  typeid: string,
   tid: string,
   uid: string,
   readperm: number
@@ -276,6 +279,13 @@ struct ThreadListPage {
     }
     let threadTypeNameMap = v.Variables.threadtypes.types
     this.context.eventHub.emit(Event.ThreadTypesInit, threadTypeNameMap)
+    const threadTypeMap: Map<string, string> = new Map()
+    Object.keys(threadTypeNameMap).forEach(typeid => {
+      threadTypeMap.set(typeid, threadTypeNameMap[typeid])
+    })
+    const threadTypeForumMap: Map<string, Map<string, string>> = new Map()
+    threadTypeForumMap.set(v.Variables.forum.fid, threadTypeMap)
+    setThreadTypeNameMap(threadTypeForumMap)
     let viewData = v.Variables.forum_threadlist.map(v => {
       let readAccess = parseInt(v.readperm)
       readAccess = isNaN(readAccess) ? 0 : readAccess
@@ -283,6 +293,8 @@ struct ThreadListPage {
         subject: unescapeAll(v.subject),
         replies: v.replies,
         typeName: threadTypeNameMap[v.typeid] || '',
+        fid: v.fid,
+        typeid: v.typeid,
         tid: v.tid,
         uid: v.authorid,
         readperm: readAccess
@@ -402,6 +414,8 @@ struct ThreadListPage {
             .gesture(LongPressGesture().onAction(e => {
               const param: ThreadPostParam = {
                 tid: threadInfo.item.tid,
+                fid: threadInfo.item.fid,
+                typeid: threadInfo.item.typeid,
                 jumpToPage: -1,
                 subject: threadInfo.item.subject,
                 replies: threadInfo.item.replies,
@@ -411,6 +425,8 @@ struct ThreadListPage {
             .onClick(e => {
               const param: ThreadPostParam = {
                 tid: threadInfo.item.tid,
+                fid: threadInfo.item.fid,
+                typeid: threadInfo.item.typeid,
                 subject: threadInfo.item.subject,
                 replies: threadInfo.item.replies,
               }

@@ -83,6 +83,7 @@ export interface LongScreenshotPost {
 export interface ThreadPostParam {
   tid: string // 仅tid是打开本页面的必须参数
   fid?: string
+  typeid?: string
   jumpToPage?: number
   authorid?: string
   subject?: string // 若传入，则将用作初始值，直到从api获取到真实值
@@ -181,6 +182,8 @@ export struct ThreadPostList {
     const param: LongScreenshotPageParam = {
       subject: this.pageParam.subject || '',
       tid: this.pageParam.tid,
+      fid: this.pageParam.fid,
+      typeid: this.pageParam.typeid,
       posts,
       ratingInfoMap
     }
@@ -685,6 +688,9 @@ struct SinglePostPage {
     if (this.pageParam.fid === undefined) {
       this.pageParam.fid = v.Variables.thread.fid
     }
+    if (this.pageParam.typeid === undefined) {
+      this.pageParam.typeid = v.Variables.thread.typeid
+    }
     this.threadAuthorUid = v.Variables.thread.authorid
     const postRating = new Map<string, ThreadRatingInfo | undefined>()
     Object.keys(v.Variables.comments).forEach(pid => postRating.set(pid, undefined))
@@ -1015,6 +1021,7 @@ struct SinglePostPage {
                   const param: ThreadPostParam = {
                     tid: this.pageParam.tid,
                     fid: this.pageParam.fid,
+                    typeid: this.pageParam.typeid,
                     subject: this.pageParam.subject,
                     authorid: post.uid
                   }
