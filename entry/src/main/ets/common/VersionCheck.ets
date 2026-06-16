@@ -29,19 +29,20 @@ function intervalMs(interval: UpdateCheckInterval): number {
 }
 
 export function parseLatestVersionInfo(body: string): LatestVersionInfo | null {
+  const versionHeader = 'Latest version:'
   const lines = body
     .replaceAll('\r\n', '\n')
     .replaceAll('\r', '\n')
     .split('\n')
     .map((line: string): string => line.trim())
     .filter((line: string): boolean => line.length > 0)
-  if (lines.length !== 2) {
+  if (lines.length !== 3 || lines[0] !== versionHeader) {
     return null
   }
   return {
-    raw: `${lines[0]}\n${lines[1]}`,
-    version: lines[0],
-    releaseDate: lines[1]
+    raw: `${lines[0]}\n${lines[1]}\n${lines[2]}`,
+    version: lines[1],
+    releaseDate: lines[2]
   }
 }
 
