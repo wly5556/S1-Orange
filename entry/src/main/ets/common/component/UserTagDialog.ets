@@ -6,13 +6,18 @@ import {
   addTagHistory,
   removeUserTag
 } from '../dataStore/UserTag'
+import { UserCreditText } from './UserCredit'
+import { AppThemeColor } from '../theme/basic/basic'
+import { ThemeColorLight } from '../theme/basic/light'
 
 @CustomDialog
 export struct UserTagDialog {
   controller: CustomDialogController
   @Prop uid: string = ''
   @Prop username: string = ''
-  @Prop userCredit: string = ''
+  @Prop userCredit: number = 0
+  @Prop appTheme: AppThemeColor = new ThemeColorLight()
+  @Prop fontSize: number = 0
   @State userTags: string[] = []
   @State historyTags: string[] = []
   @State inputText: string = ''
@@ -103,10 +108,7 @@ export struct UserTagDialog {
             .fontSize(18)
             .fontWeight(FontWeight.Medium)
             .fontColor($r('sys.color.font_primary'))
-          Text(this.userCredit)
-            .fontSize(13)
-            .opacity(0.7)
-            .fontColor($r('sys.color.font_tertiary'))
+          UserCreditText(this.userCredit, this.appTheme, this.fontSize)
         }.alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
       }.width('100%')

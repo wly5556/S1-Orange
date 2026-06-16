@@ -21,6 +21,7 @@ import { getSnapshotArea, mergeImage } from '../../common/LongScreenshotMerger'
 import { promptAction } from '@kit.ArkUI'
 import { getGroupName, getThreadTypeName } from '../../common/ForumUtil'
 import { generateS1WebPostLink } from '../../common/WantUitl'
+import { UserCreditText } from '../../common/component/UserCredit'
 
 export interface LongScreenshotPageParam {
   subject: string
@@ -66,10 +67,6 @@ export struct LongScreenshotPage {
   private bottomPerforationSettings: RenderingContextSettings = new RenderingContextSettings(true)
   private bottomPerforationContext: CanvasRenderingContext2D =
     new CanvasRenderingContext2D(this.bottomPerforationSettings)
-
-  private formatRating(total: number): string {
-    return `${total >= 0 ? '+' : ''}${total}`
-  }
 
   private updatePostContentHeight(key: string, height: number) {
     if (!this.postContentHeightMap.has(key)) {
@@ -198,10 +195,16 @@ export struct LongScreenshotPage {
         }
 
         Column() {
-          Text(item.post.username)
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(this.appTheme.fontPrimary)
+          Row({ space: 8 }) {
+            Text(item.post.username)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(this.appTheme.fontPrimary)
+            if (this.appState.showCredit) {
+              UserCreditText(item.post.userCredit, this.appTheme, this.appState.fontSize)
+            }
+          }
+          .alignItems(VerticalAlign.Center)
           Text(formatRelativeTime(new Date(), item.post.timestamp))
             .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
             .fontColor(this.appTheme.fontSecondary)
@@ -251,7 +254,7 @@ export struct LongScreenshotPage {
       if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
         Row() {
           Text() {
-            Span(`战斗力 ${this.formatRating(this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating)}`)
+            Span(`战斗力 ${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating >= 0 ? '+' : ''}${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating}`)
             Span(' / ').opacity(0.7)
             Span(`${this.pageParam.ratingInfoMap.get(item.post.pid)!.userCount}人评价`)
           }.fontSize(FontSizeEnum[this.appState.fontSize].vp14)

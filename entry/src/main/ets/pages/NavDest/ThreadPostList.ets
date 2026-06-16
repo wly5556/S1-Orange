@@ -64,6 +64,7 @@ import { getUserTagsCopy } from '../../common/dataStore/UserTag'
 import { LongScreenshotPageParam, openLongScreenshot } from './LongScreenshot'
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { ThreadPostAttachmentItem } from '../../common/component/ThreadPostAttachmentItem'
+import { UserCreditText } from '../../common/component/UserCredit'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -71,7 +72,7 @@ export interface PostViewModel {
   username: string,
   pid: string,
   timestamp: Date,
-  userCredit: string
+  userCredit: number
 }
 
 export interface LongScreenshotPostViewModel extends PostViewModel {
@@ -624,7 +625,9 @@ struct SinglePostPage {
     builder: UserTagDialog({
       uid: this.tagDialogPost ? this.tagDialogPost.uid : '',
       username: this.tagDialogPost ? this.tagDialogPost.username : '',
-      userCredit: this.tagDialogPost ? this.tagDialogPost.userCredit : '',
+      userCredit: this.tagDialogPost ? this.tagDialogPost.userCredit : 0,
+      appTheme: this.appTheme,
+      fontSize: this.appState.fontSize,
       onTagChanged: (uid: string) => {
         this.tagMap.set(uid, getUserTagsCopy(uid))
       }
@@ -761,7 +764,7 @@ struct SinglePostPage {
                   username: p.author,
                   pid: p.pid,
                   timestamp: new Date(parseInt(p.dbdateline) * 1000),
-                  userCredit: ''
+                  userCredit: 0
                 }
               }
             }
@@ -809,8 +812,7 @@ struct SinglePostPage {
         username: rawPostList[index].author,
         pid: rawPostList[index].pid.toString(),
         timestamp: new Date(rawPostList[index].dateline * 1000),
-        userCredit: rawPostList[index].e ?
-          '(' + (rawPostList[index].e >= 0 ? '+' : '') + rawPostList[index].e.toString() + ')' : '(+0)'
+        userCredit: rawPostList[index].e
       }
       this.postStringify.set(vm.pid, JSON.stringify(post.node))
       postArray.push(vm)
@@ -1121,9 +1123,7 @@ struct SinglePostPage {
                 .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                 .copyOption(this.appState.textCopyable ? CopyOptions.LocalDevice : CopyOptions.None)
               if (this.appState.showCredit) {
-                Text(post.userCredit)
-                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-                  .opacity(0.7)
+                UserCreditText(post.userCredit, this.appTheme, this.appState.fontSize)
               }
               if (post.uid == this.threadAuthorUid) {
                 Text('楼')
