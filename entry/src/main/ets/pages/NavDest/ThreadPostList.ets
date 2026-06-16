@@ -65,6 +65,7 @@ import { LongScreenshotPageParam, openLongScreenshot } from './LongScreenshot'
 import { deviceInfo } from '@kit.BasicServicesKit';
 import { ThreadPostAttachmentItem } from '../../common/component/ThreadPostAttachmentItem'
 import { UserCreditText } from '../../common/component/UserCredit'
+import { openFreeCopy } from './FreeCopy'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -1237,6 +1238,14 @@ struct SinglePostPage {
                   }
                 },
                   {
+                    value: "自由复制",
+                    action: () => {
+                      openFreeCopy(this.pathStack, {
+                        node: post.node
+                      })
+                    }
+                  },
+                  {
                     value: "举报",
                     action: () => {
                       openReportPost({
@@ -1396,6 +1405,7 @@ struct SinglePostPage {
         ListItem() {
           BottomSafeArea()
         }
+
         if (this.longScreenshotMode) {
           ListItem() {
             Row()

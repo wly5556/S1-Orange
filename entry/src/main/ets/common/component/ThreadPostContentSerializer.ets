@@ -22,7 +22,7 @@ export class PlainTextSerializer extends ContentSerializer {
     if (root.type == UINodeName.Text) {
       return this.serializeInlineNodes(root.block)
     } else if (root.type == UINodeName.Code) {
-      return this.serializeInlineNodes(root.block)
+      return this.serializeCodeInlineNodes(root.block)
     } else if (root.type == UINodeName.Quote) {
       const parts: string[] = []
       for (const node of root.block) {
@@ -53,11 +53,21 @@ export class PlainTextSerializer extends ContentSerializer {
   }
 
   private serializeInlineNodes(nodes: GeneralNode[]): string {
+    return this.serializeInlineNodesWithOptions(nodes, false)
+  }
+
+  serializeCodeInlineNodes(nodes: GeneralNode[]): string {
+    return this.serializeInlineNodesWithOptions(nodes, true)
+  }
+
+  private serializeInlineNodesWithOptions(nodes: GeneralNode[], excludeCodeLineNumber: boolean): string {
     let result = ''
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i]
       if (node.name == UINodeName.Text) {
-        result += node.content
+        if (!excludeCodeLineNumber || !node.attribute) {
+          result += node.content
+        }
       } else if (node.name == UINodeName.A) {
         result += node.content
       } else if (node.name == UINodeName.Br) {
@@ -71,3 +81,253 @@ export class PlainTextSerializer extends ContentSerializer {
 }
 
 export const plainTextSerializer = new PlainTextSerializer()
+
+abstract class StyledContentSerializer extends ContentSerializer {
+  convert(nodes: UIRootNode[]): string {
+    const parts: string[] = []
+    for (const node of nodes) {
+      const text = this.serializeRoot(node)
+      if (text.length > 0) {
+        parts.push(text)
+      }
+    }
+    return parts.join('\n\n')
+  }
+
+  protected abstract serializeRoot(root: UIRootNode): string
+
+  protected serializeCodeInlineNodes(nodes: GeneralNode[]): string {
+    return plainTextSerializer.serializeCodeInlineNodes(nodes)
+  }
+
+  protected colorOf(node: GeneralNode): string {
+    const color = node.styleControl.color
+    if (typeof color == 'string') {
+      return color
+    }
+    return ''
+  }
+}
+
+export class MarkdownSerializer extends StyledContentSerializer {
+  protected serializeRoot(root: UIRootNode): string {
+    if (root.type == UINodeName.Text) {
+      return this.serializeInlineNodes(root.block)
+    } else if (root.type == UINodeName.Code) {
+      return '```\n' + this.serializeCodeInlineNodes(root.block) + '\n```'
+    } else if (root.type == UINodeName.Quote) {
+      const parts: string[] = []
+      for (const node of root.block) {
+        if (node.nestedRootNode) {
+          parts.push(this.convert(node.nestedRootNode))
+        }
+      }
+      return parts.join('\n\n').split('\n').map(line => '> ' + line).join('\n')
+    } else if (root.type == UINodeName.Div) {
+      return this.serializeDivNodes(root.block)
+    } else if (root.type == UINodeName.Table) {
+      return this.serializeTable(root.block)
+    }
+    return ''
+  }
+
+  private serializeDivNodes(nodes: GeneralNode[]): string {
+    const parts: string[] = []
+    for (const node of nodes) {
+      if (node.name == UINodeName.Img || node.name == UINodeName.ImgSmily) {
+        parts.push(`![](${node.content})`)
+      } else if (node.name == UINodeName.Attach) {
+        parts.push(`附件: ${node.content}`)
+      } else if (node.name == UINodeName.IEdit) {
+        parts.push(node.content)
+      } else if (node.nestedRootNode) {
+        parts.push(this.convert(node.nestedRootNode))
+      }
+    }
+    return parts.join('\n')
+  }
+
+  private serializeTable(nodes: GeneralNode[]): string {
+    const rows: string[][] = []
+    for (const node of nodes) {
+      if (node.name == UINodeName.Tr && node.nestedGeneralNode) {
+        const cells: string[] = []
+        for (const cellNode of node.nestedGeneralNode) {
+          if (cellNode.name == UINodeName.Td && cellNode.nestedRootNode) {
+            cells.push(this.convert(cellNode.nestedRootNode).replace(/\n/g, '<br>'))
+          }
+        }
+        rows.push(cells)
+      }
+    }
+    if (rows.length == 0) {
+      return ''
+    }
+    let columnCount = 0
+    for (const row of rows) {
+      columnCount = Math.max(columnCount, row.length)
+    }
+    const normalizedRows = rows.map(row => {
+      const result = row.slice()
+      while (result.length < columnCount) {
+        result.push('')
+      }
+      return result
+    })
+    const separator: string[] = []
+    for (let i = 0; i < columnCount; i++) {
+      separator.push('---')
+    }
+    return ['| ' + normalizedRows[0].join(' | ') + ' |', '| ' + separator.join(' | ') + ' |']
+      .concat(normalizedRows.slice(1).map(row => '| ' + row.join(' | ') + ' |'))
+      .join('\n')
+  }
+
+  private serializeInlineNodes(nodes: GeneralNode[]): string {
+    let result = ''
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i]
+      if (node.name == UINodeName.Text || node.name == UINodeName.A) {
+        result += this.applyMarkdownStyle(node, node.content)
+      } else if (node.name == UINodeName.ImgSmily) {
+        result += `![](${node.content})`
+      } else if (node.name == UINodeName.Br) {
+        if (i != 0) {
+          result += '\n'
+        }
+      }
+    }
+    return result
+  }
+
+  private applyMarkdownStyle(node: GeneralNode, text: string): string {
+    if (node.attribute == UINodeName.Ul) {
+      return '- '
+    }
+    if (node.styleControl.href) {
+      if (text == node.styleControl.href) {
+        text = `<${node.styleControl.href}>`
+      } else {
+        text = `[${text}](${node.styleControl.href})`
+      }
+    }
+    if (node.styleControl.strike) {
+      text = `~~${text}~~`
+    }
+    if (node.styleControl.italic) {
+      text = `*${text}*`
+    }
+    if (node.styleControl.weight) {
+      text = `**${text}**`
+    }
+    return text
+  }
+}
+
+export class BBCodeSerializer extends StyledContentSerializer {
+  protected serializeRoot(root: UIRootNode): string {
+    if (root.type == UINodeName.Text) {
+      return this.serializeInlineNodes(root.block)
+    } else if (root.type == UINodeName.Code) {
+      return '[code]' + this.serializeCodeInlineNodes(root.block) + '[/code]'
+    } else if (root.type == UINodeName.Quote) {
+      const parts: string[] = []
+      for (const node of root.block) {
+        if (node.nestedRootNode) {
+          parts.push(this.convert(node.nestedRootNode))
+        }
+      }
+      return '[quote]' + parts.join('\n\n') + '[/quote]'
+    } else if (root.type == UINodeName.Div) {
+      return this.serializeDivNodes(root.block)
+    } else if (root.type == UINodeName.Table) {
+      return this.serializeTable(root.block)
+    }
+    return ''
+  }
+
+  private serializeDivNodes(nodes: GeneralNode[]): string {
+    const parts: string[] = []
+    for (const node of nodes) {
+      if (node.name == UINodeName.Img || node.name == UINodeName.ImgSmily) {
+        parts.push(`[img]${node.content}[/img]`)
+      } else if (node.name == UINodeName.Attach) {
+        parts.push(`[attach]${node.content}[/attach]`)
+      } else if (node.name == UINodeName.IEdit) {
+        parts.push(node.content)
+      } else if (node.nestedRootNode) {
+        parts.push(this.convert(node.nestedRootNode))
+      }
+    }
+    return parts.join('\n')
+  }
+
+  private serializeTable(nodes: GeneralNode[]): string {
+    const rows: string[] = []
+    for (const node of nodes) {
+      if (node.name == UINodeName.Tr && node.nestedGeneralNode) {
+        const cells: string[] = []
+        for (const cellNode of node.nestedGeneralNode) {
+          if (cellNode.name == UINodeName.Td && cellNode.nestedRootNode) {
+            cells.push('[td]' + this.convert(cellNode.nestedRootNode) + '[/td]')
+          }
+        }
+        rows.push('[tr]' + cells.join('') + '[/tr]')
+      }
+    }
+    return rows.length > 0 ? '[table]' + rows.join('\n') + '[/table]' : ''
+  }
+
+  private serializeInlineNodes(nodes: GeneralNode[]): string {
+    let result = ''
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i]
+      if (node.name == UINodeName.Text || node.name == UINodeName.A) {
+        result += this.applyBBCodeStyle(node, node.content)
+      } else if (node.name == UINodeName.ImgSmily) {
+        result += `[img]${node.content}[/img]`
+      } else if (node.name == UINodeName.Br) {
+        if (i != 0) {
+          result += '\n'
+        }
+      }
+    }
+    return result
+  }
+
+  private applyBBCodeStyle(node: GeneralNode, text: string): string {
+    if (node.attribute == UINodeName.Ul) {
+      return '[*]'
+    }
+    if (node.styleControl.href) {
+      if (text == node.styleControl.href) {
+        text = `[url]${node.styleControl.href}[/url]`
+      } else {
+        text = `[url=${node.styleControl.href}]${text}[/url]`
+      }
+    }
+    const color = this.colorOf(node)
+    if (color.length > 0) {
+      text = `[color=${color}]${text}[/color]`
+    }
+    if (node.styleControl.fontSize) {
+      text = `[size=${node.styleControl.fontSize}]${text}[/size]`
+    }
+    if (node.styleControl.strike) {
+      text = `[s]${text}[/s]`
+    }
+    if (node.styleControl.underline && !node.styleControl.href) {
+      text = `[u]${text}[/u]`
+    }
+    if (node.styleControl.italic) {
+      text = `[i]${text}[/i]`
+    }
+    if (node.styleControl.weight) {
+      text = `[b]${text}[/b]`
+    }
+    return text
+  }
+}
+
+export const markdownSerializer = new MarkdownSerializer()
+export const bbCodeSerializer = new BBCodeSerializer()

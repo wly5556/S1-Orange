@@ -790,7 +790,7 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
         type: TextDecorationType.LineThrough,
         color: color || this.emphasizeColor
       })
-    } // TODO: API20 新增文本装饰线样式，支持对文本设置删除线和下划线。 https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-universal-styled-string#constructor20
+    } // TODO: API20 新增文本装饰线样式，支持对文本设置删除线和下划线。（但是需要属性字符串而不是span作为组件，先挂着） https://developer.huawei.com/consumer/cn/doc/harmonyos-references/ts-universal-styled-string#constructor20
     if (backgroundColor) {
       instance.textBackgroundStyle({
         color: backgroundColor

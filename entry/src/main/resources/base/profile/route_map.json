@@ -109,6 +109,11 @@
       "name": "LongScreenshot",
       "pageSourceFile": "src/main/ets/pages/NavDest/LongScreenshot.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "FreeCopy",
+      "pageSourceFile": "src/main/ets/pages/NavDest/FreeCopy.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

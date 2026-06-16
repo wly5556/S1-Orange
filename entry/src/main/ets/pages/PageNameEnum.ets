@@ -23,5 +23,6 @@ export enum PageNameEnum {
   ReportPost = "ReportPost",
   DarkRoom = "DarkRoom",
   PageSearch = "PageSearch",
-  LongScreenshot = "LongScreenshot"
+  LongScreenshot = "LongScreenshot",
+  FreeCopy = "FreeCopy"
 }
