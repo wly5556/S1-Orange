@@ -11,7 +11,7 @@ import {
   bbCodeSerializer,
   markdownSerializer,
   plainTextSerializer
-} from '../../common/component/ThreadPostContentSerializer'
+} from '../../common/ThreadPostContentSerializer'
 import { CopyText } from '../../common/ShareKit'
 import { HeavyClickEffect } from '../../common/Animation'
 

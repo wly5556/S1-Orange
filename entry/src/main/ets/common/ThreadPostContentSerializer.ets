@@ -1,4 +1,4 @@
-import { GeneralNode, UINodeName, UIRootNode } from './ThreadPostContent'
+import { GeneralNode, UINodeName, UIRootNode } from './component/ThreadPostContent'
 
 const TABLE_CELL_SEPARATOR = '    '
 const SMILY_PATTERN = /\/(?:static\/)?image\/smiley\/([^\/?#]+)\/(\d+)\.(?:png|gif|jpg|jpeg|webp)(?:[?#].*)?$/i
@@ -213,11 +213,7 @@ export class MarkdownSerializer extends StyledContentSerializer {
       return '- '
     }
     if (node.styleControl.href) {
-      if (text == node.styleControl.href) {
-        text = `<${node.styleControl.href}>`
-      } else {
-        text = `[${text}](${node.styleControl.href})`
-      }
+      text = `[${text}](${node.styleControl.href})`
     }
     if (node.styleControl.strike) {
       text = `~~${text}~~`
@@ -310,11 +306,7 @@ export class BBCodeSerializer extends StyledContentSerializer {
       return '[*]'
     }
     if (node.styleControl.href) {
-      if (text == node.styleControl.href) {
-        text = `[url]${node.styleControl.href}[/url]`
-      } else {
-        text = `[url=${node.styleControl.href}]${text}[/url]`
-      }
+      text = `[url=${node.styleControl.href}]${text}[/url]`
     }
     const color = this.colorOf(node)
     if (color.length > 0) {
@@ -351,4 +343,5 @@ export class BBCodeSerializer extends StyledContentSerializer {
 }
 
 export const markdownSerializer = new MarkdownSerializer()
+
 export const bbCodeSerializer = new BBCodeSerializer()
