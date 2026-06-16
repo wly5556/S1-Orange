@@ -1339,7 +1339,7 @@ struct SinglePostPage {
       right: PostContentHorizontalPadding + (this.appState.postAlphabetIndexer ? 6 : 0)
     })
     .hitTestBehavior(
-      (deviceInfo.apiAvailable(20) && this.longScreenshotMode) ? HitTestMode.BLOCK_DESCENDANTS : HitTestMode.Default)
+      (deviceInfo.sdkApiVersion >= 20 && this.longScreenshotMode) ? HitTestMode.BLOCK_DESCENDANTS : HitTestMode.Default)
   }
 
   @LocalBuilder
@@ -1361,7 +1361,7 @@ struct SinglePostPage {
                 this.buildPost(this.pinnedPost, PinnedPostFloorIndex)
                 this.buildPostDivider()
               }
-            }.onClick(deviceInfo.apiAvailable(20) ? (() => {
+            }.onClick(deviceInfo.sdkApiVersion >= 20 ? (() => {
               // buildPost内用BLOCK_DESCENDANTS阻塞了自身及子的hit test，配合这里实现点击长截图模式下整个回帖区域可选中。这个api since 20。
               if (this.longScreenshotMode) {
                 this.togglePostSelectForShot(post, compIndex, !this.isPostSelectedForShot(compIndex))
