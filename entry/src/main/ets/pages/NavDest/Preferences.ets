@@ -162,9 +162,10 @@ export struct PreferencePage {
               fontSizeIndex: this.appState.fontSize
             })
             Column() {
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('字体大小')
+              FoldMenu({
+                title: '字体大小'
+              }) {
+                Column() {
                   Text(`当前：${this.appState.fontSize}单位`).attributeModifier(this.textSecondary)
                   SliderReset({
                     value: this.appState.fontSize,
@@ -180,8 +181,8 @@ export struct PreferencePage {
                       })
                     }
                   })
-                }.SettingColumn()
-              }.attributeModifier(this.settingRow)
+                }.alignItems(HorizontalAlign.Start)
+              }
 
               Row() {
                 Column({ space: SettingColumnSpace }) {
@@ -195,7 +196,7 @@ export struct PreferencePage {
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('深色模式下，调整带颜色帖文的色彩')
-                  Text('来获得跟浅色模式下接近的阅读体验，例如白底白字变为黑底黑字')
+                  Text('来获得跟浅色模式下接近的阅读体验，例如白底白字变为黑底黑字。仅对没有设置背景颜色的文字有效')
                     .attributeModifier(this.textSecondary)
                 }.SettingColumn()
 
@@ -245,11 +246,13 @@ export struct PreferencePage {
               }) {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
-                    Text(`调节部分动画的过渡时长，越高倍数则动画越缓慢。设为0倍将同时关闭系统默认提供的页面转场动画。需要重新进入使得配置完全生效\n当前：${this.aniSpeedRatio >
-                      0 ? this.aniSpeedRatio.toPrecision(3) + 'x' : '关闭动画'}`)
+                    Text(
+                      `调节部分动画的过渡时长，越高倍数则动画越缓慢。设为0倍将同时关闭系统默认提供的页面转场动画。需要重新进入使得配置完全生效\n当前：${this.aniSpeedRatio >
+                        0 ? this.aniSpeedRatio.toPrecision(3) + 'x' : '关闭动画'}`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
                 SliderReset({
                   value: this.aniSpeedRatio,
                   min: 0,
@@ -272,10 +275,12 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('主题帖间距')
-                    Text(`调整主题帖页、收藏页、历史页，每条主题帖之间的空白大小。\n当前: ${this.appState.threadItemGap}单位`)
+                    Text(
+                      `调整主题帖页、收藏页、历史页，每条主题帖之间的空白大小。\n当前: ${this.appState.threadItemGap}单位`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
                 SliderReset({
                   value: this.appState.threadItemGap,
                   min: 0,
@@ -296,6 +301,7 @@ export struct PreferencePage {
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
                 SliderReset({
                   value: this.appState.contentLineSpace,
                   min: 0,
@@ -308,7 +314,8 @@ export struct PreferencePage {
                     })
                   }
                 })
-                Text(`内容文字间距示例文本：欢迎使用${this.context.resourceManager.getStringSync($r('app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
+                Text(`内容文字间距示例文本：欢迎使用${this.context.resourceManager.getStringSync($r(
+                  'app.string.app_name'))} ${BuildProfile.VERSION_NAME}\n调整内容文本间距\n来获得更符合个人习惯的浏览体验`)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .lineSpacing({
                     value: this.appState.contentLineSpace,
