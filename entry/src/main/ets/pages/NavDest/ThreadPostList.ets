@@ -698,6 +698,7 @@ struct SinglePostPage {
       return
     }
     const mainPost = await this.makePostForShot(posts[0], 0)
+    mainPost.floorNumber = '1'
     this.mainPostForShot = mainPost
   }
 
