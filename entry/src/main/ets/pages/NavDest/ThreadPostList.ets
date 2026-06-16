@@ -379,7 +379,7 @@ export struct ThreadPostList {
             .height(36)
             .padding({ left: 14, right: 10 })
             .borderRadius(18)
-            .backgroundColor(this.appTheme.backgroundSecondary)
+            .backgroundColor(this.appTheme.backgroundTertiary)
             .shadow(ShadowStyle.OUTER_DEFAULT_SM)
 
             Row({ space: 8 }) {
@@ -540,6 +540,7 @@ export struct ThreadPostList {
 }
 
 const BOTTOM_LOADING_AREA = 80
+const LONG_SCREENSHOT_PICKER_BOTTOM_SPACER = 132
 const PULL_UP_LOADING_INTERVAL = 500 // ms
 
 interface floorParam {
@@ -1371,6 +1372,13 @@ struct SinglePostPage {
         }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + index.toString())
         ListItem() {
           BottomSafeArea()
+        }
+        if (this.longScreenshotMode) {
+          ListItem() {
+            Row()
+              .width('100%')
+              .height(LONG_SCREENSHOT_PICKER_BOTTOM_SPACER)
+          }
         }
       }
       .opacity(this.contentVisible ? (this.isLoading ? 0.8 : 1) : 0)

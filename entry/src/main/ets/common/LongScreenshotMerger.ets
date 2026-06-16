@@ -6,7 +6,7 @@ export async function getSnapshotArea(pixelMap: image.PixelMap, scrollYOffsets: 
   const len = scrollYOffsets.length
   if (len >= 2) {
     const realScrollHeight = scrollYOffsets[len - 1] - scrollYOffsets[len - 2]
-    if (listHeight - realScrollHeight > 0) {
+    if (realScrollHeight > 0 && listHeight - realScrollHeight > 0) {
       const cropRegion: image.Region = {
         x: 0,
         y: vp2px(listHeight - realScrollHeight),
@@ -38,14 +38,17 @@ export async function getSnapshotArea(pixelMap: image.PixelMap, scrollYOffsets: 
   return area
 }
 
-export function mergeImage(areaArray: image.PositionArea[], lastOffsetY: number, listWidth: number,
-  listHeight: number): image.PixelMap {
+export function mergeImage(areaArray: image.PositionArea[]): image.PixelMap {
+  let imageHeight = 0
+  for (let i = 0; i < areaArray.length; i++) {
+    imageHeight += areaArray[i].region.size.height
+  }
   const opts: image.InitializationOptions = {
     editable: true,
     pixelFormat: 4,
     size: {
-      width: vp2px(listWidth),
-      height: vp2px(lastOffsetY + listHeight)
+      width: areaArray[0].region.size.width,
+      height: imageHeight
     }
   }
   const longPixelMap = image.createPixelMapSync(opts)

@@ -14,12 +14,13 @@ import {
 } from '../../common/component/ThreadPostContent'
 import { LongScreenshotPost } from './ThreadPostList'
 import { ThreadRatingInfo } from '../../common/component/PostRating'
-import { savePixelMapToCache } from '../../common/PixelMapSaver'
+import { savePixelMapToShareTempFile } from '../../common/PixelMapSaver'
 import { ShareImage } from '../../common/ShareKit'
 import { waitFor } from '../../common/AwaitUtil'
 import { getSnapshotArea, mergeImage } from '../../common/LongScreenshotMerger'
 import { promptAction } from '@kit.ArkUI'
 import { getGroupName, getThreadTypeName } from '../../common/ForumUtil'
+import { generateS1WebPostLink } from '../../common/WantUitl'
 
 export interface LongScreenshotPageParam {
   subject: string
@@ -35,6 +36,8 @@ const PostContentVerticalPadding = 12
 const PostContentHorizontalPadding = 16
 const STABLE_DELAY = 300
 const FIRST_RENDER_DELAY = 1000
+const RESTART_DELAY_AFTER_HEIGHT_CHANGE = 500
+const PerforationLineHeight = 18
 
 @Component
 export struct LongScreenshotPage {
@@ -53,16 +56,126 @@ export struct LongScreenshotPage {
   private listComponentHeight: number = 0
   private curYOffset: number = 0
   private scrollHeight: number = 0
+  private postContentHeightMap: Map<string, number> = new Map()
+  private postContentHeightChangeVersion: number = 0
+  private snapshotPostContentHeightChangeVersion: number = 0
   private scrollYOffsets: number[] = []
   private areaArray: image.PositionArea[] = []
+  private topPerforationSettings: RenderingContextSettings = new RenderingContextSettings(true)
+  private topPerforationContext: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.topPerforationSettings)
+  private bottomPerforationSettings: RenderingContextSettings = new RenderingContextSettings(true)
+  private bottomPerforationContext: CanvasRenderingContext2D =
+    new CanvasRenderingContext2D(this.bottomPerforationSettings)
 
   private formatRating(total: number): string {
     return `${total >= 0 ? '+' : ''}${total}`
   }
 
+  private updatePostContentHeight(key: string, height: number) {
+    if (!this.postContentHeightMap.has(key)) {
+      this.postContentHeightMap.set(key, height)
+      return
+    }
+    const oldHeight = this.postContentHeightMap.get(key) || 0
+    if (Math.abs(oldHeight - height) < 0.5) {
+      return
+    }
+    this.postContentHeightMap.set(key, height)
+    this.postContentHeightChangeVersion++
+  }
+
+  private isPostContentHeightChanged(): boolean {
+    return this.postContentHeightChangeVersion !== this.snapshotPostContentHeightChangeVersion
+  }
+
+  private async restartScreenshotAfterHeightChange() {
+    this.releaseAreas()
+    this.scroller.scrollTo({ xOffset: 0, yOffset: 0 })
+    this.curYOffset = 0
+    await waitFor(RESTART_DELAY_AFTER_HEIGHT_CHANGE)
+    this.snapshotPostContentHeightChangeVersion = this.postContentHeightChangeVersion
+    await this.snapAndMerge()
+  }
+
+  private drawPerforationLine(ctx: CanvasRenderingContext2D, width: number, height: number, isTop: boolean) {
+    if (width <= 0 || height <= 0) {
+      return
+    }
+    const dashLength = 7.2
+    const startX = -dashLength / 2
+    const endX = width + dashLength / 2
+    const centerY = height / 2
+    const shadowOffset = 0.8
+    const shadowColor = this.appTheme.isDark ? 'rgba(0, 0, 0, 0.42)' : 'rgba(0, 0, 0, 0.12)'
+    const centerColor = this.appTheme.isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 1)'
+
+    ctx.clearRect(0, 0, width, height)
+    ctx.lineCap = 'round'
+    ctx.setLineDash([dashLength, dashLength])
+
+    ctx.beginPath()
+    ctx.strokeStyle = shadowColor
+    ctx.lineWidth = 3.4
+    ctx.moveTo(startX + 0.5, centerY + shadowOffset)
+    ctx.lineTo(endX + 0.5, centerY + shadowOffset)
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.strokeStyle = centerColor
+    ctx.lineWidth = 2.5
+    ctx.moveTo(startX, centerY)
+    ctx.lineTo(endX, centerY)
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
+
   @Builder
-  postItemBuilder(item: LongScreenshotPost) {
+  perforationLineBuilder(isTop: boolean) {
+    Canvas(isTop ? this.topPerforationContext : this.bottomPerforationContext)
+      .width('100%')
+      .height(PerforationLineHeight)
+      .onReady(() => {
+        if (this.listComponentWidth <= 0) {
+          return
+        }
+        this.drawPerforationLine(
+          isTop ? this.topPerforationContext : this.bottomPerforationContext,
+          this.listComponentWidth,
+          PerforationLineHeight,
+          isTop
+        )
+      })
+      .onAreaChange((oldValue, newValue) => {
+        this.drawPerforationLine(
+          isTop ? this.topPerforationContext : this.bottomPerforationContext,
+          newValue.width as number,
+          newValue.height as number,
+          isTop
+        )
+      })
+  }
+
+  @Builder
+  postItemBuilder(item: LongScreenshotPost, index: number) {
     Column() {
+      if (index !== 0) {
+        Row()
+          .alignSelf(ItemAlign.Center)
+          .width('90%')
+          .height(1)
+          .border({
+            width: {
+              bottom: 2
+            },
+            style: {
+              bottom: BorderStyle.Dotted
+            },
+            color: this.appTheme.isDark ? "#d5ffffff" : "#2a000000"
+          })
+          .margin({
+            bottom: 16
+          })
+      }
       Row() {
         Stack() {
           Image($r('app.media.avatar_base'))
@@ -110,22 +223,29 @@ export struct LongScreenshotPage {
       .alignItems(VerticalAlign.Center)
       .margin({ bottom: 10 })
 
-      ForEach(item.post.node, (uiRoot: UIRootNode, index: number) => {
-        ThreadPostUINodeRender({
-          uiRoot: uiRoot,
-          appTheme: this.appTheme,
-          fontSize: this.appState.fontSize,
-          lineSpace: this.appState.contentLineSpace,
-          fontSizeOverride: this.appState.fontSizeOverride,
-          copyOption: CopyOptions.None,
-          onLinkClick: (href: string): void => {
-          },
-          onImgClick: (url: string, index: number): void => {
-          },
-          lazyLoadImage: false,
-          adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
-        })
-      }, (uiRoot: UIRootNode, index: number) => index.toString())
+      Column() {
+        ForEach(item.post.node, (uiRoot: UIRootNode, index: number) => {
+          ThreadPostUINodeRender({
+            uiRoot: uiRoot,
+            appTheme: this.appTheme,
+            fontSize: this.appState.fontSize,
+            lineSpace: this.appState.contentLineSpace,
+            fontSizeOverride: this.appState.fontSizeOverride,
+            copyOption: CopyOptions.None,
+            onLinkClick: (href: string): void => {
+            },
+            onImgClick: (url: string, index: number): void => {
+            },
+            lazyLoadImage: false,
+            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+          })
+        }, (uiRoot: UIRootNode, index: number) => index.toString())
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      .onAreaChange((oldValue, newValue) => {
+        this.updatePostContentHeight(`post-content-${index}`, newValue.height as number)
+      })
 
       if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
         Row() {
@@ -149,11 +269,19 @@ export struct LongScreenshotPage {
       left: PostContentHorizontalPadding,
       right: PostContentHorizontalPadding,
       top: PostContentVerticalPadding,
-      bottom: PostContentVerticalPadding
+      bottom: 6
     })
   }
 
   private async snapAndMerge() {
+    if (this.areaArray.length === 0 && this.scrollYOffsets.length === 0) {
+      this.snapshotPostContentHeightChangeVersion = this.postContentHeightChangeVersion
+    }
+    if (this.isPostContentHeightChanged()) {
+      await this.restartScreenshotAfterHeightChange()
+      return
+    }
+
     this.scrollYOffsets.push(this.curYOffset)
     const pixelMap = await this.getUIContext().getComponentSnapshot().get(LIST_ID, {
       waitUntilRenderFinished: true
@@ -162,23 +290,40 @@ export struct LongScreenshotPage {
       this.listComponentHeight)
     this.areaArray.push(area)
     pixelMap.release()
+    if (this.isPostContentHeightChanged()) {
+      await this.restartScreenshotAfterHeightChange()
+      return
+    }
 
-    if (!this.scroller.isAtEnd()) {
+    if (!this.scroller.isAtEnd() && this.scrollHeight > 0) {
+      const prevYOffset = this.curYOffset
       this.scroller.scrollTo({
         xOffset: 0,
-        yOffset: this.curYOffset + this.scrollHeight,
+        yOffset: prevYOffset + this.scrollHeight,
       })
       await waitFor(STABLE_DELAY)
+      this.curYOffset = this.scroller.currentOffset().yOffset
+      if (this.isPostContentHeightChanged()) {
+        await this.restartScreenshotAfterHeightChange()
+        return
+      }
+      if (this.curYOffset <= prevYOffset) {
+        await this.mergeAndShare()
+        return
+      }
       await this.snapAndMerge()
     } else {
-      const merged = mergeImage(this.areaArray, this.scrollYOffsets[this.scrollYOffsets.length - 1],
-        this.listComponentWidth, this.listComponentHeight)
-      this.releaseAreas()
-      const path = await savePixelMapToCache(this.context, merged)
-      merged.release()
-      ShareImage(path, 'png', this.context)
-      this.pathStack.pop()
+      await this.mergeAndShare()
     }
+  }
+
+  private async mergeAndShare() {
+    const mergedPixelMap = mergeImage(this.areaArray)
+    this.releaseAreas()
+    const shareTempFilePath = await savePixelMapToShareTempFile(this.context, mergedPixelMap)
+    mergedPixelMap.release()
+    ShareImage(shareTempFilePath, 'png', this.context)
+    this.pathStack.pop()
   }
 
   private releaseAreas() {
@@ -189,6 +334,14 @@ export struct LongScreenshotPage {
   build() {
     NavDestination() {
       List({ scroller: this.scroller }) {
+        ListItem() {
+          this.perforationLineBuilder(true)
+        }
+        .padding({
+          top: 12,
+          bottom: 4
+        })
+
         ListItem() {
           Column() {
             Text(this.pageParam.subject || '')
@@ -204,36 +357,52 @@ export struct LongScreenshotPage {
                 bottom: PostContentVerticalPadding
               })
             Divider()
-          }.padding({
-            top: 16
-          })
+          }
         }
 
         ForEach(this.pageParam.posts, (item: LongScreenshotPost, index: number) => {
           ListItem() {
-            this.postItemBuilder(item)
+            this.postItemBuilder(item, index)
           }
           .margin({ bottom: 8 })
         }, (item: LongScreenshotPost, index: number) => index.toString())
+
         ListItem() {
-          Column({ space: 4 }) {
-            Text(`帖子 ${this.pageParam.tid}`)
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-              .fontColor(this.appTheme.fontSecondary)
-              .width('100%')
-            Text(`${getGroupName(this.pageParam.fid)} · ${getThreadTypeName(this.pageParam.fid, this.pageParam.typeid)}`)
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-              .fontColor(this.appTheme.fontSecondary)
-              .width('100%')
+          Column() {
+            Divider()
+            Row() {
+              Column({ space: 4 }) {
+                Text(
+                  `Stage1st · ${getGroupName(this.pageParam.fid)} · ${getThreadTypeName(this.pageParam.fid,
+                    this.pageParam.typeid)}`)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  .fontColor(this.appTheme.fontSecondary)
+                Text(`帖子 ${this.pageParam.tid}`)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  .fontColor(this.appTheme.fontSecondary)
+              }
+              .alignItems(HorizontalAlign.Start)
+              .flexShrink(1)
+              QRCode(generateS1WebPostLink(this.pageParam.tid, 1)).width(36).height(36)
+            }.justifyContent(FlexAlign.SpaceBetween)
+            .alignItems(VerticalAlign.Center)
+            .width('100%')
+            .padding({
+              left: PostContentHorizontalPadding,
+              right: PostContentHorizontalPadding,
+              top: PostContentVerticalPadding,
+              bottom: PostContentVerticalPadding
+            })
           }
-          .width('100%')
-          .padding({
-            left: PostContentHorizontalPadding,
-            right: PostContentHorizontalPadding,
-            top: 8,
-            bottom: PostContentVerticalPadding
-          })
         }
+
+        ListItem() {
+          this.perforationLineBuilder(false)
+        }
+        .padding({
+          top: 4,
+          bottom: 16
+        })
       }
       .id(LIST_ID)
       .width('100%')
