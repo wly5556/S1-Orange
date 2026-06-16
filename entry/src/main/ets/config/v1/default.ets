@@ -88,7 +88,7 @@ export class ApplicationConfig {
   ani_speed_ratio: number = 1
   update_check_interval: UpdateCheckInterval = UpdateCheckInterval.monthly
   update_last_check: number = 0
-  update_badge_hash: string = ''
+  update_latest_version_info: string = ''
   update_show_new_version: boolean = false
 }
 

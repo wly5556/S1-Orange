@@ -13,9 +13,10 @@ import { openInBrowser } from '../../common/WantUitl'
 import { PropKey } from '../../common/Constants'
 import { openUserGuide } from './UserGuide'
 import { openThreadPost, ThreadPostParam } from './ThreadPostList'
-import { CacheStrategy, ImageKnife } from '@ohos/imageknife'
 import { OpacityTransition } from '../../common/Animation'
-import { GITHUB_RELEASE_BADGE, GITHUB_RELEASE_PAGE } from '../../api/base'
+import { GITHUB_RELEASE_PAGE } from '../../api/base'
+import { PreferenceManager } from '../../config/UserConfig'
+import { fetchLatestVersionInfo, parseLatestVersionInfo } from '../../common/VersionCheck'
 import {
   UpdateCheckIntervalDesc,
   UpdateCheckPref
@@ -23,8 +24,6 @@ import {
 
 
 export interface AboutAppParam {}
-
-// badge 用图片版本：image 暂未支持 svg text 标签，只能用图片版本的
 
 @Component
 export struct AboutApp {
@@ -34,18 +33,26 @@ export struct AboutApp {
   @State pageParam: AboutAppParam = {}
   @Consume appState: PreferenceState
   @State settingRow: SettingRow = new SettingRow(FontSizeEnum[this.appState.fontSize])
-  @State releaseBadge: string | PixelMap | undefined = undefined
+  @State latestVersion: string = ''
+  @State latestReleaseDate: string = ''
+  @State latestVersionLoaded: boolean = false
 
   async aboutToAppear() {
-    const knife = ImageKnife.getInstance()
-    await knife.preLoadCache({
-      loadSrc: GITHUB_RELEASE_BADGE,
-      writeCacheStrategy: CacheStrategy.Memory
+    await PreferenceManager.readonly(conf => {
+      const cachedInfo = parseLatestVersionInfo(conf.update_latest_version_info)
+      if (cachedInfo !== null) {
+        this.latestVersion = cachedInfo.version
+        this.latestReleaseDate = cachedInfo.releaseDate
+        this.latestVersionLoaded = true
+      }
     })
-    const badge = await knife.getCacheImage(GITHUB_RELEASE_BADGE, CacheStrategy.Memory)
-    knife.removeMemoryCache(GITHUB_RELEASE_BADGE)
-    if (badge) {
-      this.releaseBadge = badge.source
+    const latestInfo = await fetchLatestVersionInfo()
+    if (latestInfo !== null) {
+      this.latestVersion = latestInfo.version
+      this.latestReleaseDate = latestInfo.releaseDate
+      this.latestVersionLoaded = true
+    } else if (this.latestVersion.length === 0) {
+      this.latestVersionLoaded = true
     }
   }
 
@@ -125,20 +132,19 @@ export struct AboutApp {
             })
             Column() {
               Row({ space: 12 }) {
-                if (this.releaseBadge) {
-                  this.TextPrimary('最新版本')
-                  Image(this.releaseBadge)
-                    .height(FontSizeEnum[this.appState.fontSize].vp32)
-                    .interpolation(ImageInterpolation.High)
-                    .borderRadius(12)
-                  Blank()
-                  Image($r('app.media.github_mark'))
-                    .width(FontSizeEnum[this.appState.fontSize].vp32)
-                    .height(FontSizeEnum[this.appState.fontSize].vp32)
-                  this.ShareIcon()
+                this.TextPrimary('最新版本')
+                Blank()
+                if (this.latestVersion.length > 0) {
+                  Column({ space: 4 }) {
+                    this.TextPrimary(this.latestVersion)
+                    this.TextSecondary(this.latestReleaseDate)
+                  }
+                  .alignItems(HorizontalAlign.End)
+                  .flexShrink(1)
                 } else {
-                  this.TextPrimary('正在获取最新版本...')
+                  this.TextSecondary(this.latestVersionLoaded ? '获取失败' : '正在获取...')
                 }
+                this.ShareIcon()
               }.alignItems(VerticalAlign.Center)
               .justifyContent(FlexAlign.SpaceBetween)
               .attributeModifier(this.settingRow)

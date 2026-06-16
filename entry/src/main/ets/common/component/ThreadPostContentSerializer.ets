@@ -1,6 +1,14 @@
 import { GeneralNode, UINodeName, UIRootNode } from './ThreadPostContent'
 
 const TABLE_CELL_SEPARATOR = '    '
+const SMILY_PATTERN = /\/(?:static\/)?image\/smiley\/([^\/?#]+)\/(\d+)\.(?:png|gif|jpg|jpeg|webp)(?:[?#].*)?$/i
+const SMILY_GROUP_PREFIX: Map<string, string> = new Map()
+SMILY_GROUP_PREFIX.set('face2017', 'f')
+SMILY_GROUP_PREFIX.set('carton2017', 'c')
+SMILY_GROUP_PREFIX.set('animal2017', 'a')
+SMILY_GROUP_PREFIX.set('device2017', 'd')
+SMILY_GROUP_PREFIX.set('goose2017', 'g')
+SMILY_GROUP_PREFIX.set('bundam2017', 'b')
 
 export abstract class ContentSerializer {
   abstract convert(nodes: UIRootNode[]): string
@@ -249,8 +257,10 @@ export class BBCodeSerializer extends StyledContentSerializer {
   private serializeDivNodes(nodes: GeneralNode[]): string {
     const parts: string[] = []
     for (const node of nodes) {
-      if (node.name == UINodeName.Img || node.name == UINodeName.ImgSmily) {
+      if (node.name == UINodeName.Img) {
         parts.push(`[img]${node.content}[/img]`)
+      } else if (node.name == UINodeName.ImgSmily) {
+        parts.push(this.serializeSmily(node.content))
       } else if (node.name == UINodeName.Attach) {
         parts.push(`[attach]${node.content}[/attach]`)
       } else if (node.name == UINodeName.IEdit) {
@@ -285,7 +295,7 @@ export class BBCodeSerializer extends StyledContentSerializer {
       if (node.name == UINodeName.Text || node.name == UINodeName.A) {
         result += this.applyBBCodeStyle(node, node.content)
       } else if (node.name == UINodeName.ImgSmily) {
-        result += `[img]${node.content}[/img]`
+        result += this.serializeSmily(node.content)
       } else if (node.name == UINodeName.Br) {
         if (i != 0) {
           result += '\n'
@@ -326,6 +336,17 @@ export class BBCodeSerializer extends StyledContentSerializer {
       text = `[b]${text}[/b]`
     }
     return text
+  }
+
+  private serializeSmily(src: string): string {
+    const matched = src.match(SMILY_PATTERN)
+    if (matched && matched.length == 3) {
+      const prefix = SMILY_GROUP_PREFIX.get(matched[1])
+      if (prefix) {
+        return `[${prefix}:${matched[2]}]`
+      }
+    }
+    return `[img]${src}[/img]`
   }
 }
 

@@ -55,7 +55,7 @@ export enum URL {
   REPORT_POST = 'misc.php?mod=report&inajax=1'
 }
 
-export const GITHUB_RELEASE_BADGE = 'https://raster.shields.io/github/v/release/wly5556/S1-Orange?style=for-the-badge&label='
+export const APP_RELEASE_INFO = 'https://raw.giteeusercontent.com/rI6tL9/S1-Orange/raw/main/latest_version'
 export const GITHUB_RELEASE_PAGE = 'https://github.com/wly5556/S1-Orange/releases'
 
 export const DomainRegex = new RegExp(`^https:\/\/(?:[^\/]*\.)?${URL.DOMAIN.replaceAll('.','\.')}(?:\/.*)?$`)
