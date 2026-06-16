@@ -300,7 +300,8 @@ export struct UserSpace {
                           fontSizeOverride: this.appState.fontSizeOverride,
                           copyOption: CopyOptions.LocalDevice,
                           onLinkClick: (href: string): void => {
-                            openS1LinkLike(href, this.pathStack, this.getUIContext().getHostContext() as common.UIAbilityContext)
+                            openS1LinkLike(href, this.pathStack,
+                              this.getUIContext().getHostContext() as common.UIAbilityContext)
                           },
                           onImgClick: (url: string, index: number): void => {
 
@@ -314,7 +315,7 @@ export struct UserSpace {
                   }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
                 }
                 Row() {
-                  GridRow({ gutter: 1 }) {
+                  GridRow({ gutter: 1, columns: 12 }) {
                     ForEach(this.userSpace.dates, (item: dateInfoVM) => {
                       GridCol({
                         span: {
@@ -335,7 +336,7 @@ export struct UserSpace {
                 .transition(TransitionEffect.translate({ y: -35 }).animation(SpringCurve))
 
                 Row() {
-                  GridRow({ gutter: 1 }) {
+                  GridRow({ gutter: 1, columns: 12 }) {
                     ForEach(this.userSpace.extcredits, (item: ExtCreditVM) => {
                       GridCol({
                         span: {

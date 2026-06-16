@@ -173,7 +173,8 @@ export struct ReplyImagePicker {
                   .backgroundColor(this.appTheme.backgroundSecondary)
                 }
                 GridRow({
-                  gutter: 24
+                  gutter: 24,
+                  columns: 12
                 }) {
                   ForEach(this.imageList, (image: ImageObjectVM, index: number) => {
                     if (image.provider == upIndex) {
