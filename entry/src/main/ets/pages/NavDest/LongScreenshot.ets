@@ -12,7 +12,7 @@ import { ImageKnifeComponent } from '@ohos/imageknife'
 import {
   ThreadPostUINodeRender, UIRootNode
 } from '../../common/component/ThreadPostContent'
-import { LongScreenshotPost } from './ThreadPostList'
+import { LongScreenshotPollForShot, LongScreenshotPost } from './ThreadPostList'
 import { ThreadRatingInfo } from '../../common/component/PostRating'
 import { savePixelMapToShareTempFile } from '../../common/PixelMapSaver'
 import { ShareImage } from '../../common/ShareKit'
@@ -22,12 +22,14 @@ import { promptAction } from '@kit.ArkUI'
 import { getGroupName, getThreadTypeName } from '../../common/ForumUtil'
 import { generateS1WebPostLink } from '../../common/WantUitl'
 import { UserCreditText } from '../../common/component/UserCredit'
+import { PollPanelComp } from '../../common/component/PollPanel'
 
 export interface LongScreenshotPageParam {
   subject: string
   tid: string
   fid?: string
   typeid?: string
+  poll?: LongScreenshotPollForShot
   posts: LongScreenshotPost[]
   ratingInfoMap: Map<string, ThreadRatingInfo>
 }
@@ -250,6 +252,20 @@ export struct LongScreenshotPage {
       .onAreaChange((oldValue, newValue) => {
         this.updatePostContentHeight(`post-content-${index}`, newValue.height as number)
       })
+
+      if (item.floorNumber == '1' && this.pageParam.poll !== undefined) {
+        PollPanelComp({
+          appTheme: this.appTheme,
+          appState: this.appState,
+          pollList: this.pageParam.poll.pollList,
+          pollInfo: this.pageParam.poll.pollInfo,
+          transitionIndex: `LongScreenshotPoll${item.post.pid}`,
+          expired: this.pageParam.poll.pollInfo.expirations * 1000 < Date.now(),
+          allowVote: true,
+          onSelected: (index: number, e: ClickEvent) => {
+          }
+        })
+      }
 
       if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
         Row() {

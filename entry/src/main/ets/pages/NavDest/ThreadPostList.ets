@@ -85,6 +85,11 @@ export interface LongScreenshotPost {
   ratingInfo?: ThreadRatingInfo
 }
 
+export interface LongScreenshotPollForShot {
+  pollList: PollOptionVM[]
+  pollInfo: PollInfoVM
+}
+
 export interface ThreadPostParam {
   tid: string // 仅tid是打开本页面的必须参数
   fid?: string
@@ -133,6 +138,7 @@ export struct ThreadPostList {
   @Provide longScreenshotMode: boolean = false
   @Provide @Watch('selectedPostsChanged') selectedPostsForShot: Map<string, LongScreenshotPost> = new Map
   @Provide @Watch('consumePostForShot') mainPostForShot?: LongScreenshotPost = undefined
+  @Provide pollForShot?: LongScreenshotPollForShot = undefined
   mainPostReturnPage: number = -1
   @State selectedCount: number = 0
   @Provide contentVisible: boolean = true
@@ -241,6 +247,9 @@ export struct ThreadPostList {
       typeid: this.pageParam.typeid,
       posts,
       ratingInfoMap
+    }
+    if (this.pollForShot !== undefined) {
+      param.poll = this.pollForShot
     }
     openLongScreenshot(this.pathStack, param)
     this.exitLongScreenshotMode()
@@ -585,6 +594,7 @@ struct SinglePostPage {
   @Consume longScreenshotMode: boolean
   @Consume selectedPostsForShot: Map<string, LongScreenshotPost>
   @Consume mainPostForShot?: LongScreenshotPost
+  @Consume pollForShot?: LongScreenshotPollForShot
   @State isLoading: boolean = true
   postDataSource: ArrayDataSource<PostViewModel> = new ArrayDataSource()
   postStringify: Map<string, string> = new Map
@@ -790,10 +800,19 @@ struct SinglePostPage {
     const postRating = new Map<string, ThreadRatingInfo | undefined>()
     Object.keys(v.Variables.comments).forEach(pid => postRating.set(pid, undefined))
     this.postRatingInfo = postRating
-    if (this.pageToLoad == 1 && v.Variables.special_poll) {
-      const pollData = v.Variables.special_poll
-      this.pollInfo = getPollInfo(pollData)
-      this.pollList = getPollList(pollData)
+    if (this.pageToLoad == 1) {
+      if (v.Variables.special_poll) {
+        const pollData = v.Variables.special_poll
+        this.pollInfo = getPollInfo(pollData)
+        this.pollList = getPollList(pollData)
+        this.pollForShot = {
+          pollList: this.pollList,
+          pollInfo: this.pollInfo
+        }
+      } else {
+        this.pollList = []
+        this.pollForShot = undefined
+      }
     }
   }
 
