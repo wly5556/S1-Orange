@@ -236,6 +236,7 @@ export struct LongScreenshotPage {
             },
             onImgClick: (url: string, index: number): void => {
             },
+            getAttachInfo: (aid: string) => item.post.attachments?.[aid],
             lazyLoadImage: false,
             adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
           })

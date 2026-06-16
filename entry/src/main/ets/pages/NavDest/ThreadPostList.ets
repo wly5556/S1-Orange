@@ -56,7 +56,6 @@ import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { HiddenPostDisplay } from '../../config/v1/default'
 import { LengthUnit, promptAction } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
-import { DownloadFile } from '../../api/download'
 import { openReportPost } from './ReportPost'
 import { plainTextSerializer } from '../../common/component/ThreadPostContentSerializer'
 import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSearch'
@@ -64,6 +63,7 @@ import { UserTagDialog } from '../../common/component/UserTagDialog'
 import { getUserTagsCopy } from '../../common/dataStore/UserTag'
 import { LongScreenshotPageParam, openLongScreenshot } from './LongScreenshot'
 import { deviceInfo } from '@kit.BasicServicesKit';
+import { ThreadPostAttachmentItem } from '../../common/component/ThreadPostAttachmentItem'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -74,8 +74,12 @@ export interface PostViewModel {
   userCredit: string
 }
 
+export interface LongScreenshotPostViewModel extends PostViewModel {
+  attachments?: Record<string, Attachment>
+}
+
 export interface LongScreenshotPost {
-  post: PostViewModel
+  post: LongScreenshotPostViewModel
   floorNumber: string
   ratingInfo?: ThreadRatingInfo
 }
@@ -608,7 +612,8 @@ struct SinglePostPage {
     allowvote: SpecialPollAllowVote.ALLOW
   }
   @Provide postRatingInfo: Map<string, ThreadRatingInfo | undefined> = new Map
-  @State postAttachment: Map<string, Attachment[]> = new Map
+  @State postAttachment: Map<string, Record<string, Attachment>> = new Map
+  consumedAttachmentAid: Set<string> = new Set
   @Consume contentVisible: boolean
   @State pinnedPost: PostViewModel | undefined = undefined
   pullUpStartOffset: number = 0
@@ -704,6 +709,8 @@ struct SinglePostPage {
     } else {
       this.postHidden.clear()
       this.postHiddenExpand.clear()
+      this.postAttachment.clear()
+      this.consumedAttachmentAid.clear()
       const pageFloorStart = POST_PER_PAGE * (this.pageToLoad - 1)
       if (pageFloorStart >= 10000) {
         this.indexerFontSize = 8
@@ -716,15 +723,15 @@ struct SinglePostPage {
 
       rawPostList.forEach((p, i) => {
         if (p.attachments) {
+          const attachMap: Record<string, Attachment> = {}
           Object.values(p.attachments).forEach(attach => {
             if (attach.isimage === '0') {
-              if (!this.postAttachment.has(p.pid)) {
-                this.postAttachment.set(p.pid, [])
-              }
-              const attachList = this.postAttachment.get(p.pid)
-              attachList!.push(attach)
+              attachMap[attach.aid] = attach
             }
           })
+          if (Object.keys(attachMap).length > 0) {
+            this.postAttachment.set(p.pid, attachMap)
+          }
         }
         if (p.groupid === '4') {
           parseXML([p]).forEach((root) => {
@@ -998,7 +1005,15 @@ struct SinglePostPage {
       }
     }
     return {
-      post,
+      post: {
+        node: post.node,
+        uid: post.uid,
+        username: post.username,
+        pid: post.pid,
+        timestamp: post.timestamp,
+        userCredit: post.userCredit,
+        attachments: this.postAttachment.get(post.pid)
+      },
       floorNumber: this.getFloorNumber(compIndex),
       ratingInfo,
     }
@@ -1015,8 +1030,16 @@ struct SinglePostPage {
     this.selectedPostsForShot = newMap
   }
 
+  getAttachInfo(pid: string, aid: string): Attachment | undefined {
+    const attach = this.postAttachment.get(pid)?.[aid]
+    if (attach !== undefined) {
+      this.consumedAttachmentAid.add(aid)
+    }
+    return attach
+  }
+
   @LocalBuilder
-  buildPostContent(nodes: UIRootNode[]) {
+  buildPostContent(nodes: UIRootNode[], pid: string) {
     ForEach(nodes, (uiRoot: UIRootNode) => {
       ThreadPostUINodeRender({
         uiRoot: uiRoot,
@@ -1032,6 +1055,7 @@ struct SinglePostPage {
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
         },
+        getAttachInfo: (aid: string): Attachment | undefined => this.getAttachInfo(pid, aid),
         lazyLoadImage: true,
         adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
       })
@@ -1235,17 +1259,17 @@ struct SinglePostPage {
         if (!this.postHidden.has(post.pid) ||
           this.appState.hiddenPostDisplay == HiddenPostDisplay.visibleWithoutHiddenReason) {
           if (post.node.length > 0) {
-            this.buildPostContent(post.node)
+            this.buildPostContent(post.node, post.pid)
           } else if (this.postHidden.has(post.pid)) {
-            this.buildPostContent(this.postHidden.get(post.pid) || [])
+            this.buildPostContent(this.postHidden.get(post.pid) || [], post.pid)
           }
         } else {
-          this.buildPostContent(this.postHidden.get(post.pid) || [])
+          this.buildPostContent(this.postHidden.get(post.pid) || [], post.pid)
           if (this.appState.hiddenPostDisplay == HiddenPostDisplay.visible ||
             this.postHiddenExpand.has(post.pid)) {
             Column() {
               if (post.node.length > 0) {
-                this.buildPostContent(post.node)
+                this.buildPostContent(post.node, post.pid)
               } else {
                 Text() {
                   ImageSpan($r('app.media.face_253_akarin'))
@@ -1285,35 +1309,14 @@ struct SinglePostPage {
         }
 
         if (this.postAttachment.has(post.pid)) {
-          ForEach(this.postAttachment.get(post.pid), (attach: Attachment) => {
-            Row({ space: 12 }) {
-              Image($r('app.media.arrow_right_folder_circle')).width(26).height(26)
-                .fillColor(this.appTheme.fontEmphasize)
-              Column({ space: 6 }) {
-                Text(attach.filename)
-                  .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                  .wordBreak(WordBreak.BREAK_ALL)
-                Text(`${attach.attachsize}   ${attach.downloads}次下载`)
-                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-                  .opacity(.7)
-              }.flexGrow(100)
-              .flexShrink(1)
-              .alignItems(HorizontalAlign.Start)
-
-              Button('下载')
-                .buttonStyle(ButtonStyleMode.NORMAL)
-                .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                .onClick(() => {
-                  DownloadFile(this.context, attach.filename,
-                    URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode)
-                })
+          ForEach(Object.values(this.postAttachment.get(post.pid) || {}), (attach: Attachment) => {
+            if (!this.consumedAttachmentAid.has(attach.aid)) {
+              ThreadPostAttachmentItem({
+                attach,
+                appTheme: this.appTheme,
+                fontSize: this.appState.fontSize
+              })
             }
-            .backgroundColor(this.appTheme.backgroundTertiary)
-            .padding(12)
-            .borderRadius(12)
-            .alignItems(VerticalAlign.Center)
-            .width('100%')
-            .margin({ top: 8 })
           }, (attach: Attachment) => attach.aid)
         }
 

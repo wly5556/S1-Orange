@@ -13,6 +13,7 @@ import { FontSizeIndex, FontSizeOverride } from '../../config/v1/default'
 import { generateImageViewerTransitionKey } from './ImageViewer'
 import { CopyText } from '../ShareKit'
 import { adjustTextColorForDarkMode } from '../Colorjs'
+import { ThreadPostAttachmentItem } from './ThreadPostAttachmentItem'
 
 enum XMLNodeType {
   element = 'element',
@@ -42,13 +43,15 @@ export enum UINodeName {
   Code = 'code',
   Table = 'table',
   Tr = 'tr',
-  Td = 'td'
+  Td = 'td',
+  Attach = 'attach'
 }
 
 
 const UINodeParentType: Record<string, UINodeName.Div | UINodeName.Text> = {
   [UINodeName.Img]: UINodeName.Div,
   [UINodeName.IEdit]: UINodeName.Div,
+  [UINodeName.Attach]: UINodeName.Div,
   [UINodeName.Br]: UINodeName.Text,
   [UINodeName.ImgSmily]: UINodeName.Text,
   [UINodeName.Text]: UINodeName.Text,
@@ -105,7 +108,11 @@ function getRootNodeFromXML(xml: string) {
 
 export function parseXML(input: PostToParse[]): XMLParsed[] {
   return input.map((p): (TextNode | ElementNode) => {
-    let xmlWrapped = `<root>${unescapeHtmlToXml(p.message)}</root>`
+    let xmlWrapped = ''
+    const attachRegex = /\[attach\](\d{1,10})\[\/attach\]/g
+    if (p.message !== undefined) {
+      xmlWrapped = `<root>${unescapeHtmlToXml(p.message).replace(attachRegex, '<attach>$1</attach>')}</root>`
+    }
     let blankNode: ElementNode = {
       type: XMLNodeType.element,
       name: UINodeName.Div,
@@ -130,15 +137,6 @@ export function parseXML(input: PostToParse[]): XMLParsed[] {
       xmlWrapped = '<root>[关键词屏蔽]</root>'
     }
 
-    const attachmentRegex = /\[attach\](\d+)\[\/attach\]/g
-    let match: RegExpExecArray | null
-    while ((match = attachmentRegex.exec(xmlWrapped)) !== null) {
-      const aId = parseInt(match[1], 10);
-      if (p.attachments && p.attachments[aId] != undefined) {
-        let attachment = p.attachments[aId]
-        xmlWrapped = xmlWrapped.replace(match[0], `<img src="${attachment.url + attachment.attachment}"/>`)
-      }
-    }
     xmlWrapped = colorizeReplyRedirect(xmlWrapped)
     let rootNode = getRootNodeFromXML(xmlWrapped)
     if (rootNode == null) {
@@ -171,6 +169,7 @@ interface ThreadPostUINodeRenderParam {
   copyOption: CopyOptions
   onLinkClick: (href: string) => void
   onImgClick: (url: string, index: number) => void
+  getAttachInfo: (aid: string) => Attachment | undefined
   lineSpace: number
   lazyLoadImage: boolean
   adjustColorForDarkMode: boolean
@@ -393,6 +392,10 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
           imgUrl.push(imgSrc)
         }
       }
+    } else if (node.name == UINodeName.Attach) {
+      if (node.elements && node.elements.length > 0 && node.elements[0].type == XMLNodeType.text) {
+        post.push(new GeneralNode(UINodeName.Attach, node.elements[0].text, node.elements[0].text))
+      }
     } else if (node.name == UINodeName.P) {
       post.push(new GeneralNode(UINodeName.Br, ''))
       node.elements?.forEach((n): void => ContentParser(n, post))
@@ -493,7 +496,8 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
       } else if (listMode == UINodeName.Ol) {
         TextStyle.combine({
           color: $r('sys.color.font_tertiary')
-        }, (): void => post!.push(new GeneralNode(UINodeName.Text, listRowCounter + ' ', UINodeName.Ol).style(TextStyle.peek())))
+        }, (): void => post!.push(
+          new GeneralNode(UINodeName.Text, listRowCounter + ' ', UINodeName.Ol).style(TextStyle.peek())))
       }
       node.elements?.forEach((n): void => ContentParser(n, post))
     } else if (node.name == UINodeName.Table) {
@@ -578,6 +582,14 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
             .fontStyle(FontStyle.Italic)
             .opacity(0.7)
             .fontSize(FontSizeEnum[param.fontSize].vp15)
+        } else if (node.name == UINodeName.Attach) {
+          if (param.getAttachInfo(node.attribute) !== undefined) {
+            ThreadPostAttachmentItem({
+              attach: param.getAttachInfo(node.attribute),
+              appTheme: param.appTheme,
+              fontSize: param.fontSize
+            })
+          }
         }
       }, (node: GeneralNode, index: number) => index.toString())
     }.width('100%')
@@ -589,7 +601,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
         Text("复制").fontSize(FontSizeEnum[param.fontSize].vp16).fontColor(param.appTheme.fontEmphasize).opacity(.8)
           .onClick(() => {
             let code = ''
-            for(const node of param.uiRoot.block) {
+            for (const node of param.uiRoot.block) {
               if (node.name == UINodeName.Text) {
                 if (!node.attribute) { // 对于用作代码行号的Ol节点，它们的node.name也为Text，但node.attribute为Ol，需要排除
                   code += node.content
@@ -603,6 +615,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
           })
       }.justifyContent(FlexAlign.SpaceBetween)
       .width('100%')
+
       Divider().margin({
         top: 4,
         bottom: 4
@@ -684,6 +697,7 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         copyOption: param.copyOption,
         onLinkClick: param.onLinkClick,
         onImgClick: param.onImgClick,
+        getAttachInfo: param.getAttachInfo,
         lazyLoadImage: param.lazyLoadImage,
         adjustColorForDarkMode: param.adjustColorForDarkMode
       })
@@ -740,7 +754,8 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
 
   private resolveTextColor(): ResourceColor | undefined {
     if (this.style.color != undefined) {
-      if (this.adjustColorForDarkMode && typeof this.style.color == 'string' && this.style.backgroundColor == undefined) {
+      if (this.adjustColorForDarkMode && typeof this.style.color == 'string' &&
+        this.style.backgroundColor == undefined) {
         return adjustTextColorForDarkMode(this.style.color)
       }
       return this.style.color
