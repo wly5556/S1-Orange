@@ -1,4 +1,4 @@
-import { ImageKnifeComponent } from '@ohos/imageknife'
+import { DownsampleStrategy, ImageKnifeComponent, ImageKnifeRequest } from '@ohos/imageknife'
 import { DomainRegex } from '../../api/base'
 import { userCookieString } from '../../api/request'
 import { openInBrowser } from '../WantUitl'
@@ -21,6 +21,7 @@ export struct ImageContainer {
   @State loadComplete: boolean = false
   @State loadingProgress: number = 0
   @State loadFailed: boolean = false
+  @State downsampleStrategy: DownsampleStrategy = DownsampleStrategy.DEFAULT
   imgSize?: RectSize
   @Prop @Watch('resize') constrainSize: RectSize | undefined = undefined
   lastConstrainSizeWidth: number | undefined = undefined
@@ -125,6 +126,7 @@ export struct ImageContainer {
                 }
               }
             },
+            downsampleOf: this.downsampleStrategy,
             onComplete: (imageSize) => {
               // 给ImageKnifeComponent用auto height在显示动图的时候，会按height 100%来处理，而不是自适应图片高度
               // 暂时二次设置图片高度
@@ -133,6 +135,9 @@ export struct ImageContainer {
                 this.imgSize = {
                   w: imageSize.width,
                   h: imageSize.height
+                }
+                if (imageSize.width * imageSize.height >= 16777216 && this.usedByImageViewer === false) {
+                  this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
                 }
                 this.resize(imageSize.componentWidth)
               }
