@@ -228,12 +228,18 @@ export class MarkdownSerializer extends StyledContentSerializer {
   }
 }
 
+interface SerializedList {
+  content: string
+  nextIndex: number
+}
+
 export class BBCodeSerializer extends StyledContentSerializer {
   protected serializeRoot(root: UIRootNode): string {
+    let result = ''
     if (root.type == UINodeName.Text) {
-      return this.serializeInlineNodes(root.block)
+      result = this.serializeInlineNodes(root.block)
     } else if (root.type == UINodeName.Code) {
-      return '[code]' + this.serializeCodeInlineNodes(root.block) + '[/code]'
+      result = '[code]' + this.serializeCodeInlineNodes(root.block) + '[/code]'
     } else if (root.type == UINodeName.Quote) {
       const parts: string[] = []
       for (const node of root.block) {
@@ -241,11 +247,24 @@ export class BBCodeSerializer extends StyledContentSerializer {
           parts.push(this.convert(node.nestedRootNode))
         }
       }
-      return '[quote]' + parts.join('\n\n') + '[/quote]'
+      result = '[quote]' + parts.join('\n\n') + '[/quote]'
     } else if (root.type == UINodeName.Div) {
-      return this.serializeDivNodes(root.block)
+      result = this.serializeDivNodes(root.block)
     } else if (root.type == UINodeName.Table) {
-      return this.serializeTable(root.block)
+      result = this.serializeTable(root.block)
+    }
+    const align = this.bbCodeAlignOf(root)
+    if (result.length > 0 && align.length > 0) {
+      return `[align=${align}]${result}[/align]`
+    }
+    return result
+  }
+
+  private bbCodeAlignOf(root: UIRootNode): string {
+    if (root.textAlign == TextAlign.Center) {
+      return 'center'
+    } else if (root.textAlign == TextAlign.End) {
+      return 'right'
     }
     return ''
   }
@@ -288,7 +307,11 @@ export class BBCodeSerializer extends StyledContentSerializer {
     let result = ''
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i]
-      if (node.name == UINodeName.Text || node.name == UINodeName.A) {
+      if (this.isListMarker(node)) {
+        const serialized = this.serializeList(nodes, i)
+        result += serialized.content
+        i = serialized.nextIndex - 1
+      } else if (node.name == UINodeName.Text || node.name == UINodeName.A) {
         result += this.applyBBCodeStyle(node, node.content)
       } else if (node.name == UINodeName.ImgSmily) {
         result += this.serializeSmily(node.content)
@@ -301,8 +324,51 @@ export class BBCodeSerializer extends StyledContentSerializer {
     return result
   }
 
+  private isListMarker(node: GeneralNode): boolean {
+    return node.name == UINodeName.Text && (node.attribute == UINodeName.Ul || node.attribute == UINodeName.Ol)
+  }
+
+  private serializeList(nodes: GeneralNode[], startIndex: number): SerializedList {
+    const listMode = nodes[startIndex].attribute
+    const items: string[] = []
+    let i = startIndex
+    while (i < nodes.length && this.isListMarker(nodes[i]) && nodes[i].attribute == listMode) {
+      i++
+      let item = ''
+      while (i < nodes.length) {
+        const node = nodes[i]
+        if (this.isListMarker(node)) {
+          break
+        }
+        if (node.name == UINodeName.Br && i + 1 < nodes.length && this.isListMarker(nodes[i + 1])) {
+          i++
+          break
+        }
+        item += this.serializeInlineNode(node, item.length == 0)
+        i++
+      }
+      items.push('[*]' + item)
+    }
+    const listStart = listMode == UINodeName.Ol ? '[list=1]' : '[list]'
+    return {
+      content: listStart + '\n' + items.join('\n') + '\n[/list]',
+      nextIndex: i
+    }
+  }
+
+  private serializeInlineNode(node: GeneralNode, isFirst: boolean): string {
+    if (node.name == UINodeName.Text || node.name == UINodeName.A) {
+      return this.applyBBCodeStyle(node, node.content)
+    } else if (node.name == UINodeName.ImgSmily) {
+      return this.serializeSmily(node.content)
+    } else if (node.name == UINodeName.Br) {
+      return isFirst ? '' : '\n'
+    }
+    return ''
+  }
+
   private applyBBCodeStyle(node: GeneralNode, text: string): string {
-    if (node.attribute == UINodeName.Ul) {
+    if (node.attribute == UINodeName.Ul || node.attribute == UINodeName.Ol) {
       return '[*]'
     }
     if (node.styleControl.href) {
