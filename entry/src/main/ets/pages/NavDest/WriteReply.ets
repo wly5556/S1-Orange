@@ -26,6 +26,7 @@ import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { PostSignature } from '../../common/PostSignature'
 import { dupTextRange } from '../../common/TextUtil'
+import { bbCodeSerializer, markdownParser } from '../../common/ThreadPostContentSerializer'
 
 export enum WriteReplyMode {
   NEW_THREAD,
@@ -127,6 +128,8 @@ export struct WriteReply {
   @State essentialDataReady: boolean = false
   @State sendingReply: boolean = false
   @State fontColorPickerShow: boolean = false
+  @State markdownImportSheetShow: boolean = false
+  @State markdownImportText: string = ''
   popData: WriteReplyPopData = {
     replied: false
   }
@@ -215,6 +218,26 @@ export struct WriteReply {
     } else {
       this.caretRePos = selection.start + prefix.length
     }
+  }
+
+  importMarkdown() {
+    const input = this.markdownImportText.trim()
+    if (input.length == 0) {
+      this.getUIContext().getPromptAction().showToast({
+        message: '请输入 Markdown 内容'
+      })
+      return
+    }
+    const bbcode = bbCodeSerializer.convert(markdownParser.convert(input))
+    if (bbcode.length == 0) {
+      this.getUIContext().getPromptAction().showToast({
+        message: '没有可插入的内容'
+      })
+      return
+    }
+    this.insertText(bbcode)
+    this.markdownImportText = ''
+    this.markdownImportSheetShow = false
   }
 
   @LocalBuilder
@@ -592,6 +615,15 @@ export struct WriteReply {
                     }, () => {
                       this.fontColorPickerShow = true
                     })
+                    this.PostFormatterButton({
+                      img: $r('app.media.markdown'),
+                      name: '导入Md',
+                      prefix: '',
+                      suffix: ''
+                    }, () => {
+                      this.markdownImportText = ''
+                      this.markdownImportSheetShow = true
+                    })
                   }
                 }.padding({ top: 20 })
                 .width('100%')
@@ -655,6 +687,52 @@ export struct WriteReply {
     }).bindSheet($$this.fontColorPickerShow, buildFontColorPicker((colorValue) => {
       this.wrapText(`[color=${colorValue}]`, '[color]')
     }), FontColorPickerSheetOption)
+    .bindSheet($$this.markdownImportSheetShow, this.MarkdownImportSheet(), {
+      height: SheetSize.MEDIUM,
+      detents: [SheetSize.MEDIUM, SheetSize.LARGE],
+      dragBar: true,
+      showClose: false,
+      preferType: SheetType.BOTTOM,
+      scrollSizeMode: ScrollSizeMode.CONTINUOUS
+    })
+  }
+
+  @Builder
+  MarkdownImportSheet() {
+    Column({ space: 12 }) {
+      Text('导入 Markdown')
+        .fontSize(FontSizeEnum[this.appState.fontSize].vp20)
+        .fontColor(this.appTheme.fontPrimary)
+        .width('100%')
+        .textAlign(TextAlign.Start)
+
+      TextArea({
+        text: $$this.markdownImportText,
+        placeholder: '粘贴 Markdown 内容，会尽量转换成BBCode'
+      })
+        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+        .fontColor(this.appTheme.fontPrimary)
+        .borderRadius(8)
+        .padding(12)
+        .width('100%')
+        .layoutWeight(1)
+
+      Row({ space: 12 }) {
+        Button('取消', { buttonStyle: ButtonStyleMode.TEXTUAL })
+          .layoutWeight(1)
+          .onClick(() => {
+            this.markdownImportSheetShow = false
+          })
+        Button('插入', { buttonStyle: ButtonStyleMode.EMPHASIZED })
+          .layoutWeight(1)
+          .onClick(() => {
+            this.importMarkdown()
+          })
+      }.width('100%')
+    }
+    .width('100%')
+    .height('100%')
+    .padding(16)
   }
 
   @Builder

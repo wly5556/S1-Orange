@@ -14,6 +14,10 @@ export abstract class ContentSerializer {
   abstract convert(nodes: UIRootNode[]): string
 }
 
+export abstract class ContentParser {
+  abstract convert(input: string): UIRootNode[]
+}
+
 export class PlainTextSerializer extends ContentSerializer {
   convert(nodes: UIRootNode[]): string {
     const parts: string[] = []
@@ -89,6 +93,353 @@ export class PlainTextSerializer extends ContentSerializer {
 }
 
 export const plainTextSerializer = new PlainTextSerializer()
+
+interface ParserTextStyle {
+  weight?: FontWeight
+  italic?: FontStyle
+  strike?: boolean
+  href?: string
+  fontSize?: number
+}
+
+type ParserRootType = UINodeName.Text | UINodeName.Quote | UINodeName.Code | UINodeName.Div
+
+export class MarkdownParser extends ContentParser {
+  private readonly headingSize: number[] = [7, 6, 5, 4, 3]
+
+  convert(input: string): UIRootNode[] {
+    const lines = input.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+    const roots: UIRootNode[] = []
+    const paragraphLines: string[] = []
+    let index = 0
+
+    const flushParagraph = (): void => {
+      if (paragraphLines.length == 0) {
+        return
+      }
+      this.pushParagraph(roots, paragraphLines)
+      paragraphLines.splice(0, paragraphLines.length)
+    }
+
+    while (index < lines.length) {
+      const line = lines[index]
+      if (line.trim().length == 0) {
+        flushParagraph()
+        index++
+        continue
+      }
+
+      const fenceMatch = line.match(/^\s{0,3}(```+|~~~+)/)
+      if (fenceMatch) {
+        flushParagraph()
+        const fence = fenceMatch[1]
+        const codeLines: string[] = []
+        index++
+        while (index < lines.length && !lines[index].trim().startsWith(fence)) {
+          codeLines.push(lines[index])
+          index++
+        }
+        if (index < lines.length) {
+          index++
+        }
+        roots.push(this.makeRoot(UINodeName.Code, this.textWithBreaks(codeLines.join('\n'), {})))
+        continue
+      }
+
+      const quoteMatch = line.match(/^\s{0,3}>\s?(.*)$/)
+      if (quoteMatch) {
+        flushParagraph()
+        const quoteLines: string[] = []
+        while (index < lines.length) {
+          const matched = lines[index].match(/^\s{0,3}>\s?(.*)$/)
+          if (!matched) {
+            break
+          }
+          quoteLines.push(matched[1])
+          index++
+        }
+        const quoteNode = new GeneralNode(UINodeName.Quote, '')
+        quoteNode.nestedRootNode = this.convert(quoteLines.join('\n'))
+        roots.push(this.makeRoot(UINodeName.Quote, [quoteNode]))
+        continue
+      }
+
+      const unorderedListMatch = line.match(/^\s{0,3}[-+*]\s+(.+)$/)
+      const orderedListMatch = line.match(/^\s{0,3}\d+[.)]\s+(.+)$/)
+      if (unorderedListMatch || orderedListMatch) {
+        flushParagraph()
+        const mode = unorderedListMatch ? UINodeName.Ul : UINodeName.Ol
+        const items: string[] = []
+        while (index < lines.length) {
+          const itemMatch = mode == UINodeName.Ul ?
+            lines[index].match(/^\s{0,3}[-+*]\s+(.+)$/) :
+            lines[index].match(/^\s{0,3}\d+[.)]\s+(.+)$/)
+          if (!itemMatch) {
+            break
+          }
+          items.push(itemMatch[1])
+          index++
+        }
+        roots.push(this.makeRoot(UINodeName.Text, this.listNodes(items, mode)))
+        continue
+      }
+
+      const headingMatch = line.match(/^\s{0,3}(#{1,5})\s+(.+)$/)
+      if (headingMatch) {
+        flushParagraph()
+        const level = headingMatch[1].length
+        const style: ParserTextStyle = {
+          fontSize: this.headingSize[level - 1]
+        }
+        roots.push(this.makeRoot(UINodeName.Text, this.parseInline(headingMatch[2], style)))
+        index++
+        continue
+      }
+
+      paragraphLines.push(line)
+      index++
+    }
+
+    flushParagraph()
+    return roots
+  }
+
+  private pushParagraph(roots: UIRootNode[], lines: string[]): void {
+    const text = lines.join('\n')
+    const imageUrl = this.standaloneImageUrl(text.trim())
+    if (imageUrl.length > 0) {
+      roots.push(this.makeRoot(UINodeName.Div, [new GeneralNode(UINodeName.Img, imageUrl)]))
+      return
+    }
+    roots.push(this.makeRoot(UINodeName.Text, this.parseInline(text, {})))
+  }
+
+  private makeRoot(type: ParserRootType, block: GeneralNode[]): UIRootNode {
+    return {
+      type,
+      block,
+      textAlign: TextAlign.Start
+    }
+  }
+
+  private textWithBreaks(text: string, style: ParserTextStyle): GeneralNode[] {
+    const nodes: GeneralNode[] = []
+    const parts = text.split('\n')
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        nodes.push(new GeneralNode(UINodeName.Br, ''))
+      }
+      if (parts[i].length > 0) {
+        nodes.push(this.textNode(parts[i], style))
+      }
+    }
+    return nodes
+  }
+
+  private listNodes(items: string[], mode: UINodeName.Ul | UINodeName.Ol): GeneralNode[] {
+    const nodes: GeneralNode[] = []
+    for (let i = 0; i < items.length; i++) {
+      nodes.push(new GeneralNode(UINodeName.Text, mode == UINodeName.Ol ? `${i + 1} ` : '', mode))
+      this.appendNodes(nodes, this.parseInline(items[i], {}))
+      if (i + 1 < items.length) {
+        nodes.push(new GeneralNode(UINodeName.Br, ''))
+      }
+    }
+    return nodes
+  }
+
+  private parseInline(text: string, style: ParserTextStyle): GeneralNode[] {
+    const nodes: GeneralNode[] = []
+    let buffer = ''
+    let index = 0
+
+    const flushText = (): void => {
+      if (buffer.length > 0) {
+        nodes.push(this.textNode(buffer, style))
+        buffer = ''
+      }
+    }
+
+    while (index < text.length) {
+      if (text[index] == '\\' && index + 1 < text.length) {
+        buffer += text[index + 1]
+        index += 2
+        continue
+      }
+
+      if (text[index] == '\n') {
+        flushText()
+        nodes.push(new GeneralNode(UINodeName.Br, ''))
+        index++
+        continue
+      }
+
+      const image = this.inlineImage(text, index)
+      if (image.nextIndex > index) {
+        flushText()
+        nodes.push(this.textNode(`[img]${image.url}[/img]`, style))
+        index = image.nextIndex
+        continue
+      }
+
+      const link = this.inlineLink(text, index)
+      if (link.nextIndex > index) {
+        flushText()
+        this.appendNodes(nodes, this.parseInline(link.text, this.mergeStyle(style, {
+          href: link.url
+        })))
+        index = link.nextIndex
+        continue
+      }
+
+      const marker = this.inlineMarker(text, index)
+      if (marker.length > 0) {
+        const closeIndex = text.indexOf(marker, index + marker.length)
+        if (closeIndex > index + marker.length) {
+          flushText()
+          this.appendNodes(nodes, this.parseInline(text.slice(index + marker.length, closeIndex),
+            this.mergeStyle(style, this.styleForMarker(marker))))
+          index = closeIndex + marker.length
+          continue
+        }
+      }
+
+      buffer += text[index]
+      index++
+    }
+
+    flushText()
+    return nodes
+  }
+
+  private appendNodes(target: GeneralNode[], source: GeneralNode[]): void {
+    for (const node of source) {
+      target.push(node)
+    }
+  }
+
+  private inlineMarker(text: string, index: number): string {
+    if (text.startsWith('**', index) || text.startsWith('__', index) || text.startsWith('~~', index)) {
+      return text.slice(index, index + 2)
+    }
+    if (text[index] == '*' || text[index] == '_') {
+      return text[index]
+    }
+    return ''
+  }
+
+  private styleForMarker(marker: string): ParserTextStyle {
+    if (marker == '**' || marker == '__') {
+      return {
+        weight: FontWeight.Bold
+      }
+    } else if (marker == '~~') {
+      return {
+        strike: true
+      }
+    }
+    return {
+      italic: FontStyle.Italic
+    }
+  }
+
+  private inlineImage(text: string, index: number): MarkdownInlineLink {
+    if (!text.startsWith('![', index)) {
+      return {
+        text: '',
+        url: '',
+        nextIndex: index
+      }
+    }
+    const link = this.inlineLinkBody(text, index + 1)
+    if (link.nextIndex <= index + 1) {
+      return {
+        text: '',
+        url: '',
+        nextIndex: index
+      }
+    }
+    return link
+  }
+
+  private inlineLink(text: string, index: number): MarkdownInlineLink {
+    if (!text.startsWith('[', index)) {
+      return {
+        text: '',
+        url: '',
+        nextIndex: index
+      }
+    }
+    return this.inlineLinkBody(text, index)
+  }
+
+  private inlineLinkBody(text: string, startIndex: number): MarkdownInlineLink {
+    const labelEnd = text.indexOf(']', startIndex + 1)
+    if (labelEnd < 0 || labelEnd + 1 >= text.length || text[labelEnd + 1] != '(') {
+      return {
+        text: '',
+        url: '',
+        nextIndex: startIndex
+      }
+    }
+    const urlEnd = text.indexOf(')', labelEnd + 2)
+    if (urlEnd < 0) {
+      return {
+        text: '',
+        url: '',
+        nextIndex: startIndex
+      }
+    }
+    return {
+      text: text.slice(startIndex + 1, labelEnd),
+      url: text.slice(labelEnd + 2, urlEnd).trim(),
+      nextIndex: urlEnd + 1
+    }
+  }
+
+  private standaloneImageUrl(text: string): string {
+    const image = this.inlineImage(text, 0)
+    return image.nextIndex == text.length ? image.url : ''
+  }
+
+  private textNode(text: string, style: ParserTextStyle): GeneralNode {
+    const node = new GeneralNode(UINodeName.Text, text)
+    node.styleControl.weight = style.weight
+    node.styleControl.italic = style.italic
+    node.styleControl.strike = style.strike
+    node.styleControl.href = style.href
+    node.styleControl.fontSize = style.fontSize
+    return node
+  }
+
+  private mergeStyle(base: ParserTextStyle, patch: ParserTextStyle): ParserTextStyle {
+    const result = this.cloneStyle(base)
+    result.weight = patch.weight !== undefined ? patch.weight : result.weight
+    result.italic = patch.italic !== undefined ? patch.italic : result.italic
+    result.strike = patch.strike !== undefined ? patch.strike : result.strike
+    result.href = patch.href !== undefined ? patch.href : result.href
+    result.fontSize = patch.fontSize !== undefined ? patch.fontSize : result.fontSize
+    return result
+  }
+
+  private cloneStyle(style: ParserTextStyle): ParserTextStyle {
+    return {
+      weight: style.weight,
+      italic: style.italic,
+      strike: style.strike,
+      href: style.href,
+      fontSize: style.fontSize
+    }
+  }
+}
+
+interface MarkdownInlineLink {
+  text: string
+  url: string
+  nextIndex: number
+}
+
+export const markdownParser = new MarkdownParser()
 
 abstract class StyledContentSerializer extends ContentSerializer {
   convert(nodes: UIRootNode[]): string {
