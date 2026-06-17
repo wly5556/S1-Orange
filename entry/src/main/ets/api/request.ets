@@ -240,7 +240,7 @@ export default class request<T> {
                 })
               }
               PreferenceManager.readonly(conf => {
-                if (webApiData?.Variables && webApiData.Variables.member_uid != conf.user_uid) {
+                if (this.sessionConfig.cookies != undefined && webApiData?.Variables && webApiData.Variables.member_uid != conf.user_uid) {
                   accountInvalid()
                 }
               })
