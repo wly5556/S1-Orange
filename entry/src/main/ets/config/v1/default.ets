@@ -85,6 +85,7 @@ export class ApplicationConfig {
   post_signature_device_info: boolean = false
   thread_item_gap: number = 9
   content_line_space: number = 8
+  view_history_show_date: boolean = true
   ani_speed_ratio: number = 1
   update_check_interval: UpdateCheckInterval = UpdateCheckInterval.monthly
   update_last_check: number = 0
