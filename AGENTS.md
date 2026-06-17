@@ -57,6 +57,7 @@ common/
 - **写**：`await PreferenceManager.modify(conf => { conf.xxx = v; this.someState = v })` —— 回调中对 `ApplicationConfig`（`conf`）的改动会自动 flush。`modify` 可被 await 以保证后续读到新值。
 - 新增配置字段：在 `config/v1/default.ets` 的 `class ApplicationConfig` 加字段并给默认值。若需要 UI 实时联动，把字段也加进 `NavigationPage.ets` 的 `PreferenceState` 接口 + `appState` 初始化 + `aboutToAppear` 的 `readonly` 读取（参考 `updateCheckInterval`、`fontSize`、`hiddenPostDisplay`）。
 - 配置版本迁移：在 `UserConfig.ets` 的 `init()` 中按 `version`（当前 `'3'`）写迁移分支。
+- 个人数据导入导出：备份文件包含 `formatVersion` 与导出时的 `appVersion`。如果可导入导出的数据结构发生 breaking change，需要按情况为导入路径增加低版本 adapter；低版本缺失的配置项应继续由 `ApplicationConfig` 默认值静默补齐。
 
 ## 设置项模式（SegmentButton）
 

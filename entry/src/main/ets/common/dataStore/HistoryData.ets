@@ -25,9 +25,9 @@ function tableNameForUser(uid = CURR_USER) {
   return `${tableNamePrefix}_${uid}`
 }
 
-function createTableSQL() {
+function createTableSQL(uid = CURR_USER) {
   return [`
-  CREATE TABLE IF NOT EXISTS ${tableNameForUser()} (
+  CREATE TABLE IF NOT EXISTS ${tableNameForUser(uid)} (
       ${COLUMN.thread_id} INTEGER PRIMARY KEY,
       ${COLUMN.title} TEXT,
       ${COLUMN.pid} INTEGER,
@@ -35,7 +35,7 @@ function createTableSQL() {
       ${COLUMN.date} INTEGER,
       ${COLUMN.reply} INTEGER
   )`, `
-  CREATE INDEX IF NOT EXISTS idx_${tableNameForUser()}_date ON ${tableNameForUser()}(${COLUMN.date})`]
+  CREATE INDEX IF NOT EXISTS idx_${tableNameForUser(uid)}_date ON ${tableNameForUser(uid)}(${COLUMN.date})`]
 }
 
 let dbInitFinished: () => void = () => {
@@ -59,16 +59,21 @@ export function HistoryDbInit(context: Context) {
   }
 }
 
-export async function HistoryDbSetUser(uid: string = '') {
+async function ensureHistoryTable(uid = CURR_USER) {
   await dbInitPromise
-  CURR_USER = uid
   try {
-    for (const sql of createTableSQL()) {
+    for (const sql of createTableSQL(uid)) {
       await dbEngine?.executeSql(sql)
     }
   } catch (err) {
     console.error(`Failed to create table. Code:${err.code}, message:${err.message}`);
   }
+}
+
+export async function HistoryDbSetUser(uid: string = '') {
+  await dbInitPromise
+  CURR_USER = uid
+  await ensureHistoryTable(uid)
 }
 
 export interface ViewHistoryItem {
@@ -80,8 +85,11 @@ export interface ViewHistoryItem {
   [COLUMN.page]: number
 }
 
-async function insertViewHistory(history: ViewHistoryItem) {
+async function insertViewHistory(history: ViewHistoryItem, uid = CURR_USER) {
   await dbInitPromise
+  if (!dbEngine) {
+    return
+  }
   const row: relationalStore.ValuesBucket = {
     [COLUMN.thread_id]: history.thread_id,
     [COLUMN.title]: history.title,
@@ -90,14 +98,18 @@ async function insertViewHistory(history: ViewHistoryItem) {
     [COLUMN.reply]: history.reply,
     [COLUMN.page]: history.page
   }
-  dbEngine?.insert(tableNameForUser(), row,
-    relationalStore.ConflictResolution.ON_CONFLICT_REPLACE, (err: BusinessError, rowId: number) => {
+  await new Promise<void>((resolve) => {
+    dbEngine!.insert(tableNameForUser(uid), row,
+      relationalStore.ConflictResolution.ON_CONFLICT_REPLACE, (err: BusinessError, rowId: number) => {
       if (err) {
         console.error(`Failed to insert data. Code:${err.code}, message:${err.message}`);
-        return;
+        resolve()
+        return
       }
       console.info(`Succeeded in inserting data. rowId:${rowId}`);
+      resolve()
     })
+  })
 }
 
 function resultSetToViewHistory(resultSet: relationalStore.ResultSet) {
@@ -159,6 +171,36 @@ export async function QueryViewHistory(offset = 0, limit = 100) {
     console.log(err)
   }
   return []
+}
+
+export async function ExportViewHistory(uid: string): Promise<ViewHistoryItem[]> {
+  await ensureHistoryTable(uid)
+  try {
+    const predicates = new relationalStore.RdbPredicates(tableNameForUser(uid))
+      .orderByDesc(COLUMN.date)
+      .limitAs(MAX_HISTORY_ITEM)
+    const resultSet =
+      await dbEngine!.query(predicates,
+        [COLUMN.thread_id, COLUMN.title, COLUMN.pid, COLUMN.date, COLUMN.reply, COLUMN.page])
+    const history: ViewHistoryItem[] = []
+    while (resultSet.goToNextRow()) {
+      history.push(resultSetToViewHistory(resultSet))
+    }
+    resultSet.close()
+    return history
+  } catch (err) {
+    console.log(err)
+  }
+  return []
+}
+
+export async function RestoreViewHistory(uid: string, history: ViewHistoryItem[]) {
+  await ensureHistoryTable(uid)
+  await clearThreadViewHistory(uid)
+  const limited = history.slice(0, MAX_HISTORY_ITEM)
+  for (const item of limited) {
+    await insertViewHistory(item, uid)
+  }
 }
 
 export type ThreadReplyHistoryItem = Record<string, number>

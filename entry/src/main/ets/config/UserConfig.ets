@@ -111,6 +111,29 @@ export class PreferencesWrapper implements ProxyHandler<ApplicationConfig> {
     }
     reader(this.config)
   }
+
+  async snapshot(): Promise<ApplicationConfig> {
+    if (!this.initialized) {
+      await this.initPromise
+    }
+    return JSON.parse(JSON.stringify(this.config)) as ApplicationConfig
+  }
+
+  async restore(snapshot: ApplicationConfig) {
+    if (!this.initialized) {
+      await this.initPromise
+    }
+    const defaults = new ApplicationConfig()
+    Object.keys(defaults).forEach(key => {
+      const value = Reflect.has(snapshot, key)
+        ? Reflect.get(snapshot, key) as preferences.ValueType
+        : Reflect.get(defaults, key) as preferences.ValueType
+      Reflect.set(this.config, key, value)
+      this.preferences?.put(key, value)
+    })
+    await this.preferences?.flush()
+    this.dirty.clear()
+  }
 }
 
 export const PreferenceManager = new PreferencesWrapper()

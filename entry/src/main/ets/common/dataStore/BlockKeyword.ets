@@ -59,6 +59,25 @@ export function ToggleEnableBlockKeyword(itemDate: number, isOn: boolean) {
   updateBlockKwInfo()
 }
 
+function normalizeBlockKeywordInfo(data: BlockKeywordInfo[]): BlockKeywordInfo[] {
+  const result: BlockKeywordInfo[] = []
+  data.forEach(item => {
+    if (typeof item.regex != 'string' || typeof item.date != 'number' || typeof item.enabled != 'boolean') {
+      return
+    }
+    try {
+      new RegExp(item.regex)
+      result.push({
+        regex: item.regex,
+        date: item.date,
+        enabled: item.enabled
+      })
+    } catch (e) {
+    }
+  })
+  return result
+}
+
 function updateBlockKwInfo() {
   blockKeywordList = blockKeywordInfo.filter(v => v.enabled).map(v => new RegExp(v.regex))
   writeJson<BlockKeywordInfo[]>(bucketName, currentUid, blockKeywordInfo)
@@ -66,4 +85,21 @@ function updateBlockKwInfo() {
 
 export function BlockKeyWordListClear(uid: string) {
   removeJson(bucketName, uid)
+}
+
+export async function ExportBlockKeyword(uid: string): Promise<BlockKeywordInfo[]> {
+  const data = await readJson<BlockKeywordInfo[]>(bucketName, uid)
+  if (data) {
+    return normalizeBlockKeywordInfo(data)
+  }
+  return []
+}
+
+export async function RestoreBlockKeyword(uid: string, data: BlockKeywordInfo[]) {
+  const normalized = normalizeBlockKeywordInfo(data)
+  await writeJson<BlockKeywordInfo[]>(bucketName, uid, normalized)
+  if (uid == currentUid) {
+    blockKeywordInfo = normalized
+    blockKeywordList = normalized.filter(v => v.enabled).map(v => new RegExp(v.regex))
+  }
 }

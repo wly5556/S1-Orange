@@ -49,6 +49,14 @@ const cookieAssetAlias = new AssetAlias('userTokenAsset')
 const appTokenAssetAlias = new AssetAlias('userAppTokenAsset')
 const formhashAssetAlias = new AssetAlias('userFormhashAsset')
 
+export interface AccountAssetSnapshot {
+  cookie?: string
+  appToken?: string
+  formhash?: string
+}
+
+export type AccountAssetsSnapshot = Record<string, AccountAssetSnapshot>
+
 export async function login(username: string, password: string, questionid?: number,
   answer?: string): Promise<LoginResult> {
   let loginData: rcp.RequestContent
@@ -86,6 +94,50 @@ export async function login(username: string, password: string, questionid?: num
     return LoginResult.SUCCEED
   } else {
     return webLoginResult
+  }
+}
+
+export async function exportAccountAssets(uidList: string[]): Promise<AccountAssetsSnapshot> {
+  const result: AccountAssetsSnapshot = {}
+  for (const uid of uidList) {
+    const item: AccountAssetSnapshot = {}
+    const cookie = await queryAsset(cookieAssetAlias.get(uid))
+    const appToken = await queryAsset(appTokenAssetAlias.get(uid))
+    const formhash = await queryAsset(formhashAssetAlias.get(uid))
+    if (cookie && cookie.length > 0) {
+      item.cookie = cookie[0]
+    }
+    if (appToken && appToken.length > 0) {
+      item.appToken = appToken[0]
+    }
+    if (formhash && formhash.length > 0) {
+      item.formhash = formhash[0]
+    }
+    if (item.cookie != undefined || item.appToken != undefined || item.formhash != undefined) {
+      result[uid] = item
+    }
+  }
+  return result
+}
+
+export async function restoreAccountAssets(uidListToClear: string[], assets: AccountAssetsSnapshot) {
+  for (const uid of uidListToClear) {
+    for (const alias of AssetAlias.list) {
+      await removeAsset(alias.get(uid))
+    }
+  }
+  const uidList = Object.keys(assets)
+  for (const uid of uidList) {
+    const item = assets[uid]
+    if (item.cookie != undefined) {
+      await createOrUpdateAsset(cookieAssetAlias.get(uid), item.cookie)
+    }
+    if (item.appToken != undefined) {
+      await createOrUpdateAsset(appTokenAssetAlias.get(uid), item.appToken)
+    }
+    if (item.formhash != undefined) {
+      await createOrUpdateAsset(formhashAssetAlias.get(uid), item.formhash)
+    }
   }
 }
 

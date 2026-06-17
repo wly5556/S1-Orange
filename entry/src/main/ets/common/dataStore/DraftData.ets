@@ -27,9 +27,9 @@ function tableNameForUser(uid = CURR_USER) {
   return `${tableNamePrefix}_${uid}`
 }
 
-function createTableSQL() {
+function createTableSQL(uid = CURR_USER) {
   return [`
-  CREATE TABLE IF NOT EXISTS ${tableNameForUser()} (
+  CREATE TABLE IF NOT EXISTS ${tableNameForUser(uid)} (
       ${COLUMN.id} TEXT PRIMARY KEY,
       ${COLUMN.date} INTEGER,
       ${COLUMN.thread_type} INTEGER,
@@ -37,7 +37,7 @@ function createTableSQL() {
       ${COLUMN.new_subject} TEXT,
       ${COLUMN.thread_subject} TEXT
       )`, `
-      CREATE INDEX IF NOT EXISTS idx_${tableNameForUser()}_date ON ${tableNameForUser()}(${COLUMN.date})`]
+      CREATE INDEX IF NOT EXISTS idx_${tableNameForUser(uid)}_date ON ${tableNameForUser(uid)}(${COLUMN.date})`]
 }
 
 let dbInitFinished: () => void = () => {
@@ -61,14 +61,26 @@ export function DraftDbInit(context: Context) {
   }
 }
 
+async function ensureDraftTable(uid = CURR_USER) {
+  await dbInitPromise
+  if (uid == '') {
+    return
+  }
+  try {
+    for (const sql of createTableSQL(uid)) {
+      await dbEngine?.executeSql(sql)
+    }
+  } catch (err) {
+    console.error(`Failed to create table. Code:${err.code}, message:${err.message}`);
+  }
+}
+
 export async function DraftDbSetUser(username: string) {
   await dbInitPromise
   try {
     if (username != CURR_USER && username != '') {
       CURR_USER = username
-      for (const sql of createTableSQL()) {
-        await dbEngine?.executeSql(sql)
-      }
+      await ensureDraftTable(username)
     }
   } catch (err) {
     console.error(`Failed to create table. Code:${err.code}, message:${err.message}`);
@@ -89,11 +101,14 @@ export interface DraftItem {
   [COLUMN.thread_subject]: string,
 }
 
-async function insertDraft(draft: DraftItem) {
-  if (CURR_USER == '') {
+async function insertDraft(draft: DraftItem, uid = CURR_USER) {
+  if (uid == '') {
     return
   }
   await dbInitPromise
+  if (!dbEngine) {
+    return
+  }
   const row: relationalStore.ValuesBucket = {
     [COLUMN.id]: GetDraftItemKey(draft),
     [COLUMN.date]: draft.date,
@@ -102,15 +117,21 @@ async function insertDraft(draft: DraftItem) {
     [COLUMN.thread_type]: draft.thread_type,
     [COLUMN.thread_subject]: draft.thread_subject
   }
-  dbEngine?.insert(tableNameForUser(), row,
-    relationalStore.ConflictResolution.ON_CONFLICT_REPLACE, (err: BusinessError, rowId: number) => {
+  await new Promise<void>((resolve) => {
+    dbEngine!.insert(tableNameForUser(uid), row,
+      relationalStore.ConflictResolution.ON_CONFLICT_REPLACE, (err: BusinessError, rowId: number) => {
       if (err) {
         console.error(`Failed to insert data. Code:${err.code}, message:${err.message}`)
+        resolve()
         return
       }
-      DraftModifiedListener.emit()
+      if (uid == CURR_USER) {
+        DraftModifiedListener.emit()
+      }
       console.info(`Succeeded in inserting data. rowId:${rowId}`)
+      resolve()
     })
+  })
 }
 
 export const DraftModifiedListener = new EventListener<void>()
@@ -198,6 +219,43 @@ export async function QueryDraft(offset = 0, limit = 100) {
     console.log(err)
   }
   return []
+}
+
+export async function ExportDraft(uid: string): Promise<DraftItem[]> {
+  if (uid == '') {
+    return []
+  }
+  await ensureDraftTable(uid)
+  try {
+    const predicates = new relationalStore.RdbPredicates(tableNameForUser(uid))
+      .orderByDesc(COLUMN.date)
+      .limitAs(MAX_DRAFT_ITEM)
+    const resultSet = await dbEngine!.query(predicates)
+    const draft: DraftItem[] = []
+    while (resultSet.goToNextRow()) {
+      draft.push(resultToDraftItem(resultSet))
+    }
+    resultSet.close()
+    return draft
+  } catch (err) {
+    console.log(err)
+  }
+  return []
+}
+
+export async function RestoreDraft(uid: string, drafts: DraftItem[]) {
+  if (uid == '') {
+    return
+  }
+  await ensureDraftTable(uid)
+  await clearDraft(uid)
+  const limited = drafts.slice(0, MAX_DRAFT_ITEM)
+  for (const item of limited) {
+    await insertDraft(item, uid)
+  }
+  if (uid == CURR_USER) {
+    DraftModifiedListener.emit()
+  }
 }
 
 export function RecordDraft(pageParam: WriteReplyParam, content: string, thread_subject: string, new_subject?: string,
