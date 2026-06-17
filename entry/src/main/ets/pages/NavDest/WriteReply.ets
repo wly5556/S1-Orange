@@ -27,6 +27,7 @@ import { PropKey, SafeArea } from '../../common/Constants'
 import { PostSignature } from '../../common/PostSignature'
 import { dupTextRange } from '../../common/TextUtil'
 import { bbCodeSerializer, markdownParser } from '../../common/ThreadPostContentSerializer'
+import { openWriteReplyPreview, WriteReplyPreviewParam } from './WriteReplyPreview'
 
 export enum WriteReplyMode {
   NEW_THREAD,
@@ -130,6 +131,7 @@ export struct WriteReply {
   @State fontColorPickerShow: boolean = false
   @State markdownImportSheetShow: boolean = false
   @State markdownImportText: string = ''
+  @State attachmentImagePreview: Record<string, string> = {}
   popData: WriteReplyPopData = {
     replied: false
   }
@@ -240,8 +242,50 @@ export struct WriteReply {
     this.markdownImportSheetShow = false
   }
 
+  recordAttachmentImagePreview(aid: string, src: string): void {
+    if (aid.length == 0 || src.length == 0) {
+      return
+    }
+    const preview: Record<string, string> = {}
+    Object.keys(this.attachmentImagePreview).forEach((key: string): void => {
+      preview[key] = this.attachmentImagePreview[key]
+    })
+    preview[aid] = src
+    this.attachmentImagePreview = preview
+  }
+
+  collectWebAttachmentImagePreview(): Promise<Record<string, string>> {
+    if (!/\[attachimg\]/i.test(this.fieldToInput.content)) {
+      return Promise.resolve(this.attachmentImagePreview)
+    }
+    return this.writeHandler.getWebpage().then((html: string): Record<string, string> => {
+      const preview: Record<string, string> = {}
+      const pageInfo = extractReplyPageInfo(html)
+      pageInfo.usingImage.forEach((src: string, aid: string): void => {
+        preview[aid] = URL.WEB_BASE + src
+      })
+      Object.keys(this.attachmentImagePreview).forEach((aid: string): void => {
+        preview[aid] = this.attachmentImagePreview[aid]
+      })
+      return preview
+    }).catch((): Record<string, string> => {
+      return this.attachmentImagePreview
+    })
+  }
+
+  openPreview(): void {
+    this.collectWebAttachmentImagePreview().then((attachmentImagePreview: Record<string, string>): void => {
+      const param: WriteReplyPreviewParam = {
+        content: this.fieldToInput.content,
+        subject: this.fieldToInput.subject || this.pageParam.subjectToReply,
+        attachmentImagePreview
+      }
+      openWriteReplyPreview(this.pathStack, param, this.pageParam.defaultTransition)
+    })
+  }
+
   @LocalBuilder
-  toolBarButton(img: ResourceStr, index: number) {
+  toolBarButton(img: ResourceStr, index: number, onClick?: () => void) {
     Stack() {
       Image(img)
         .width(FontSizeEnum[this.appState.fontSize].vp32)
@@ -256,7 +300,7 @@ export struct WriteReply {
     .attributeModifier(new ClickDarkenEffect)
     .clickEffect(HeavyClickEffect)
     .padding({ left: 40, right: 40 })
-    .onClick(e => {
+    .onClick(onClick ? onClick : e => {
       if (!this.showTools) {
         this.showTools = true
         this.toolPanelController.changeIndex(index, false)
@@ -519,6 +563,10 @@ export struct WriteReply {
           this.toolBarButton($r('app.media.face_smiling'), 1)
           this.toolBarButton($r('app.media.picture'), 2)
           this.toolBarButton($r('app.media.textformat_size_square'), 3)
+          Blank()
+          this.toolBarButton($r('app.media.livephoto'), -1, () => {
+            this.openPreview()
+          })
         }
         .width('100%')
         .backgroundColor(this.appTheme.backgroundTertiary)
@@ -544,6 +592,9 @@ export struct WriteReply {
                 onPicked: (text): void => this.insertText(text),
                 onRemoval: (text): void => {
                   this.fieldToInput.content = this.fieldToInput.content.replaceAll(text, '')
+                },
+                onAttachmentImageResolved: (aid: string, src: string): void => {
+                  this.recordAttachmentImagePreview(aid, src)
                 },
                 currentMode: this.pageParam.mode
               })

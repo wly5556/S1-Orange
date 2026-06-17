@@ -114,6 +114,11 @@
       "name": "FreeCopy",
       "pageSourceFile": "src/main/ets/pages/NavDest/FreeCopy.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "WriteReplyPreview",
+      "pageSourceFile": "src/main/ets/pages/NavDest/WriteReplyPreview.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

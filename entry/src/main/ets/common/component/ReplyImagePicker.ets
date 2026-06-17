@@ -51,6 +51,8 @@ export struct ReplyImagePicker {
   }
   onRemoval: (text: string) => void = () => {
   }
+  onAttachmentImageResolved: (aid: string, src: string) => void = () => {
+  }
   controller: SwiperController = new SwiperController()
 
   async upload(uris: string[]) {
@@ -79,6 +81,9 @@ export struct ReplyImagePicker {
       await fs.close(file)
       const id = await uploader.upload(extractFileName(albumPath) || 'image', photoSize, buffer)
       if (id) {
+        if (uploader.isAttachImgUploader()) {
+          this.onAttachmentImageResolved(id, albumPath)
+        }
         this.addImage(id, uploaderIdx)
       }
     }
@@ -116,6 +121,9 @@ export struct ReplyImagePicker {
         id, url,
         provider: index
       })
+      if (this.uploaders[index].isAttachImgUploader()) {
+        this.onAttachmentImageResolved(id, url)
+      }
     })
   }
 
@@ -327,7 +335,7 @@ export function extractReplyPageInfo(html: string): ReplyPageInfo {
   const tidRegex = /name="tid"\s+value="(\d+)"/
   const pidRegex = /name="pid"\s+value="(\d+)"/
   const hashRegex = /name="hash"\s+value="([a-f0-9]+)"/
-  const usingImageRegex = /<img src="(forum\.php\?[^"]+aid=(\d+)[^"]+)"/g
+  const usingImageRegex = /<img src="(forum\.php\?[^"]*(?:[?&]|&amp;)aid=(\d+)[^"]*)"/g
   const unusedImageRegex = /IMGUNUSEDAID\[(\d+)\]/g
   const attachSizeRegex = /<span class="xi1">小于 (\d+)MB <\/span>/
   const uidMatch = html.match(uidRegex);
@@ -347,7 +355,7 @@ export function extractReplyPageInfo(html: string): ReplyPageInfo {
   }
   const usingImage: Map<string, string> = new Map
   while (attachid = usingImageRegex.exec(html)) {
-    usingImage.set(attachid[2], attachid[1]) // <id, url>
+    usingImage.set(attachid[2], attachid[1].replaceAll('&amp;', '&')) // <id, url>
   }
   return {
     uid,
@@ -425,6 +433,10 @@ abstract class Uploader {
   abstract getName(): string
 
   abstract pick(id: string): string
+
+  isAttachImgUploader(): boolean {
+    return false
+  }
 }
 
 class AttachmentUploader extends Uploader {
@@ -442,6 +454,10 @@ class AttachmentUploader extends Uploader {
 
   override pick(id: string) {
     return `[attachimg]${id}[/attachimg]`
+  }
+
+  override isAttachImgUploader(): boolean {
+    return true
   }
 
   override async init(writeHandler: WriteHandler, mode: WriteReplyMode): Promise<UploaderState> {

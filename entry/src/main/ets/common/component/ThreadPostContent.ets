@@ -158,6 +158,7 @@ interface TextStyleControl {
   href?: string
   fontSize?: number
   fontSizeStyle?: number
+  fontFamily?: string
   backgroundColor?: ResourceColor
 }
 
@@ -190,6 +191,7 @@ class TextStyle {
     target.href = src.href !== undefined ? src.href : target.href
     target.fontSize = src.fontSize !== undefined ? src.fontSize : target.fontSize
     target.fontSizeStyle = src.fontSizeStyle !== undefined ? src.fontSizeStyle : target.fontSizeStyle
+    target.fontFamily = src.fontFamily !== undefined ? src.fontFamily : target.fontFamily
     target.backgroundColor = src.backgroundColor !== undefined ? src.backgroundColor : target.backgroundColor
   }
 
@@ -778,6 +780,9 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
     }
     if (style.italic) {
       instance.fontStyle(style.italic)
+    }
+    if (style.fontFamily) {
+      instance.fontFamily(style.fontFamily)
     }
     if (style.underline) {
       instance.decoration({
