@@ -186,8 +186,16 @@ export struct ThreadPostList {
     if (!this.longScreenshotMode || this.mainPostReturnPage < 0) {
       return
     }
+    if (this.mainPostForShot === undefined) {
+      return
+    }
+    if (this.isMainPostSelected()) {
+      return
+    }
     const pageToReturn = this.mainPostReturnPage
-    this.trySelectMainPostForShot()
+    const newMap = new Map(this.selectedPostsForShot)
+    newMap.set(this.mainPostKey(), this.mainPostForShot)
+    this.selectedPostsForShot = newMap
     this.mainPostReturnPage = -1
     this.jumpToPage = pageToReturn
   }
@@ -198,18 +206,6 @@ export struct ThreadPostList {
 
   private isMainPostSelected(): boolean {
     return this.selectedPostsForShot.has(this.mainPostKey())
-  }
-
-  private trySelectMainPostForShot(): void {
-    if (this.mainPostForShot === undefined) {
-      return
-    }
-    if (this.isMainPostSelected()) {
-      return
-    }
-    const newMap = new Map(this.selectedPostsForShot)
-    newMap.set(this.mainPostKey(), this.mainPostForShot)
-    this.selectedPostsForShot = newMap
   }
 
   private toggleMainPostSelect(checked: boolean): void {
@@ -341,7 +337,6 @@ export struct ThreadPostList {
               value: '长截图',
               action: () => {
                 this.longScreenshotMode = true
-                this.trySelectMainPostForShot()
               }
             }, {
               value: '复制链接',
