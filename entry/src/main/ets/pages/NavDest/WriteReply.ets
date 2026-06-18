@@ -128,7 +128,7 @@ export struct WriteReply {
   @State threadTypeList: ThreadType[] = []
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
   @StorageProp(SafeArea.keyboard) @Watch('updateKeyboardExpendHeight') keyboardHeight: number = 0
-  @State keyboardExpendHeight: number = 350
+  @State keyboardExpendHeight: number = vp2px(350)
   @State showTools: boolean = false
   @StorageProp(PropKey.userId) @Watch('loadUser') uid?: string = undefined
   @State quote?: Quote = undefined
