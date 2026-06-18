@@ -104,14 +104,9 @@ export struct ViewHistory {
                     Divider().width(60)
                     Text(formatHistoryDate(item.date))
                       .flexShrink(1)
-                      .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp15)
                       .fontColor(this.appTheme.fontSecondary)
-                      .padding({
-                        left: 18,
-                        right: 18,
-                        top: 14,
-                        bottom: 4
-                      })
+                      .padding(8)
                     Divider()
                   }.padding({
                     left: 18,
