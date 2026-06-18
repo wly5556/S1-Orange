@@ -67,6 +67,7 @@ export struct PreferencePage {
   @State postSignatureDisplayText: string = PostSignature.displayText()
   @State aniSpeedRatio: number = AniSpeed.ratio
   @State personalDataWorking: boolean = false
+  @State personalDataExportPath: string = ''
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -115,6 +116,7 @@ export struct PreferencePage {
     try {
       const path = await exportPersonalData(this.context)
       if (path) {
+        this.personalDataExportPath = decodeURI(path)
         this.getUIContext().getPromptAction().showToast({
           message: '个人数据已导出',
           duration: 3000
@@ -141,7 +143,8 @@ export struct PreferencePage {
       }
       const result = await promptAction.showDialog({
         title: '导入个人数据',
-        message: `数据导出时间：${formatPersonalDataTime(bundle.exportedAt)}\n导入后会覆盖现有的用户账户、历史记录、设置项、草稿和关键词屏蔽。\n\n导入后需要重新进入应用。`,
+        message: `数据导出时间：${formatPersonalDataTime(
+          bundle.exportedAt)}\n导入后会覆盖现有的用户账户、历史记录、设置项、草稿和关键词屏蔽。\n\n导入后需要重新进入应用。`,
         buttons: [
           {
             text: '取消',
@@ -608,22 +611,35 @@ export struct PreferencePage {
               fontSizeIndex: this.appState.fontSize
             })
             Column() {
+              Row() {
+                Text('包括账户、应用设置、浏览历史、草稿、关键词黑名单等数据的导入与导出')
+                  .attributeModifier(this.textSecondary)
+                  .width('100%')
+              }.attributeModifier(this.settingRow)
               Row({ space: 12 }) {
                 Button('导出')
-                  .buttonStyle(ButtonStyleMode.NORMAL)
+                  .buttonStyle(ButtonStyleMode.TEXTUAL)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .enabled(!this.personalDataWorking)
                   .opacity(this.personalDataWorking ? 0.7 : 1)
                   .layoutWeight(1)
                   .onClick(() => this.exportPersonalDataAction())
                 Button('导入')
-                  .buttonStyle(ButtonStyleMode.NORMAL)
+                  .buttonStyle(ButtonStyleMode.TEXTUAL)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                   .enabled(!this.personalDataWorking)
                   .opacity(this.personalDataWorking ? 0.7 : 1)
                   .layoutWeight(1)
                   .onClick(() => this.importPersonalDataAction())
               }.attributeModifier(this.settingRow)
+
+              if (this.personalDataExportPath.length > 0) {
+                Row() {
+                  Text(`已导出到：${this.personalDataExportPath}`)
+                    .attributeModifier(this.textSecondary)
+                    .width('100%')
+                }.attributeModifier(this.settingRow)
+              }
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
           }
