@@ -22,7 +22,7 @@ export async function readJson<T>(bucketName: string, key: string): Promise<T | 
 
 export async function writeJson<T>(bucketName: string, key: string, data: T) {
   if (!fs.accessSync(`${storeBaseDir}/${bucketName}`)) {
-    fs.mkdir(`${storeBaseDir}/${bucketName}`)
+    await fs.mkdir(`${storeBaseDir}/${bucketName}`)
   }
   const filePath = getStoreFilePath(bucketName, key)
   const file = await fs.open(filePath, fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC | fs.OpenMode.CREATE)
