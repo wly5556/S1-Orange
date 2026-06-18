@@ -32,7 +32,7 @@ export struct TabBarSelector {
     .onAnimationStart(this.onAnimationStart)
     .barMode(BarMode.Scrollable)
     .scrollable(false)
-    .barHeight(FontSizeEnum[this.appState.fontSize].vp56)
+    .barHeight(Math.max(56, FontSizeEnum[this.appState.fontSize].vp56))
     .height('auto')
   }
 }
