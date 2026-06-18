@@ -91,6 +91,7 @@ export class ApplicationConfig {
   update_last_check: number = 0
   update_latest_version_info: string = ''
   update_show_new_version: boolean = false
+  long_screenshot_expand_rating: boolean = false
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

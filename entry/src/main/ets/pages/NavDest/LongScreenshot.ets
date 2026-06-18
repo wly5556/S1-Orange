@@ -13,7 +13,7 @@ import {
   ThreadPostUINodeRender, UIRootNode
 } from '../../common/component/ThreadPostContent'
 import { LongScreenshotPollForShot, LongScreenshotPost } from './ThreadPostList'
-import { ThreadRatingInfo } from '../../common/component/PostRating'
+import { PostRatingPanel, ThreadRatingInfo } from '../../common/component/PostRating'
 import { savePixelMapToShareTempFile } from '../../common/PixelMapSaver'
 import { ShareImage } from '../../common/ShareKit'
 import { waitFor } from '../../common/AwaitUtil'
@@ -32,6 +32,7 @@ export interface LongScreenshotPageParam {
   poll?: LongScreenshotPollForShot
   posts: LongScreenshotPost[]
   ratingInfoMap: Map<string, ThreadRatingInfo>
+  expandRating?: boolean
 }
 
 const LIST_ID = 'LongScreenshotList'
@@ -267,7 +268,19 @@ export struct LongScreenshotPage {
         })
       }
 
-      if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
+      if (this.pageParam.ratingInfoMap.has(item.post.pid) && this.pageParam.expandRating) {
+        PostRatingPanel({
+          appTheme: this.appTheme,
+          appState: this.appState,
+          userCount: this.pageParam.ratingInfoMap.get(item.post.pid)!.userCount,
+          totalRating: this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating,
+          rating: this.pageParam.ratingInfoMap.get(item.post.pid)!.rating,
+          transitionIndex: `LongScreenshotPostRating${item.post.pid}`,
+          seeMoreButton: false,
+          context: this.getUIContext(),
+          pathStack: this.pathStack
+        })
+      } else if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
         Row() {
           Text() {
             Span(`战斗力 ${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating >= 0 ? '+' : ''}${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating}`)
