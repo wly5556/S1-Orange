@@ -88,7 +88,7 @@ export struct ViewHistory {
           titleContent: `历史记录`,
           useRightMenu: true,
           menu: [{
-            value: '切换：日期显示',
+            value: '切换日期显隐',
             action: () => this.toggleDateDivider()
           }],
           clickLeftButton: () => {
@@ -100,16 +100,23 @@ export struct ViewHistory {
             ListItem() {
               Column() {
                 if (this.shouldShowDateDivider(item, index)) {
-                  Text(formatHistoryDate(item.date))
-                    .width('100%')
-                    .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                    .fontColor(this.appTheme.fontSecondary)
-                    .padding({
-                      left: 18,
-                      right: 18,
-                      top: 14,
-                      bottom: 4
-                    })
+                  Row() {
+                    Divider().width(60)
+                    Text(formatHistoryDate(item.date))
+                      .flexShrink(1)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                      .fontColor(this.appTheme.fontSecondary)
+                      .padding({
+                        left: 18,
+                        right: 18,
+                        top: 14,
+                        bottom: 4
+                      })
+                    Divider()
+                  }.padding({
+                    left: 18,
+                    right: 18,
+                  })
                 }
                 Row() {
                   Text(item.title)
