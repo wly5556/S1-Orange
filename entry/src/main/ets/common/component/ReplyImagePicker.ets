@@ -16,6 +16,7 @@ import { ArrayDataSource } from '../BasicDataSource';
 import { RipImageItem, RipImageUpload } from '../../api/model/ripImage/sda1';
 import { WriteHandler, WriteReplyMode } from '../../pages/NavDest/WriteReply';
 import { TabBarSelector } from './TabBarSelector';
+import { ImageViewer, ImageViewerParam } from './ImageViewer';
 
 const IMG_THUMBNAIL_HEIGHT = 150
 
@@ -45,6 +46,9 @@ export struct ReplyImagePicker {
   @State uploaderState: UploaderState[] = []
   @State imageList: ImageObjectVM[] = []
   @State unusedImage: Map<number, string[]> = new Map()
+  localImageSrc: Map<string, string> = new Map()
+  @State imgViewer: ImageViewerParam = { urls: [], startAt: 0 }
+  @State imgViewerShow: boolean = false
   @Prop currentMode: WriteReplyMode = WriteReplyMode.NEW_THREAD
   getWriteHandler?: () => WriteHandler
   onPicked: (text: string) => void = () => {
@@ -83,6 +87,7 @@ export struct ReplyImagePicker {
       if (id) {
         if (uploader.isAttachImgUploader()) {
           this.onAttachmentImageResolved(id, albumPath)
+          this.localImageSrc.set(id, albumPath)
         }
         this.addImage(id, uploaderIdx)
       }
@@ -121,7 +126,7 @@ export struct ReplyImagePicker {
         id, url,
         provider: index
       })
-      if (this.uploaders[index].isAttachImgUploader()) {
+      if (this.uploaders[index].isAttachImgUploader() && !this.localImageSrc.has(id)) {
         this.onAttachmentImageResolved(id, url)
       }
     })
@@ -129,6 +134,63 @@ export struct ReplyImagePicker {
 
   deleteImage(id: string, index: number) {
     return this.uploaders[index].remove(id, this.onRemoval)
+  }
+
+  openImageViewer(upIndex: number, clickedId: string) {
+    const urls: string[] = []
+    let startAt = 0
+    let hasForumPreview = false
+    for (const img of this.imageList) {
+      if (img.provider == upIndex) {
+        const localSrc = this.localImageSrc.get(img.id)
+        if (localSrc) {
+          urls.push(localSrc)
+        } else {
+          urls.push(img.url)
+          hasForumPreview = true
+        }
+        if (img.id == clickedId) {
+          startAt = urls.length - 1
+        }
+      }
+    }
+    this.imgViewer = { urls, startAt }
+    if (hasForumPreview) {
+      this.getUIContext().getPromptAction().showToast({
+        message: '论坛附件为预览图，清晰度低于实际效果'
+      })
+    }
+    this.getUIContext().animateTo(SpringCurve, () => {
+      this.imgViewerShow = true
+    })
+  }
+
+  @Builder
+  imageActionButton(icon: ResourceStr, rotate: number, pos: Edges, onClick: () => void) {
+    Stack() {
+      Image(icon)
+        .width(20)
+        .height(20)
+        .fillColor(this.appTheme.isDark ? Color.Black : Color.White)
+        .rotate({ angle: rotate })
+    }
+    .width(30)
+    .height(30)
+    .borderRadius(15)
+    .backgroundColor(this.appTheme.isDark ? '#33FFFFFF' : '#33000000')
+    .position(pos)
+    .zIndex(200)
+    .onClick(onClick)
+  }
+
+  @Builder
+  ImageViewerBuilder() {
+    Stack() {
+      ImageViewer({
+        param: this.imgViewer,
+        showUp: this.imgViewerShow
+      })
+    }
   }
 
   build() {
@@ -200,19 +262,7 @@ export struct ReplyImagePicker {
                               .color($r('sys.color.ohos_id_color_emphasize'))
                               .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
                           } else {
-                            Stack() {
-                              Image($r('app.media.plus'))
-                                .width(20)
-                                .height(20)
-                                .rotate({
-                                  angle: 45
-                                })
-                            }
-                            .width(30)
-                            .height(30)
-                            .position({ right: 10, top: 10 })
-                            .zIndex(200)
-                            .onClick(e => {
+                            this.imageActionButton($r('app.media.plus'), 45, { right: 10, top: 10 }, () => {
                               this.deleteImage(image.id, upIndex).then((confirm) => {
                                 if (confirm) {
                                   animateTo(SpringCurve, () => {
@@ -221,12 +271,15 @@ export struct ReplyImagePicker {
                                 }
                               })
                             })
+                            this.imageActionButton($r('app.media.magnifyingglass'), 0, { right: 10, bottom: 10 },
+                              () => {
+                                this.openImageViewer(upIndex, image.id)
+                              })
                           }
                           Image(image.url)
                             .onComplete(() => {
                               this.imgLoaded[image.id] = true
                             })
-                            .geometryTransition('attachment' + image.id, { follow: true })
                             .opacity(this.imgLoaded[image.id] ? 1 : 0)
                             .animation({ duration: AniSpeed.ms120 })
                             .objectFit(ImageFit.Contain)
@@ -317,6 +370,14 @@ export struct ReplyImagePicker {
       })
     }.scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
+    .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
+      modalTransition: ModalTransition.NONE,
+      onWillDismiss: (() => {
+        this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
+          this.imgViewerShow = false
+        })
+      }),
+    })
   }
 }
 
