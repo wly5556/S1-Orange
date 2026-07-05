@@ -3,7 +3,7 @@ export enum URL {
   DOMAIN_APP = 'app.stage1st.com',
   DOMAIN_WEB = 'stage1st.com',
   WEB_BASE = 'https://stage1st.com/2b/',
-  APP_BASE = 'https://app.stage1st.com/2b/api/app/',
+  APP_BASE = 'https://stage1st.com/2b/api/app/',
   BASE = 'https://stage1st.com/2b/api/mobile/',
   FORUM_GROUP = 'index.php?module=forumindex',
   FORUM_THREAD_LIST = 'index.php?module=forumdisplay&version=4&filter=typeid',

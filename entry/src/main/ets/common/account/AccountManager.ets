@@ -73,14 +73,16 @@ export async function login(username: string, password: string, questionid?: num
       password,
     }
   }
-  const appLoginResult = await new request<wrapperApp<LoginResultApp>>(URL.LOGIN_APP, URL.APP_BASE)
-    .withoutCookie()
-    .post(loginData)
-    .then(handleAppLoginResponse)
   const req: request<wrapper<LoginResponse>> = new request(URL.LOGIN)
   const v: wrapper<LoginResponse> = await req.withoutCookie().post(loginData)
   const webLoginResult = await handleLoginResponse(v, JSON.stringify(req.getCookie()))
-  if (appLoginResult == LoginResult.SUCCEED && webLoginResult == LoginResult.SUCCEED) {
+  if (webLoginResult != LoginResult.SUCCEED) {
+    return webLoginResult
+  }
+  const appLoginResult = await new request<wrapperApp<LoginResultApp>>(URL.LOGIN_APP, URL.APP_BASE)
+    .post(loginData)
+    .then(handleAppLoginResponse)
+  if (appLoginResult == LoginResult.SUCCEED) {
     PreferenceManager.modify(conf => {
       if (conf.account_list[v.Variables.member_uid] == undefined) {
         conf.account_list[v.Variables.member_uid] = {
@@ -92,9 +94,8 @@ export async function login(username: string, password: string, questionid?: num
       switchAccount(v.Variables.member_uid)
     })
     return LoginResult.SUCCEED
-  } else {
-    return webLoginResult
   }
+  return appLoginResult
 }
 
 export async function exportAccountAssets(uidList: string[]): Promise<AccountAssetsSnapshot> {
@@ -192,6 +193,7 @@ export async function logout() {
     conf.user_name = ''
     conf.user_uid = ''
   })
+  AppStorage.setOrCreate<string>(PropKey.userId, '')
   initAccountManager()
 }
 

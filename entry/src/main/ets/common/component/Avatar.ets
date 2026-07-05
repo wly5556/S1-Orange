@@ -123,6 +123,9 @@ export struct Avatar {
           this.hideDefaultAvatar = true
         }
       }
+    } else {
+      this.avatarUrl = ''
+      this.hideDefaultAvatar = false
     }
   }
 
