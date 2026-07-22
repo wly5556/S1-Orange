@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit'
 import { promptAction } from '@kit.ArkUI'
+import BuildProfile from 'BuildProfile'
 import request from '../api/request'
 import { APP_RELEASE_INFO, GITHUB_RELEASE_PAGE } from '../api/base'
 import { PreferenceManager } from '../config/UserConfig'
@@ -60,8 +61,23 @@ export async function fetchLatestVersionInfo(): Promise<LatestVersionInfo | null
   }
 }
 
-function notifyDismissed(context: common.UIAbilityContext) {
-  context.eventHub.emit(Event.NewVersionDismissed)
+export function compareVersions(a: string, b: string): number {
+  const partsA = a.split('.')
+  const partsB = b.split('.')
+  const length = Math.max(partsA.length, partsB.length)
+  for (let i = 0; i < length; i++) {
+    const numA = i < partsA.length ? parseInt(partsA[i]) : 0
+    const numB = i < partsB.length ? parseInt(partsB[i]) : 0
+    const diff = (isNaN(numA) ? 0 : numA) - (isNaN(numB) ? 0 : numB)
+    if (diff !== 0) {
+      return diff
+    }
+  }
+  return 0
+}
+
+export function isNewerVersion(latest: string, current: string): boolean {
+  return compareVersions(latest, current) > 0
 }
 
 function showUpdateDialog(context: common.UIAbilityContext) {
@@ -77,7 +93,7 @@ function showUpdateDialog(context: common.UIAbilityContext) {
       PreferenceManager.modify(conf => {
         conf.update_show_new_version = false
       })
-      notifyDismissed(context)
+      context.eventHub.emit(Event.NewVersionDismissed)
     } else if (res.index === 1) {
       openInBrowser(context, GITHUB_RELEASE_PAGE)
     }
@@ -96,10 +112,13 @@ export async function checkVersionOnStartup(context: common.UIAbilityContext): P
   let hasNewVersion = false
   await PreferenceManager.modify(conf => {
     conf.update_last_check = Date.now()
-    if (conf.update_latest_version_info === '') {
-      conf.update_latest_version_info = latestInfo.raw
-    } else if (conf.update_latest_version_info !== latestInfo.raw) {
-      conf.update_latest_version_info = latestInfo.raw
+    const lastKnownVersion = parseLatestVersionInfo(conf.update_latest_version_info)?.version
+    conf.update_latest_version_info = latestInfo.raw
+    if (!isNewerVersion(latestInfo.version, BuildProfile.VERSION_NAME)) {
+      conf.update_show_new_version = false
+      return
+    }
+    if (lastKnownVersion !== latestInfo.version) {
       conf.update_show_new_version = true
       hasNewVersion = true
     }

@@ -38,6 +38,9 @@ export struct AboutApp {
   @State versionLoadCode: number = -1
 
   async aboutToAppear() {
+    PreferenceManager.modify(conf => {
+      conf.update_show_new_version = false
+    })
     fetchLatestVersionInfo().then(latestInfo => {
       if (latestInfo !== null) {
         this.latestVersion = latestInfo.version
