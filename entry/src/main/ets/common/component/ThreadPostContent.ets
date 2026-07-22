@@ -494,7 +494,7 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
         post.push(new GeneralNode(UINodeName.Br, ''))
       }
       if (listMode == UINodeName.Ul) {
-        post.push(new GeneralNode(UINodeName.Text, '·', UINodeName.Ul).style(TextStyle.peek()))
+        post.push(new GeneralNode(UINodeName.Text, '•', UINodeName.Ul).style(TextStyle.peek()))
       } else if (listMode == UINodeName.Ol) {
         TextStyle.combine({
           color: $r('sys.color.font_tertiary')
@@ -536,6 +536,66 @@ export interface UIRootNode {
   type: RootLevelNode,
   block: GeneralNode[],
   textAlign: TextAlign
+}
+
+export function isUnstyledTextNode(node: GeneralNode): boolean {
+  return node.name == UINodeName.Text &&
+    node.attribute.length == 0 &&
+    node.styleControl.href == undefined &&
+    node.styleControl.color == undefined &&
+    node.styleControl.weight == undefined &&
+    node.styleControl.italic == undefined &&
+    node.styleControl.underline == undefined &&
+    node.styleControl.strike == undefined &&
+    node.styleControl.fontSize == undefined &&
+    node.styleControl.fontSizeStyle == undefined &&
+    node.styleControl.fontFamily == undefined &&
+    node.styleControl.backgroundColor == undefined
+}
+
+export function cloneGeneralNode(node: GeneralNode): GeneralNode {
+  const cloned = new GeneralNode(node.name, node.content, node.attribute)
+  cloned.styleControl.color = node.styleControl.color
+  cloned.styleControl.weight = node.styleControl.weight
+  cloned.styleControl.italic = node.styleControl.italic
+  cloned.styleControl.underline = node.styleControl.underline
+  cloned.styleControl.strike = node.styleControl.strike
+  cloned.styleControl.href = node.styleControl.href
+  cloned.styleControl.fontSize = node.styleControl.fontSize
+  cloned.styleControl.fontSizeStyle = node.styleControl.fontSizeStyle
+  cloned.styleControl.fontFamily = node.styleControl.fontFamily
+  cloned.styleControl.backgroundColor = node.styleControl.backgroundColor
+  if (node.nestedRootNode) {
+    cloned.nestedRootNode = cloneUIRootNodes(node.nestedRootNode)
+  }
+  if (node.nestedGeneralNode) {
+    const nested: GeneralNode[] = []
+    for (const child of node.nestedGeneralNode) {
+      nested.push(cloneGeneralNode(child))
+    }
+    cloned.nestedGeneralNode = nested
+  }
+  return cloned
+}
+
+export function cloneUIRootNode(node: UIRootNode): UIRootNode {
+  const block: GeneralNode[] = []
+  for (const child of node.block) {
+    block.push(cloneGeneralNode(child))
+  }
+  return {
+    type: node.type,
+    block,
+    textAlign: node.textAlign
+  }
+}
+
+export function cloneUIRootNodes(nodes: UIRootNode[]): UIRootNode[] {
+  const result: UIRootNode[] = []
+  for (const node of nodes) {
+    result.push(cloneUIRootNode(node))
+  }
+  return result
 }
 
 

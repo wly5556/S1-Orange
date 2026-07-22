@@ -1,5 +1,5 @@
 import { URL } from '../api/base'
-import { GeneralNode, UINodeName, UIRootNode } from './component/ThreadPostContent'
+import { cloneGeneralNode, cloneUIRootNode, GeneralNode, isUnstyledTextNode, UINodeName, UIRootNode } from './component/ThreadPostContent'
 import { mapColors } from './HTMLColorMap'
 
 const TABLE_CELL_SEPARATOR = '    '
@@ -116,6 +116,17 @@ interface ParserTextStyle {
 
 type ParserRootType = UINodeName.Text | UINodeName.Quote | UINodeName.Code | UINodeName.Div
 
+interface MarkdownListItem {
+  content: string
+  marker: string
+}
+
+interface MarkdownListMatch {
+  mode: UINodeName.Ul | UINodeName.Ol
+  content: string
+  marker: string
+}
+
 export class MarkdownParser extends ContentParser {
   private readonly headingSize: number[] = [7, 6, 5, 4, 3]
 
@@ -176,21 +187,32 @@ export class MarkdownParser extends ContentParser {
         continue
       }
 
-      const unorderedListMatch = line.match(/^\s{0,3}[-+*]\s+(.+)$/)
-      const orderedListMatch = line.match(/^\s{0,3}\d+[.)]\s+(.+)$/)
-      if (unorderedListMatch || orderedListMatch) {
+      const listMatch = this.matchListItem(line)
+      if (listMatch) {
         flushParagraph()
-        const mode = unorderedListMatch ? UINodeName.Ul : UINodeName.Ol
-        const items: string[] = []
+        const mode = listMatch.mode
+        const items: MarkdownListItem[] = []
         while (index < lines.length) {
-          const itemMatch = mode == UINodeName.Ul ?
-            lines[index].match(/^\s{0,3}[-+*]\s+(.+)$/) :
-            lines[index].match(/^\s{0,3}\d+[.)]\s+(.+)$/)
-          if (!itemMatch) {
+          const itemMatch = this.matchListItem(lines[index])
+          if (itemMatch) {
+            if (itemMatch.mode != mode) {
+              break
+            }
+            items.push({
+              content: itemMatch.content,
+              marker: itemMatch.marker
+            })
+            index++
+            continue
+          }
+          const continuation = this.listContinuation(lines[index])
+          if (continuation.length > 0 && items.length > 0) {
+            items[items.length - 1].content += '\n' + continuation
+            index++
+            continue
+          } else {
             break
           }
-          items.push(itemMatch[1])
-          index++
         }
         roots.push(this.makeRoot(UINodeName.Text, this.listNodes(items, mode)))
         continue
@@ -248,11 +270,39 @@ export class MarkdownParser extends ContentParser {
     return nodes
   }
 
-  private listNodes(items: string[], mode: UINodeName.Ul | UINodeName.Ol): GeneralNode[] {
+  private matchListItem(line: string): MarkdownListMatch | undefined {
+    const unordered = line.match(/^\s{0,3}[-+*]\s+(.+)$/)
+    if (unordered) {
+      return {
+        mode: UINodeName.Ul,
+        content: unordered[1],
+        marker: '•'
+      }
+    }
+    const ordered = line.match(/^\s{0,3}(\d{1,9})[.)]\s+(.+)$/)
+    if (ordered) {
+      return {
+        mode: UINodeName.Ol,
+        content: ordered[2],
+        marker: ordered[1] + ' '
+      }
+    }
+    return undefined
+  }
+
+  private listContinuation(line: string): string {
+    if (line.trim().length == 0) {
+      return ''
+    }
+    const continuation = line.match(/^\s{2,}(.*)$/)
+    return continuation ? continuation[1] : ''
+  }
+
+  private listNodes(items: MarkdownListItem[], mode: UINodeName.Ul | UINodeName.Ol): GeneralNode[] {
     const nodes: GeneralNode[] = []
     for (let i = 0; i < items.length; i++) {
-      nodes.push(new GeneralNode(UINodeName.Text, mode == UINodeName.Ol ? `${i + 1} ` : '', mode))
-      this.appendNodes(nodes, this.parseInline(items[i], {}))
+      nodes.push(new GeneralNode(UINodeName.Text, mode == UINodeName.Ol ? items[i].marker : '•', mode))
+      this.appendNodes(nodes, this.parseInline(items[i].content, {}))
       if (i + 1 < items.length) {
         nodes.push(new GeneralNode(UINodeName.Br, ''))
       }
@@ -452,6 +502,194 @@ interface MarkdownInlineLink {
 }
 
 export const markdownParser = new MarkdownParser()
+
+const MD_SUSPICION_THRESHOLD = 2
+
+function markdownSuspicionScore(text: string): number {
+  let score = 0
+  let boldMarkerCount = 0
+  let tildeMarkerCount = 0
+  let backtickCount = 0
+  let inLinkLabel = false
+  let i = 0
+  while (i < text.length) {
+    if (i == 0 || text[i - 1] == '\n') {
+      let j = i
+      let indent = 0
+      while (indent < 3 && j < text.length && text[j] == ' ') {
+        indent++
+        j++
+      }
+      if (j >= text.length) {
+        i = j
+        continue
+      }
+      if (text[j] == '#') {
+        let k = j + 1
+        while (k < text.length && text[k] == '#') {
+          k++
+        }
+        const n = k - j
+        if (n >= 1 && n <= 5 && k < text.length && text[k] == ' ') {
+          score += 1
+          i = k + 1
+          continue
+        }
+      } else if (text.startsWith('```', j) || text.startsWith('~~~', j)) {
+        score += 1.5
+        i = j + 3
+        continue
+      } else if ((text[j] == '-' || text[j] == '*' || text[j] == '+') && text[j + 1] == ' ') {
+        score += 1
+        i = j + 2
+        continue
+      } else if (text[j] >= '0' && text[j] <= '9') {
+        let k = j + 1
+        while (k < text.length && text[k] >= '0' && text[k] <= '9') {
+          k++
+        }
+        if (k < text.length && (text[k] == '.' || text[k] == ')') && text[k + 1] == ' ') {
+          score += 0.5
+          i = k + 2
+          continue
+        }
+      } else if (text[j] == '>') {
+        score += 0.5
+        i = j + 1
+        continue
+      }
+    }
+    const ch = text[i]
+    if (ch == '\n') {
+      inLinkLabel = false
+      i++
+      continue
+    }
+    if (ch == '*') {
+      if (text[i + 1] == '*') {
+        boldMarkerCount++
+        i += 2
+        continue
+      }
+      i++
+      continue
+    }
+    if (ch == '~') {
+      if (text[i + 1] == '~') {
+        tildeMarkerCount++
+        i += 2
+        continue
+      }
+      i++
+      continue
+    }
+    if (ch == '`') {
+      backtickCount++
+      i++
+      continue
+    }
+    if (ch == '[') {
+      inLinkLabel = true
+      i++
+      continue
+    }
+    if (ch == ']') {
+      if (inLinkLabel && text[i + 1] == '(') {
+        score += 1
+        i += 2
+        continue
+      }
+      inLinkLabel = false
+      i++
+      continue
+    }
+    i++
+  }
+  score += Math.floor(boldMarkerCount / 2) * 0.25
+  score += Math.floor(tildeMarkerCount / 2) * 0.5
+  score += Math.floor(backtickCount / 2) * 0.5
+  return score
+}
+
+function appendParsedMarkdown(result: UIRootNode[], text: string, textAlign: TextAlign): void {
+  const parsed = markdownParser.convert(text)
+  for (const parsedRoot of parsed) {
+    parsedRoot.textAlign = textAlign
+    result.push(parsedRoot)
+  }
+}
+
+function isMarkdownRunNode(node: GeneralNode): boolean {
+  return isUnstyledTextNode(node) || node.name == UINodeName.Br
+}
+
+function appendMarkdownRunText(parts: string[], node: GeneralNode): void {
+  if (isUnstyledTextNode(node)) {
+    parts.push(node.content)
+  } else if (node.name == UINodeName.Br) {
+    parts.push('\n')
+  }
+}
+
+function markdownScoreForBlock(block: GeneralNode[]): number {
+  const parts: string[] = []
+  for (const child of block) {
+    appendMarkdownRunText(parts, child)
+  }
+  return markdownSuspicionScore(parts.join(''))
+}
+
+export function tryParseMarkdown(node: UIRootNode[]): UIRootNode[] | undefined {
+  const result: UIRootNode[] = []
+  let hasMarkdown = false
+
+  for (const root of node) {
+    if (root.type != UINodeName.Text || markdownScoreForBlock(root.block) <= MD_SUSPICION_THRESHOLD) {
+      result.push(cloneUIRootNode(root))
+      continue
+    }
+
+    hasMarkdown = true
+    const pendingBlock: GeneralNode[] = []
+    const markdownRunParts: string[] = []
+    const flushPendingBlock = (): void => {
+      if (pendingBlock.length == 0) {
+        return
+      }
+      result.push({
+        type: UINodeName.Text,
+        block: pendingBlock.splice(0, pendingBlock.length),
+        textAlign: root.textAlign
+      })
+    }
+    const flushMarkdownRun = (): void => {
+      if (markdownRunParts.length == 0) {
+        return
+      }
+      const text = markdownRunParts.join('')
+      markdownRunParts.splice(0, markdownRunParts.length)
+      if (text.trim().length == 0) {
+        pendingBlock.push(new GeneralNode(UINodeName.Br, ''))
+        return
+      }
+      flushPendingBlock()
+      appendParsedMarkdown(result, text, root.textAlign)
+    }
+
+    for (const child of root.block) {
+      if (isMarkdownRunNode(child)) {
+        appendMarkdownRunText(markdownRunParts, child)
+      } else {
+        flushMarkdownRun()
+        pendingBlock.push(cloneGeneralNode(child))
+      }
+    }
+    flushMarkdownRun()
+    flushPendingBlock()
+  }
+
+  return hasMarkdown ? result : undefined
+}
 
 interface BBCodeTagToken {
   name: string
@@ -1106,6 +1344,9 @@ export class MarkdownSerializer extends StyledContentSerializer {
   private applyMarkdownStyle(node: GeneralNode, text: string): string {
     if (node.attribute == UINodeName.Ul) {
       return '- '
+    }
+    if (node.attribute == UINodeName.Ol) {
+      return text.trim() + '. '
     }
     if (node.styleControl.href) {
       text = `[${text}](${node.styleControl.href})`
