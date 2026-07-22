@@ -294,8 +294,10 @@ export struct SideMenu {
               openPreferences(this.pathStack)
             })
             Badge({
-              value: this.hasNewVersion ? 'New' : undefined,
-              style: {},
+              value:  '',
+              style: {
+                badgeSize: this.hasNewVersion ? 16 : 0
+              },
               position: BadgePosition.Right,
             }) {
               this.MenuButton($r('app.media.questionmark_circle'), '关于', () => {

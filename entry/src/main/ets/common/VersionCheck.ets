@@ -85,7 +85,7 @@ function showUpdateDialog(context: common.UIAbilityContext) {
     title: '发现新版本',
     message: '是否前往 Release 页面查看？',
     buttons: [
-      { text: '下次检查再提醒', color: $r('sys.color.font_secondary') },
+      { text: '下次再提醒', color: $r('sys.color.font_secondary') },
       { text: '查看', color: $r('sys.color.ohos_id_color_primary') }
     ]
   }).then(res => {
