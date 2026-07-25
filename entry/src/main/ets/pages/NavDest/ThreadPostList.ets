@@ -526,7 +526,9 @@ export struct ThreadPostList {
       if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0') {
         this.jumpToPost = this.pageParam.jumpToPid
         this.contentVisible = false
-        setTimeout(() => this.contentVisible = true, 1000) // 跳转完成前先隐藏帖文内容，减少闪烁，若实际未能跳到该帖子需要解除隐藏
+        setTimeout(() => {
+          this.contentVisible = true
+        }, 1000) // 跳转完成前先隐藏帖文内容，减少闪烁
       }
       this.context.eventHub.on(openImgViewerEventName(this.pageParam),
         (imgUrl: string[], index: number) => {
@@ -1436,7 +1438,7 @@ struct SinglePostPage {
     }
     .brightness(this.pageParam.jumpToPid == post.pid && this.pageParam.jumpToPidWithHighlight ?
       (this.appTheme.isDark ? 1.1 : 0.9) : 1)
-    .animation({ duration: 300, iterations: 2 })
+    .animation({ duration: AniSpeed.ratio * 400, iterations: 2 })
     .backgroundColor(this.isPostSelectedForShot(compIndex) ?
       (this.appTheme.isDark ? 'rgba(90,142,137,0.16)' : 'rgba(10,89,247,0.07)') :
       this.appTheme.backgroundSecondary)

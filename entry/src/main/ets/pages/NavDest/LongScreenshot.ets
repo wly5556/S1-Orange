@@ -208,6 +208,7 @@ export struct LongScreenshotPage {
             }
           }
           .alignItems(VerticalAlign.Center)
+
           Text(formatRelativeTime(new Date(), item.post.timestamp))
             .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
             .fontColor(this.appTheme.fontSecondary)
@@ -283,7 +284,8 @@ export struct LongScreenshotPage {
       } else if (this.pageParam.ratingInfoMap.has(item.post.pid)) {
         Row() {
           Text() {
-            Span(`战斗力 ${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating >= 0 ? '+' : ''}${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating}`)
+            Span(`战斗力 ${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating >= 0 ? '+' :
+              ''}${this.pageParam.ratingInfoMap.get(item.post.pid)!.totalRating}`)
             Span(' / ').opacity(0.7)
             Span(`${this.pageParam.ratingInfoMap.get(item.post.pid)!.userCount}人评价`)
           }.fontSize(FontSizeEnum[this.appState.fontSize].vp14)
@@ -355,7 +357,13 @@ export struct LongScreenshotPage {
     this.releaseAreas()
     const shareTempFilePath = await savePixelMapToShareTempFile(this.context, mergedPixelMap)
     mergedPixelMap.release()
-    ShareImage(shareTempFilePath, 'png', this.context)
+    if (shareTempFilePath !== '') {
+      ShareImage(shareTempFilePath, 'png', this.context)
+    } else {
+      promptAction.showToast({
+        message: '截图出现异常'
+      })
+    }
     this.pathStack.pop()
   }
 
@@ -416,6 +424,7 @@ export struct LongScreenshotPage {
               }
               .alignItems(HorizontalAlign.Start)
               .flexShrink(1)
+
               QRCode(generateS1WebPostLink(this.pageParam.tid, 1)).width(36).height(36)
             }.justifyContent(FlexAlign.SpaceBetween)
             .alignItems(VerticalAlign.Center)
