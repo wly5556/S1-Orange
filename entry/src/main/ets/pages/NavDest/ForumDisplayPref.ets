@@ -269,9 +269,9 @@ export struct ForumDisplayPrefPage {
             .width('100%')
             .padding({ left: 12, right: 12, top: 12 })
 
-          Text('请选择要在首页展示的板块。' + this.sortMode === ForumSortMode.custom
+          Text('请选择要在首页展示的板块。' + (this.sortMode === ForumSortMode.custom
             ? '通过拖拽调整它们的顺序。'
-            : '')
+            : ''))
             .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
             .fontColor($r('sys.color.font_secondary'))
             .width('100%')
