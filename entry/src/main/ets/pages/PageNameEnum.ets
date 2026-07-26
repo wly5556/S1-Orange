@@ -25,5 +25,6 @@ export enum PageNameEnum {
   PageSearch = "PageSearch",
   LongScreenshot = "LongScreenshot",
   FreeCopy = "FreeCopy",
-  WriteReplyPreview = "WriteReplyPreview"
+  WriteReplyPreview = "WriteReplyPreview",
+  ForumDisplayPref = "ForumDisplayPref"
 }

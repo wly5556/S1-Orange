@@ -119,6 +119,11 @@
       "name": "WriteReplyPreview",
       "pageSourceFile": "src/main/ets/pages/NavDest/WriteReplyPreview.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "ForumDisplayPref",
+      "pageSourceFile": "src/main/ets/pages/NavDest/ForumDisplayPref.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

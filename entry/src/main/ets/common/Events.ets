@@ -6,5 +6,6 @@ export enum Event {
   ReturnToHomePage = "EventReturnToHomePage",
   WantWithUri = "EventWantWithUri",
   OpenGotoThreadDialog = "EventOpenGotoThreadDialog",
-  NewVersionDismissed = "EventNewVersionDismissed"
+  NewVersionDismissed = "EventNewVersionDismissed",
+  ForumDisplayPrefChanged = "EventForumDisplayPrefChanged"
 }

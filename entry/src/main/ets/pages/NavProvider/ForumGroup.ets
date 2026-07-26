@@ -9,11 +9,14 @@ import { TitleBar, TitleBarLeftButtonType } from '../../common/component/TitleBa
 import { common } from '@kit.AbilityKit'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { openSearchPage } from '../NavDest/SearchPage'
+import { openForumDisplayPref } from '../NavDest/ForumDisplayPref'
 import { openInBrowser } from '../../common/WantUitl'
+import { PreferenceManager } from '../../config/UserConfig'
 import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { Event } from '../../common/Events'
+import { ForumSortMode } from '../../config/v1/default'
 import { setForumGroupNameMap } from '../../common/ForumUtil'
 
 
@@ -26,6 +29,7 @@ export struct ForumGroupView {
   @State forumGroupTodayPost: Map<string, string> = new Map()
   @State forumGroupItemOffsetY: Map<string, number> = new Map()
   forumInfoMap: Map<string, ForumInfo> = new Map()
+  private rawForumList: ForumInfo[] = []
   @Consume forumInfo?: ForumInfo
   @Consume sideMenuShow: number
   @State @Watch('pullDownStageChanged') refreshStage: PullToRefreshStage = PullToRefreshStage.unactivated
@@ -35,6 +39,9 @@ export struct ForumGroupView {
   @Consume appState: PreferenceState
   @State pullToRefreshEnabled: boolean = true
   @StorageProp(PropKey.userId) @Watch('refreshThreadGroup') uid?: string = undefined
+  @State forumSortMode: ForumSortMode = ForumSortMode.byReplyCount
+  @State forumHidden: string[] = []
+  @State forumDisplayOrder: string[] = []
 
   pullDownStageChanged() {
     if (this.refreshStage == PullToRefreshStage.doLoading) {
@@ -42,25 +49,63 @@ export struct ForumGroupView {
     }
   }
 
+  loadForumDisplayPref() {
+    PreferenceManager.readonly(conf => {
+      this.forumSortMode = conf.forum_sort_mode
+      this.forumHidden = conf.forum_hidden
+      this.forumDisplayOrder = conf.forum_display_order
+      if (this.rawForumList.length > 0) {
+        this.applyForumDisplay()
+      }
+    })
+  }
+
   aboutToAppear(): void {
+    this.loadForumDisplayPref()
     if (this.forumGroupName.size == 0) {
       this.refreshThreadGroup()
     }
+    this.context.eventHub.on(Event.ForumDisplayPrefChanged, (): void => this.loadForumDisplayPref())
+  }
+
+  aboutToDisappear() {
+    this.context.eventHub.off(Event.ForumDisplayPrefChanged)
   }
 
   processData(v: wrapper<ForumGroup>) {
-    let formGroupData = v.Variables.forumlist.sort((a, b) => parseInt(b.todayposts) - parseInt(a.todayposts))
-    this.forumGroupId = formGroupData.map(v => v.fid)
+    this.rawForumList = v.Variables.forumlist
+    const allNames = new Map<string, string>()
+    v.Variables.forumlist.forEach(f => {
+      this.forumInfoMap.set(f.fid, f)
+      allNames.set(f.fid, f.name)
+    })
+    setForumGroupNameMap(allNames)
+    this.applyForumDisplay()
+  }
+
+  applyForumDisplay() {
+    const hiddenSet = new Set(this.forumHidden)
+    const visible = this.rawForumList.filter(f => !hiddenSet.has(f.fid))
+    if (this.forumSortMode === ForumSortMode.custom && this.forumDisplayOrder.length > 0) {
+      const orderMap = new Map<string, number>()
+      this.forumDisplayOrder.forEach((fid, i) => orderMap.set(fid, i))
+      visible.sort((a, b) => {
+        const ia = orderMap.has(a.fid) ? orderMap.get(a.fid)! : Number.MAX_SAFE_INTEGER
+        const ib = orderMap.has(b.fid) ? orderMap.get(b.fid)! : Number.MAX_SAFE_INTEGER
+        return ia - ib
+      })
+    } else {
+      visible.sort((a, b) => parseInt(b.todayposts) - parseInt(a.todayposts))
+    }
+    this.forumGroupId = visible.map(v => v.fid)
     this.forumGroupName.clear()
     this.forumGroupTodayPost.clear()
     this.forumGroupItemOffsetY.clear()
-    formGroupData.forEach((v, i) => {
-      this.forumInfoMap.set(v.fid, v)
+    visible.forEach((v, i) => {
       this.forumGroupName.set(v.fid, v.name)
       this.forumGroupItemOffsetY.set(v.fid, i * FontSizeEnum[this.appState.fontSize].vp48)
       this.forumGroupTodayPost.set(v.fid, v.todayposts)
     })
-    setForumGroupNameMap(this.forumGroupName)
   }
 
   refreshThreadGroup() {
@@ -86,6 +131,11 @@ export struct ForumGroupView {
           value: '前往指定帖子',
           action: () => {
             this.context.eventHub.emit(Event.OpenGotoThreadDialog)
+          }
+        }, {
+          value: '调整板块展示',
+          action: () => {
+            openForumDisplayPref(this.pathStack)
           }
         }],
         clickLeftButton: () => {

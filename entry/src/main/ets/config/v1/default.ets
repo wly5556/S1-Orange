@@ -45,6 +45,11 @@ export enum HiddenPostDisplay {
   visibleWithoutHiddenReason = 2
 }
 
+export enum ForumSortMode {
+  byReplyCount = 0,
+  custom = 1
+}
+
 /**
  * 应用版本检查的间隔
  */
@@ -92,6 +97,9 @@ export class ApplicationConfig {
   update_latest_version_info: string = ''
   update_show_new_version: boolean = false
   long_screenshot_expand_rating: boolean = false
+  forum_sort_mode: ForumSortMode = ForumSortMode.byReplyCount
+  forum_display_order: string[] = []
+  forum_hidden: string[] = []
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()
