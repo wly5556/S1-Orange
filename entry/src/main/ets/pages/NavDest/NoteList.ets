@@ -162,8 +162,8 @@ struct SingleNotePage {
 
               const itemVM: NoteItemVM = {
                 id: note.id,
-                authorid: note.notevar.actoruid,
-                author: note.notevar.actorusername,
+                authorid: note.notevar?.actoruid ?? '',
+                author: note.notevar?.actorusername ?? '',
                 new: note.new,
                 reason: item.reason,
                 subject: item.subject,
