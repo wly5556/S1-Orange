@@ -5,6 +5,7 @@ import { ThemeColorAmber } from './amber'
 import { ThemeColorBlue } from './blue'
 import { ThemeColorGreen } from './green'
 import { ThemeColorPurple } from './purple'
+import { ThemeColorCustom } from './custom'
 import { AppThemeColor } from './basic/basic'
 
 export const ThemeArray: AppThemeColor[] = []
@@ -22,3 +23,15 @@ ThemeName[ThemeIndex.amber] = '琥珀'
 ThemeName[ThemeIndex.blue] = '亮蓝'
 ThemeName[ThemeIndex.green] = '湖绿'
 ThemeName[ThemeIndex.purple] = '深紫'
+ThemeName[ThemeIndex.custom] = '自定义配色'
+
+/**
+ * 按配置构建浅色模式主题。自定义主题每次都返回新实例，
+ * 便于重新赋值 @Provide appTheme 时触发全局刷新
+ */
+export function themeFromIndex(index: ThemeIndex, customColors: Record<string, string>): AppThemeColor {
+  if (index == ThemeIndex.custom) {
+    return new ThemeColorCustom(customColors)
+  }
+  return ThemeArray[index]
+}

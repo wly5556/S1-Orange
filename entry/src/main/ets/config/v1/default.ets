@@ -19,7 +19,8 @@ export enum ThemeIndex {
   amber = 2,
   blue = 3,
   green = 4,
-  purple = 5
+  purple = 5,
+  custom = 6
 }
 
 /**
@@ -100,6 +101,7 @@ export class ApplicationConfig {
   forum_sort_mode: ForumSortMode = ForumSortMode.byReplyCount
   forum_display_order: string[] = []
   forum_hidden: string[] = []
+  custom_theme_colours: Record<string, string> = {}
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

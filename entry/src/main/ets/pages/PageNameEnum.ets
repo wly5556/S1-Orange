@@ -26,5 +26,6 @@ export enum PageNameEnum {
   LongScreenshot = "LongScreenshot",
   FreeCopy = "FreeCopy",
   WriteReplyPreview = "WriteReplyPreview",
-  ForumDisplayPref = "ForumDisplayPref"
+  ForumDisplayPref = "ForumDisplayPref",
+  CustomTheme = "CustomTheme"
 }

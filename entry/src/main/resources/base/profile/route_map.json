@@ -124,6 +124,11 @@
       "name": "ForumDisplayPref",
       "pageSourceFile": "src/main/ets/pages/NavDest/ForumDisplayPref.ets",
       "buildFunction": "RegisterBuilder"
+    },
+    {
+      "name": "CustomTheme",
+      "pageSourceFile": "src/main/ets/pages/NavDest/CustomTheme.ets",
+      "buildFunction": "RegisterBuilder"
     }
   ]
 }

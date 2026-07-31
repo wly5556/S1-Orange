@@ -17,7 +17,7 @@ import { PreferenceManager } from '../../config/UserConfig'
 import { ImageKnife } from '@ohos/imageknife'
 import { removeExpiredAvatar } from '../../common/component/Avatar'
 import { ImageCacheSize } from '../../common/component/preference/ImageCachePref'
-import { ThemeArray } from '../../common/theme/ThemeEnum'
+import { themeFromIndex } from '../../common/theme/ThemeEnum'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { themeColorDark } from '../../common/theme/basic/dark'
 import { ThemeColorLight } from '../../common/theme/basic/light'
@@ -116,7 +116,7 @@ struct NavigationPage {
 
   aboutToAppear(): void {
     PreferenceManager.readonly(conf => {
-      this.appThemeWhenLightMode = ThemeArray[conf.theme]
+      this.appThemeWhenLightMode = themeFromIndex(conf.theme, conf.custom_theme_colours)
       this.appState.textCopyable = conf.post_copyable
       this.appState.postAlphabetIndexer = conf.post_alphabet_indexer
       this.appState.showCredit = conf.show_credit
@@ -166,7 +166,7 @@ struct NavigationPage {
     })
     this.context.eventHub.on(Event.LightModeThemeSwitched, () => {
       PreferenceManager.readonly(conf => {
-        this.appThemeWhenLightMode = ThemeArray[conf.theme]
+        this.appThemeWhenLightMode = themeFromIndex(conf.theme, conf.custom_theme_colours)
         this.onColorModeChange()
       })
     })
