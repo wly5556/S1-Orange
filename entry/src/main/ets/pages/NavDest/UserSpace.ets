@@ -283,7 +283,7 @@ export struct UserSpace {
                     openUserThread(this.pathStack, param)
                   }).clickEffect(HeavyClickEffect)
 
-                }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
+                }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
                 if (this.userSpace.sig.length > 0) {
                   Column({ space: 6 }) {
@@ -312,7 +312,7 @@ export struct UserSpace {
                         })
                       })
                     }.padding(4)
-                  }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
+                  }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
                 }
                 Row() {
                   GridRow({ gutter: 1, columns: 12 }) {
@@ -332,7 +332,7 @@ export struct UserSpace {
                       }
                     })
                   }
-                }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
+                }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
                 .transition(TransitionEffect.translate({ y: -35 }).animation(SpringCurve))
 
                 Row() {
@@ -353,7 +353,7 @@ export struct UserSpace {
                       }
                     })
                   }
-                }.attributeModifier(new RoundPanel(this.appTheme.backgroundSecondary))
+                }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
                 .transition(TransitionEffect.translate({ y: -45 }).animation(SpringCurve))
               }.transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
             } else {
@@ -364,7 +364,7 @@ export struct UserSpace {
             }
             BottomSafeArea()
           }.padding({ top: 6, bottom: 6, left: 16, right: 16 })
-          .backgroundColor(this.appTheme.backgroundTertiary)
+          .backgroundColor(this.appTheme.backgroundSecondary)
           .constraintSize({
             minHeight: '100%'
           })
