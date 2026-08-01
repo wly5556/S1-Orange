@@ -654,7 +654,7 @@ export struct WriteReply {
                         prefix: '[quote]',
                         suffix: '[/quote]'
                       }, {
-                      img: $r('app.media.bold'),
+                      img: $r('app.media.lock'),
                       name: '积分权限',
                       prefix: '[hide=积分数]',
                       suffix: '[/hide]'
