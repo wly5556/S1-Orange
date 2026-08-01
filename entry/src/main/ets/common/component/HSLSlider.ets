@@ -56,6 +56,7 @@ export struct HSLSlider {
       .width('100%')
       .height('100%')
       .justifyContent(FlexAlign.Center)
+      .padding({ left: HSL_THUMB_SIZE / 2, right: HSL_THUMB_SIZE / 2 })
 
       Row()
         .width(HSL_THUMB_SIZE)

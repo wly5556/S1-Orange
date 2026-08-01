@@ -1,10 +1,10 @@
-import { ThemeColorLight } from './basic/light'
+import { ThemeColorTea } from './tea'
 
 /**
  * 浅色模式下的自定义配色：以浅灰主题为默认值，按用户配置覆盖各颜色字段
  * 未写入的字段保持浅灰主题默认值，保证低版本配置缺失时也能静默补齐
  */
-export class ThemeColorCustom extends ThemeColorLight {
+export class ThemeColorCustom extends ThemeColorTea {
   constructor(colors: Record<string, string>) {
     super()
     const pick = (key: string, base: string): string => {

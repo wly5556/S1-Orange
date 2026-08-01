@@ -26,18 +26,16 @@ class ColorField {
 }
 
 const COLOR_FIELDS: ColorField[] = [
-  new ColorField('titleBar', '标题栏背景', '页面顶部的标题栏底色'),
-  new ColorField('titleBarFont', '标题栏文字', '标题栏以及状态栏的文本颜色'),
-  new ColorField('fontEmphasize', '主题色', '帖子的回复数量、回帖按钮'),
-  new ColorField('themeColorDarken', '主题色加深', '投票标题、评分、边框'),
-  new ColorField('backgroundPrimary', '卡片背景色', '浮在上层的卡片类界面的颜色'),
   new ColorField('backgroundSecondary', '阅读背景色', '看帖时视觉占比最大的背景色'),
-  new ColorField('backgroundTertiary', '背景色加深', '各楼层之间的分隔色、回帖工具栏底色'),
+  new ColorField('fontEmphasize', '强调色', '回帖按钮、帖子的回复数量的颜色'),
+  new ColorField('backgroundPrimary', '卡片背景色', '浮在上层的卡片类界面的颜色'),
+  new ColorField('titleBar', '标题栏背景色', '页面顶部的标题栏底色'),
+  new ColorField('backgroundTertiary', '页面底色', '各楼层之间的分隔色、回帖工具栏底色'),
+  new ColorField('titleBarFont', '标题栏文字色', '标题栏以及状态栏的文本颜色'),
+  // new ColorField('themeColorDarken', '主题色加深', '投票标题、评分、边框'),
   // new ColorField('fontPrimary', '主要文字', '标题与正文文字'),
   // new ColorField('fontSecondary', '次要文字', '辅助说明、时间信息')
 ]
-
-const HUE_STOPS: ResourceColor[] = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000']
 
 interface HSLSliderRowParam {
   label: string
@@ -293,7 +291,7 @@ export struct CustomThemePage {
     const rgba = hexToRgb(this.colorValues[index])
     const hsl = rgba ? rgbToHsl(rgba) : [this.hue, this.sat, this.light]
     const alpha = rgba ? Math.round(rgba[3] / 255 * 100) : this.alpha
-    this.getUIContext().animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseInOut }, () => {
+    this.getUIContext().animateTo({ duration: AniSpeed.ms120, curve: Curve.EaseOut }, () => {
       this.selectedIndex = index
       this.hexText = this.colorValues[index]
       this.hue = hsl[0]
@@ -348,7 +346,7 @@ export struct CustomThemePage {
   hslRow($$: HSLSliderRowParam) {
     Row({ space: 10 }) {
       Text($$.label)
-        .width(56)
+        .width(4 * FontSizeEnum[this.appState.fontSize].vp16)
         .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
         .fontColor(this.appTheme.fontPrimary)
       HSLSlider({
@@ -414,7 +412,7 @@ export struct CustomThemePage {
               value: this.hue,
               min: 0,
               max: 360,
-              stops: HUE_STOPS,
+              stops: ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'],
               onChange: (v: number) => {
                 this.hue = v
                 this.onHSLChanged()
@@ -469,7 +467,12 @@ export struct CustomThemePage {
           .animation({ duration: AniSpeed.ms200 })
         }
         .width('100%')
-        .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+        .padding({
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: 16
+        })
 
         Scroll() {
           Column({ space: 6 }) {
@@ -490,6 +493,7 @@ export struct CustomThemePage {
                 }
                 .flexShrink(1)
                 .alignItems(HorizontalAlign.Start)
+
                 Blank()
                 Row()
                   .width(56)
@@ -504,16 +508,22 @@ export struct CustomThemePage {
               .padding({ left: 14, right: 14 })
               .border({
                 width: this.selectedIndex == index ? 1.5 : 0,
-                color: this.appTheme.fontPrimary
+                color: this.appTheme.fontSecondary
               })
-              .backgroundColor(index == this.selectedIndex ? this.appTheme.backgroundSecondary :
-                this.appTheme.backgroundPrimary)
+              .backgroundColor(this.appTheme.backgroundPrimary)
+              .shadow(index == this.selectedIndex ? ShadowStyle.OUTER_DEFAULT_SM :
+                undefined)
               .animation({ duration: AniSpeed.ms120 })
               .onClick(() => this.selectItem(index))
             }, (field: ColorField) => field.key)
           }
           .width('100%')
-          .padding({ left: 16, right: 16, top: 4, bottom: 24 })
+          .padding({
+            left: 16,
+            right: 16,
+            top: 4,
+            bottom: 24
+          })
         }
         .layoutWeight(1)
         .width('100%')
