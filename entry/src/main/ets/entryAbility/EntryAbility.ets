@@ -5,7 +5,7 @@ import { HistoryDbInit } from '../common/dataStore/HistoryData';
 import { saveAvatarCacheState } from '../common/component/Avatar';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PreferenceManager } from '../config/UserConfig';
-import { initAccountManager } from '../common/account/AccountManager';
+import { dailySign, initAccountManager } from '../common/account/AccountManager';
 import { DraftDbInit } from '../common/dataStore/DraftData';
 import { initJsonStorage } from '../common/dataStore/JsonPersist';
 import { Event } from '../common/Events';
@@ -41,7 +41,6 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
-
     windowStage.loadContent('pages/NavProvider/NavigationPage', (err) => {
       if (err.code) {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
@@ -78,6 +77,10 @@ export default class EntryAbility extends UIAbility {
 
   onBackground(): void {
     saveAvatarCacheState()
+  }
+
+  onForeground(): void {
+    dailySign()
   }
 
   onConfigurationUpdate(newConfig: Configuration) {

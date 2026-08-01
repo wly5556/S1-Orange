@@ -259,7 +259,6 @@ export function initAccountManager() {
           const account = await new request<wrapper<Account>>(URL.FORUM_GROUP).timeout(3000).get()
           setFormHash(account.Variables.formhash)
           await createOrUpdateAsset(formhashAssetAlias.get(conf.user_uid), account.Variables.formhash)
-          dailySign()
           await PreferenceManager.modify(conf => {
             const readaccess = parseInt(account.Variables.readaccess)
             conf.readaccess = isNaN(readaccess) ? 0 : readaccess
@@ -274,7 +273,7 @@ export function initAccountManager() {
   })().finally(() => restoreAccountFinished()))
 }
 
-async function dailySign() {
+export async function dailySign() {
   // 如果走app接口签到，还能同时更新sid，一举两得
   // 可惜app签到在sid格式改了之后就不能用了
   const now = new Date()
