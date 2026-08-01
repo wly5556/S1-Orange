@@ -247,7 +247,7 @@ export struct ForumDisplayPrefPage {
     }
     .backgroundColor(this.appTheme.backgroundPrimary)
     .borderRadius(12)
-    .margin({ left: 8, right: 8 })
+    .margin({ left: 16, right: 16 })
   }
 
   build() {
@@ -267,7 +267,7 @@ export struct ForumDisplayPrefPage {
             selectedIndexes: $sortModeSelected
           })
             .width('100%')
-            .padding({ left: 12, right: 12, top: 12 })
+            .padding({ left: 16, right: 16, top: 12 })
 
           Text('请选择要在首页展示的板块。' + (this.sortMode === ForumSortMode.custom
             ? '通过拖拽调整它们的顺序。'
@@ -275,7 +275,7 @@ export struct ForumDisplayPrefPage {
             .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
             .fontColor($r('sys.color.font_secondary'))
             .width('100%')
-            .padding({ left: 12, right: 12, top: 12, bottom: 4 })
+            .padding({ left: 16, right: 16, top: 12, bottom: 4 })
 
           if (this.loading) {
             Column() {

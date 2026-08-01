@@ -212,7 +212,7 @@ export struct BlockListPage {
             .width('100%')
             .height('100%')
             .scrollBar(BarState.Off)
-            .padding({ left: 6, right: 6 })
+            .padding({ left: 16, right: 16 })
             .constraintSize({
               minHeight: '100%'
             })
@@ -317,7 +317,7 @@ export struct BlockListPage {
             .width('100%')
             .height('100%')
             .scrollBar(BarState.Off)
-            .padding({ left: 6, right: 6 })
+            .padding({ left: 16, right: 16 })
             .constraintSize({
               minHeight: '100%'
             })

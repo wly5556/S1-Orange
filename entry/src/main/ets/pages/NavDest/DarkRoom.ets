@@ -223,7 +223,7 @@ export struct DarkRoomPage {
           this.loadedPage = this.dataSource.loadedPageCount()
           this.hasMore = this.dataSource.isHasMore()
         })
-        .padding({ left: 6, right: 6 })
+        .padding({ left: 16, right: 16 })
         .constraintSize({
           minHeight: '100%'
         })

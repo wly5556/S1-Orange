@@ -363,7 +363,7 @@ export struct UserSpace {
                 .color($r('sys.color.ohos_id_color_emphasize'))
             }
             BottomSafeArea()
-          }.padding(6)
+          }.padding({ top: 6, bottom: 6, left: 16, right: 16 })
           .backgroundColor(this.appTheme.backgroundTertiary)
           .constraintSize({
             minHeight: '100%'

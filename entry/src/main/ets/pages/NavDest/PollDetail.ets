@@ -262,7 +262,7 @@ export struct PollDetail {
             }
           }.flexGrow(1)
           .flexShrink(1)
-          .padding({ left: 6, right: 6 })
+          .padding({ left: 16, right: 16 })
           .edgeEffect(EdgeEffect.Spring)
 
           if (this.hideForTransitionAnimation) {
@@ -288,7 +288,7 @@ export struct PollDetail {
                 .justifyContent(FlexAlign.SpaceBetween)
                 .width('100%')
                 .margin({ top: 10, bottom: 10 })
-                .padding({ left: 8, right: 8 })
+                .padding({ left: 16, right: 16 })
 
                 Scroll(this.selectedScroller) {
                   Column() {
@@ -312,7 +312,7 @@ export struct PollDetail {
                       }.width('100%')
                       .opacity(0.8)
                     }, (itemIndex: number) => itemIndex.toString())
-                  }.padding({ left: 8, right: 8 })
+                  }.padding({ left: 16, right: 16 })
                 }.constraintSize({
                   maxHeight: '32%'
                 })

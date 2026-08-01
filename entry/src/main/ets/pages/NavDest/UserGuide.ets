@@ -25,7 +25,7 @@ export struct UserGuide {
     .borderRadius(12)
     .backgroundColor(this.appTheme.backgroundPrimary)
     .alignItems(HorizontalAlign.Start)
-    .margin({ bottom: 32, left:12, right: 12 })
+    .margin({ bottom: 32, left:16, right: 16 })
     .alignSelf(ItemAlign.Stretch)
   }
 
@@ -41,7 +41,7 @@ export struct UserGuide {
         })
         Scroll() {
           Column() {
-            Text('可在“关于”页面内重新进入本页面').opacity(.8).margin(12).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+            Text('可在“关于”页面内重新进入本页面').opacity(.8).margin({ top: 12, bottom: 12, left: 16, right: 16 }).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
             Row() {
               Text('也可前往').opacity(.8).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
               Button({ buttonStyle: ButtonStyleMode.NORMAL }) {
@@ -50,7 +50,7 @@ export struct UserGuide {
                 openPreferences(this.pathStack)
               })
               Text('了解可以调整的功能选项').opacity(.8).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-            }.margin(12)
+            }.margin({ top: 12, bottom: 12, left: 16, right: 16 })
             this.guidance($rawfile('userGuide/sidemenu.webp'), '抽屉菜单', '抽屉菜单提供了账号管理功能，及收藏、历史记录等页面的入口。\n可以通过在标题栏上“向右滑动”来随时打开它。')
             this.guidance($rawfile('userGuide/multi_account.webp'), '多账户', '在抽屉菜单中，点击顶部空白区域可显示多账户相关操作，再次点击空白区域则返回原始菜单。\n未登录时，点击头像可进行登录操作；已登录后，可在多账户菜单中通过“添加账户”按钮登录其它账户，或重新登录现有账户。')
             this.guidance($rawfile('userGuide/post_menu.webp'), '回帖操作', '点击楼层号，可显示回帖操作菜单。长按用户头像，可屏蔽该用户。')
