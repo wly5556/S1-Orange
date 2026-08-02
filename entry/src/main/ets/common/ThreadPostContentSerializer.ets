@@ -524,7 +524,6 @@ const MD_SUSPICION_THRESHOLD = 4
  * - ATX 标题（1–5 级）       → +1
  * - 围栏代码块               → +1.5
  * - 无序列表项               → +1
- * - 有序列表项               → +0.5
  * - 块引用                   → +0.5
  *
  * 行内标记：
@@ -569,7 +568,8 @@ function markdownSuspicionScore(text: string): number {
         score += 1
         i = j + 2
         continue
-      } else if (text[j] >= '0' && text[j] <= '9') {
+      }
+      /* else if (text[j] >= '0' && text[j] <= '9') {
         let k = j + 1
         while (k < text.length && text[k] >= '0' && text[k] <= '9') {
           k++
@@ -579,7 +579,7 @@ function markdownSuspicionScore(text: string): number {
           i = k + 2
           continue
         }
-      } else if (text[j] == '>') {
+      } */ else if (text[j] == '>') {
         score += 0.5
         i = j + 1
         continue
