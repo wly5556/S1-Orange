@@ -1,4 +1,4 @@
-﻿import { DomainRegex, URL } from '../../api/base'
+import { DomainRegex, URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
 import { Attachment, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
@@ -58,6 +58,7 @@ import { PreferenceManager } from '../../config/UserConfig'
 import { LengthUnit, promptAction } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { openReportPost } from './ReportPost'
+import { AskAiDialog } from '../../common/component/AskAiDialog'
 import { plainTextSerializer, tryParseMarkdown } from '../../common/ThreadPostContentSerializer'
 import { openPageSearch, PageSearchParam, PostSearchItem } from './ThreadPostSearch'
 import { UserTagDialog } from '../../common/component/UserTagDialog'
@@ -690,6 +691,21 @@ struct SinglePostPage {
     autoCancel: true,
     alignment: DialogAlignment.Center
   })
+  @State askAiDialogPost: PostViewModel | undefined = undefined
+  askAiDialogController: CustomDialogController = new CustomDialogController({
+    builder: AskAiDialog({
+      postNodes: this.askAiDialogPost ? this.askAiDialogPost.node : [],
+      postAuthor: this.askAiDialogPost ? this.askAiDialogPost.username : '',
+      postDateline: this.askAiDialogPost ? Math.floor(this.askAiDialogPost.timestamp.getTime() / 1000) : 0,
+      postTid: this.pageParam.tid,
+      postPid: this.askAiDialogPost ? this.askAiDialogPost.pid : '',
+      postSubject: this.pageParam.subject || '',
+      appTheme: this.appTheme,
+      fontSize: this.appState.fontSize
+    }),
+    autoCancel: true,
+    alignment: DialogAlignment.Center
+  })
 
   generateDataFetchKey() {
     return `${this.pageToLoad},${this.dataControlCounter}`
@@ -1080,6 +1096,90 @@ struct SinglePostPage {
     return this.postFloorNumber.get(compIndex) ?? ''
   }
 
+  buildPostMenu(post: PostViewModel): MenuElement[] {
+    let menu: MenuElement[] = []
+    menu.push({
+      value: '回复',
+      action: () => {
+        if (!this.pageParam.subject) {
+          return
+        }
+        const param: WriteReplyParam = {
+          defaultTransition: true,
+          tid: this.pageParam.tid,
+          quotePid: post.pid,
+          mode: WriteReplyMode.NEW_POST_QUOTE,
+          subjectToReply: this.pageParam.subject
+        }
+        openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
+      }
+    })
+    if (post.uid == this.currentUserUid) {
+      menu.push({
+        value: '编辑',
+        action: () => {
+          if (!this.pageParam.subject) {
+            return
+          }
+          const param: WriteReplyParam = {
+            defaultTransition: true,
+            tid: this.pageParam.tid,
+            fid: this.pageParam.fid,
+            editPid: post.pid,
+            mode: WriteReplyMode.EDIT,
+            subjectToReply: this.pageParam.subject
+          }
+          openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
+        }
+      })
+    } else {
+      menu.push({
+        value: '评分',
+        action: () => {
+          const param: PostRatingDetailParam = {
+            rating: [],
+            pid: post.pid,
+            tid: this.pageParam.tid,
+            userCount: 0,
+            totalRating: 0,
+            showPanel: true,
+            transitionId: this.generatePostRatingTransitionId(post.pid),
+            reload: true
+          }
+          openPostRatingDetail(this.pathStack, param, () => {
+          })
+        }
+      })
+    }
+    menu.push({
+      value: '自由复制',
+      action: () => {
+        openFreeCopy(this.pathStack, {
+          node: post.node
+        })
+      }
+    })
+    menu.push({
+      value: '问AI',
+      action: () => {
+        this.askAiDialogPost = post
+        this.askAiDialogController.open()
+      }
+    })
+    menu.push({
+      value: '举报',
+      action: () => {
+        openReportPost({
+          tid: this.pageParam.tid,
+          fid: this.pageParam.fid ?? '',
+          rid: post.pid,
+          page: this.pageToLoad
+        }, this.pathStack)
+      }
+    })
+    return menu
+  }
+
   selectedPostKeyForShot(compIndex: number) {
     return `${this.pageToLoad}-${compIndex}`
   }
@@ -1262,73 +1362,7 @@ struct SinglePostPage {
               this.buildFloorNumber({
                 pid: post.pid,
                 floorNumber: this.getFloorNumber(compIndex),
-                menu: [{
-                  value: '回复',
-                  action: () => {
-                    if (!this.pageParam.subject) {
-                      return
-                    }
-                    const param: WriteReplyParam = {
-                      defaultTransition: true,
-                      tid: this.pageParam.tid,
-                      quotePid: post.pid,
-                      mode: WriteReplyMode.NEW_POST_QUOTE,
-                      subjectToReply: this.pageParam.subject
-                    }
-                    openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                  }
-                }, post.uid == this.currentUserUid ? {
-                  value: '编辑',
-                  action: () => {
-                    if (!this.pageParam.subject) {
-                      return
-                    }
-                    const param: WriteReplyParam = {
-                      defaultTransition: true,
-                      tid: this.pageParam.tid,
-                      fid: this.pageParam.fid,
-                      editPid: post.pid,
-                      mode: WriteReplyMode.EDIT,
-                      subjectToReply: this.pageParam.subject
-                    }
-                    openWriteReply(this.pathStack, param, (data): void => this.onBackFromReply(data))
-                  }
-                } : {
-                  value: '评分',
-                  action: () => {
-                    const param: PostRatingDetailParam = {
-                      rating: [],
-                      pid: post.pid,
-                      tid: this.pageParam.tid,
-                      userCount: 0,
-                      totalRating: 0,
-                      showPanel: true,
-                      transitionId: this.generatePostRatingTransitionId(post.pid),
-                      reload: true
-                    }
-                    openPostRatingDetail(this.pathStack, param, () => {
-                    })
-                  }
-                },
-                  {
-                    value: "自由复制",
-                    action: () => {
-                      openFreeCopy(this.pathStack, {
-                        node: post.node
-                      })
-                    }
-                  },
-                  {
-                    value: "举报",
-                    action: () => {
-                      openReportPost({
-                        tid: this.pageParam.tid,
-                        fid: this.pageParam.fid ?? '',
-                        rid: post.pid,
-                        page: this.pageToLoad
-                      }, this.pathStack)
-                    }
-                  }]
+                menu: this.buildPostMenu(post)
               })
             }
           }.alignItems(HorizontalAlign.Start)

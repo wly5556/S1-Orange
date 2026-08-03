@@ -102,6 +102,8 @@ export class ApplicationConfig {
   forum_display_order: string[] = []
   forum_hidden: string[] = []
   custom_theme_colours: Record<string, string> = {}
+  ask_ai_include_quoted: boolean = true
+  ask_ai_include_main: boolean = true
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()
