@@ -104,6 +104,7 @@ export class ApplicationConfig {
   custom_theme_colours: Record<string, string> = {}
   ask_ai_include_quoted: boolean = true
   ask_ai_include_main: boolean = true
+  ask_ai_include_previous: boolean = false
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

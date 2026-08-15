@@ -692,6 +692,7 @@ struct SinglePostPage {
     alignment: DialogAlignment.Center
   })
   @State askAiDialogPost: PostViewModel | undefined = undefined
+  @State askAiDialogFloorNumber: string = ''
   askAiDialogController: CustomDialogController = new CustomDialogController({
     builder: AskAiDialog({
       postNodes: this.askAiDialogPost ? this.askAiDialogPost.node : [],
@@ -700,6 +701,7 @@ struct SinglePostPage {
       postTid: this.pageParam.tid,
       postPid: this.askAiDialogPost ? this.askAiDialogPost.pid : '',
       postSubject: this.pageParam.subject || '',
+      postFloorNumber: this.askAiDialogFloorNumber,
       appTheme: this.appTheme,
       fontSize: this.appState.fontSize
     }),
@@ -1096,7 +1098,7 @@ struct SinglePostPage {
     return this.postFloorNumber.get(compIndex) ?? ''
   }
 
-  buildPostMenu(post: PostViewModel): MenuElement[] {
+  buildPostMenu(post: PostViewModel, compIndex: number): MenuElement[] {
     let menu: MenuElement[] = []
     menu.push({
       value: '回复',
@@ -1163,6 +1165,8 @@ struct SinglePostPage {
       value: '问AI',
       action: () => {
         this.askAiDialogPost = post
+        this.askAiDialogFloorNumber = this.getFloorNumber(compIndex) ||
+          String((this.pageToLoad - 1) * POST_PER_PAGE + compIndex + 1)
         this.askAiDialogController.open()
       }
     })
@@ -1362,7 +1366,7 @@ struct SinglePostPage {
               this.buildFloorNumber({
                 pid: post.pid,
                 floorNumber: this.getFloorNumber(compIndex),
-                menu: this.buildPostMenu(post)
+                menu: this.buildPostMenu(post, compIndex)
               })
             }
           }.alignItems(HorizontalAlign.Start)

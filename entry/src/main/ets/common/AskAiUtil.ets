@@ -9,9 +9,11 @@ import {
 import { URL } from '../api/base'
 import request from '../api/request'
 import { ThreadDataApp } from '../api/model/app/thread'
-import { wrapperApp } from '../api/wrapper'
+import { PostListV4 } from '../api/model/postList'
+import wrapper, { wrapperApp } from '../api/wrapper'
 
 const SECTION_SEPARATOR = '\n\n---\n\n'
+const POST_PER_PAGE = 40
 
 export interface AskAiStats {
   floorCount: number
@@ -43,6 +45,8 @@ interface AskAiSection {
   author: string
   dateline: number
   isMain: boolean
+  floor: number
+  pid: string
   content: string
 }
 
@@ -103,7 +107,12 @@ function extractRedirectHrefFromQuote(quoteRoot: UIRootNode): string {
   return ''
 }
 
+const redirectInfoCache: Map<string, QuoteRedirectInfo | undefined> = new Map()
+
 async function resolveRedirectLink(href: string): Promise<QuoteRedirectInfo | undefined> {
+  if (redirectInfoCache.has(href)) {
+    return redirectInfoCache.get(href)
+  }
   let fullHref = href
   if (fullHref.includes(URL.DOMAIN_APP)) {
     fullHref = fullHref.replace(URL.DOMAIN_APP, URL.DOMAIN_WEB)
@@ -111,6 +120,7 @@ async function resolveRedirectLink(href: string): Promise<QuoteRedirectInfo | un
   if (!fullHref.startsWith('http')) {
     fullHref = URL.WEB_BASE + fullHref
   }
+  let info: QuoteRedirectInfo | undefined = undefined
   try {
     const location = await new request<string>(fullHref, '')
       .redirectLocation()
@@ -118,11 +128,12 @@ async function resolveRedirectLink(href: string): Promise<QuoteRedirectInfo | un
     const regex = /tid=(\d+)&page=(\d+)#pid(\d+)/
     const match = location.match(regex)
     if (match && match.length === 4) {
-      return { tid: match[1], page: parseInt(match[2]), pid: match[3] }
+      info = { tid: match[1], page: parseInt(match[2]), pid: match[3] }
     }
   } catch (e) {
   }
-  return undefined
+  redirectInfoCache.set(href, info)
+  return info
 }
 
 async function fetchPost(tid: string, page: number, pid: string): Promise<FetchedPost | undefined> {
@@ -208,7 +219,7 @@ function formatQuoteDate(dateline: number): string {
 }
 
 async function flattenPostContentAsync(nodes: UIRootNode[], author: string, dateline: number,
-  visitedPids: Set<string>, isMain: boolean): Promise<AskAiSection[]> {
+  visitedPids: Set<string>, isMain: boolean, ownPid: string, ownFloor: number): Promise<AskAiSection[]> {
   const ownRoots: UIRootNode[] = []
   const quoteRoots: UIRootNode[] = []
 
@@ -235,7 +246,7 @@ async function flattenPostContentAsync(nodes: UIRootNode[], author: string, date
           const fetched = await fetchPost(info.tid, info.page, info.pid)
           if (fetched) {
             const nestedSections = await flattenPostContentAsync(fetched.nodes, fetched.author,
-              fetched.dateline, visitedPids, false)
+              fetched.dateline, visitedPids, false, fetched.pid, 0)
             for (const s of nestedSections) {
               sections.push(s)
             }
@@ -247,7 +258,8 @@ async function flattenPostContentAsync(nodes: UIRootNode[], author: string, date
     if (!resolved) {
       for (const node of quoteRoot.block) {
         if (node.nestedRootNode) {
-          const nestedSections = await flattenPostContentAsync(node.nestedRootNode, '', 0, visitedPids, false)
+          const nestedSections = await flattenPostContentAsync(node.nestedRootNode, '', 0,
+            visitedPids, false, '', 0)
           for (const s of nestedSections) {
             sections.push(s)
           }
@@ -257,7 +269,7 @@ async function flattenPostContentAsync(nodes: UIRootNode[], author: string, date
   }
 
   const ownContent = ownRoots.length > 0 ? markdownSerializer.convert(ownRoots) : ''
-  sections.push({ author, dateline, isMain, content: ownContent })
+  sections.push({ author, dateline, isMain, floor: ownFloor, pid: ownPid, content: ownContent })
 
   return sections
 }
@@ -265,8 +277,13 @@ async function flattenPostContentAsync(nodes: UIRootNode[], author: string, date
 function formatSection(section: AskAiSection): string {
   const lines: string[] = []
   if (section.author.length > 0) {
-    const mainMarker = section.isMain ? '（主楼） ' : ''
-    lines.push(`## ${mainMarker}${section.author} 发表于 ${formatQuoteDate(section.dateline)}`)
+    let marker = ''
+    if (section.isMain) {
+      marker = '（主楼） '
+    } else if (section.floor > 0) {
+      marker = `（${section.floor}楼） `
+    }
+    lines.push(`## ${marker}${section.author} 发表于 ${formatQuoteDate(section.dateline)}`)
   }
   if (section.content.length > 0) {
     lines.push(section.content)
@@ -274,21 +291,103 @@ function formatSection(section: AskAiSection): string {
   return lines.join('\n')
 }
 
+async function fetchPostListPage(tid: string, page: number): Promise<PostListV4 | undefined> {
+  let cachedData: PostListV4 | undefined = undefined
+  const cacheReady = new Promise<void>(resolve => {
+    new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
+      .param('tid', tid)
+      .param('page', page.toString())
+      .param('authorid', '')
+      .cache((v): void => {
+        cachedData = v.Variables
+        resolve()
+      }, false, true)
+      .get()
+      .catch(() => {
+        resolve()
+      })
+  })
+  await cacheReady
+  if (cachedData) {
+    return cachedData
+  }
+  try {
+    const v = await new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
+      .param('tid', tid)
+      .param('page', page.toString())
+      .param('authorid', '')
+      .cache((data): void => {
+      })
+      .get()
+    return v.Variables
+  } catch (e) {
+  }
+  return undefined
+}
+
+async function fetchPreviousFloors(tid: string, currentFloor: number, count: number,
+  currentPid: string, includedPids: Set<string>): Promise<AskAiSection[]> {
+  const end = currentFloor - 1
+  const start = Math.max(1, end - count + 1)
+  if (end < 1) {
+    return []
+  }
+  const firstPage = Math.floor((start - 1) / POST_PER_PAGE) + 1
+  const lastPage = Math.floor((end - 1) / POST_PER_PAGE) + 1
+  const sections: AskAiSection[] = []
+  for (let page = firstPage; page <= lastPage; page++) {
+    const data = await fetchPostListPage(tid, page)
+    if (!data) {
+      continue
+    }
+    for (const p of data.postlist) {
+      const floor = parseInt(p.number || '')
+      if (isNaN(floor) || floor < start || floor > end) {
+        continue
+      }
+      if (p.pid == currentPid || includedPids.has(p.pid)) {
+        continue
+      }
+      const parsed = parseXML([p])
+      if (parsed.length == 0) {
+        continue
+      }
+      includedPids.add(p.pid)
+      const nodes = PostContentParser(parsed[0], []).node
+      sections.push({
+        author: p.author,
+        dateline: parseInt(p.dbdateline || p.dateline) || 0,
+        isMain: p.first == '1' || floor == 1,
+        floor: floor,
+        pid: p.pid,
+        content: nodes.length > 0 ? markdownSerializer.convert(nodes) : ''
+      })
+    }
+  }
+  sections.sort((a, b) => a.floor - b.floor)
+  return sections
+}
+
 export async function buildAskAiMarkdown(nodes: UIRootNode[], author: string, dateline: number,
   tid: string, currentPid: string, threadSubject: string,
-  includeMain: boolean, includeQuotes: boolean): Promise<string> {
+  includeMain: boolean, includeQuotes: boolean, includePrevious: boolean,
+  previousCount: number, currentFloor: number): Promise<string> {
   const parts: string[] = []
+  const includedPids = new Set<string>()
   let currentIsMain = false
 
   if (includeMain && tid.length > 0) {
     const mainPost = await fetchPost(tid, 1, '')
     if (mainPost) {
       if (mainPost.pid != currentPid) {
+        includedPids.add(mainPost.pid)
         const mainContent = mainPost.nodes.length > 0 ? markdownSerializer.convert(mainPost.nodes) : ''
         const mainPart = formatSection({
           author: mainPost.author,
           dateline: mainPost.dateline,
           isMain: true,
+          floor: 0,
+          pid: mainPost.pid,
           content: mainContent
         })
         if (mainPart.length > 0) {
@@ -300,8 +399,22 @@ export async function buildAskAiMarkdown(nodes: UIRootNode[], author: string, da
     }
   }
 
+  if (includePrevious && tid.length > 0 && currentFloor > 1) {
+    const previousSections = await fetchPreviousFloors(tid, currentFloor, previousCount,
+      currentPid, includedPids)
+    for (const section of previousSections) {
+      const part = formatSection(section)
+      if (part.length > 0) {
+        parts.push(part)
+      }
+    }
+  }
+
+  const currentFloorLabel = includePrevious ? currentFloor : 0
+
   if (includeQuotes) {
-    const sections = await flattenPostContentAsync(nodes, author, dateline, new Set(), currentIsMain)
+    const sections = await flattenPostContentAsync(nodes, author, dateline, includedPids,
+      currentIsMain, currentPid, currentFloorLabel)
     for (const section of sections) {
       const part = formatSection(section)
       if (part.length > 0) {
@@ -316,7 +429,9 @@ export async function buildAskAiMarkdown(nodes: UIRootNode[], author: string, da
       }
     }
     const content = ownRoots.length > 0 ? markdownSerializer.convert(ownRoots) : ''
-    const part = formatSection({ author, dateline, isMain: currentIsMain, content })
+    const part = formatSection({
+      author, dateline, isMain: currentIsMain, floor: currentFloorLabel, pid: currentPid, content
+    })
     if (part.length > 0) {
       parts.push(part)
     }
@@ -329,11 +444,7 @@ export async function buildAskAiMarkdown(nodes: UIRootNode[], author: string, da
   return body
 }
 
-export async function buildAskAiPayload(nodes: UIRootNode[], author: string, dateline: number,
-  tid: string, currentPid: string, threadSubject: string,
-  includeMain: boolean, includeQuotes: boolean, prompt: string): Promise<string> {
-  const markdown = await buildAskAiMarkdown(nodes, author, dateline, tid, currentPid,
-    threadSubject, includeMain, includeQuotes)
+export function composeAskAiPayload(markdown: string, prompt: string): string {
   if (prompt.length == 0) {
     return markdown
   }
