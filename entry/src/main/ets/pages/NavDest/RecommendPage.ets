@@ -13,6 +13,7 @@ import { RecommendWeights } from '../../config/v1/default'
 import { RoundPanel, SettingGroupHeader, SettingRow } from './Preferences'
 import {
   Recommend,
+  RECOMMEND_MIN_BUFFER_POSITIVES,
   RECOMMEND_MIN_CLICKS,
   RECOMMEND_MIN_SAMPLES,
   RecommendState,
@@ -23,7 +24,8 @@ import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 const WeightGroupLabels: string[] = ['板块', '分类', '标题文本', '正文文本', '热度', '新增互动', '历史行为']
 const TopKOptions: string[] = ['1', '2', '3', '4', '5']
 const CHART_AREA_HEIGHT = 100
-const CHART_TOTAL_HEIGHT = 124
+const ANNOT_TEXT_HEIGHT = 16
+const CHART_STACK_HEIGHT = CHART_AREA_HEIGHT + ANNOT_TEXT_HEIGHT
 const AUC_MIN = 0.5
 const AUC_MAX = 1.0
 const AUC_THRESHOLD = 0.65
@@ -128,7 +130,15 @@ export struct RecommendPage {
   }
 
   thresholdLineY(): number {
-    return CHART_TOTAL_HEIGHT - (AUC_THRESHOLD - AUC_MIN) / (AUC_MAX - AUC_MIN) * CHART_AREA_HEIGHT
+    return CHART_STACK_HEIGHT - this.barHeight(AUC_THRESHOLD)
+  }
+
+  /** 最后一根柱的数值标注位置（柱顶上方，Stack 顶部预留了一行标注空间） */
+  lastAnnotY(): number {
+    if (!this.status || this.status.lastAuc < 0) {
+      return 0
+    }
+    return Math.max(CHART_STACK_HEIGHT - this.barHeight(this.status.lastAuc) - ANNOT_TEXT_HEIGHT, 0)
   }
 
   resetModel() {
@@ -183,27 +193,30 @@ export struct RecommendPage {
         })
       }
       .attributeModifier(this.settingRow)
-      .alignItems(VerticalAlign.Top)
+      .alignItems(VerticalAlign.Center)
 
-      if (this.status) {
+      Row() {
         Column({ space: 4 }) {
-          Text(this.stateText())
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+          Text('调试模式')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+            .fontWeight(FontWeight.Medium)
             .fontColor(this.appTheme.fontPrimary)
-          Text(`已采集样本 ${this.status.sampleCount}/${RECOMMEND_MIN_SAMPLES}，` +
-            `点击样本 ${this.status.clickSampleCount}/${RECOMMEND_MIN_CLICKS}`)
+          Text('在参与推荐计算的帖子右下角显示预测分数')
             .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
             .fontColor(this.appTheme.fontSecondary)
-          if (this.status.lastAuc >= 0) {
-            Text(`最近评估 AUC：${this.status.lastAuc.toFixed(3)}`)
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-              .fontColor(this.appTheme.fontSecondary)
-          }
         }
         .alignItems(HorizontalAlign.Start)
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
+        .layoutWeight(1)
+
+        Toggle({ type: ToggleType.Switch, isOn: this.appState.recommendDebug }).onChange(isOn => {
+          PreferenceManager.modify(conf => {
+            conf.recommend_debug = isOn
+            this.appState.recommendDebug = isOn
+          })
+        })
       }
+      .attributeModifier(this.settingRow)
+      .alignItems(VerticalAlign.Center)
 
       Row() {
         Blank()
@@ -219,14 +232,73 @@ export struct RecommendPage {
   }
 
   @Builder
-  progressRow(label: string, value: number, total: number) {
-    Column({ space: 4 }) {
-      Text(`${label} ${value}/${total}`)
+  condLine(met: boolean, label: string) {
+    Row({ space: 6 }) {
+      Text(met ? '🟢' : '🟡')
         .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-        .fontColor(this.appTheme.fontSecondary)
-      Progress({ value: Math.min(value, total), total: total, type: ProgressType.Linear })
-        .color(this.appTheme.fontEmphasize)
-    }.width('100%')
+        .fontColor(met ? this.appTheme.fontEmphasize : this.appTheme.fontSecondary)
+      Text(label)
+        .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+        .fontColor(met ? this.appTheme.fontPrimary : this.appTheme.fontSecondary)
+    }
+  }
+
+  aucCondLabel(): string {
+    if (!this.status || this.status.lastAuc < 0) {
+      return `最近评估 AUC 暂无（需 ≥${AUC_THRESHOLD}）`
+    }
+    return `最近评估 AUC ${this.status.lastAuc.toFixed(3)}（需 ≥${AUC_THRESHOLD}）`
+  }
+
+  @Builder
+  modelStatusCard() {
+    SettingGroupHeader({
+      text: '模型状态',
+      fontSizeIndex: this.appState.fontSize
+    })
+    Column({ space: 6 }) {
+      if (!this.status) {
+        Text('加载中…')
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+          .fontColor(this.appTheme.fontSecondary)
+      } else {
+        Text(this.stateText())
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+          .fontColor(this.appTheme.fontPrimary)
+        if (this.status.state == RecommendState.collecting) {
+          this.condLine(this.status.sampleCount >= RECOMMEND_MIN_SAMPLES,
+            `样本 ${this.status.sampleCount}/${RECOMMEND_MIN_SAMPLES}`)
+          this.condLine(this.status.clickSampleCount >= RECOMMEND_MIN_CLICKS,
+            `点击样本 ${this.status.clickSampleCount}/${RECOMMEND_MIN_CLICKS}`)
+          this.condLine(this.status.lastAuc >= AUC_THRESHOLD, this.aucCondLabel())
+          this.condLine(this.status.bufferPositives >= RECOMMEND_MIN_BUFFER_POSITIVES,
+            `评估正样本 ${this.status.bufferPositives}/${RECOMMEND_MIN_BUFFER_POSITIVES}`)
+          Text('各项达标后，在下次列表翻页或刷新时激活高亮')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+            .fontColor(this.appTheme.fontSecondary)
+        } else if (this.status.state == RecommendState.degraded) {
+          this.condLine(this.status.lastAuc >= AUC_THRESHOLD, this.aucCondLabel())
+          this.condLine(this.status.bufferPositives >= RECOMMEND_MIN_BUFFER_POSITIVES,
+            `评估正样本 ${this.status.bufferPositives}/${RECOMMEND_MIN_BUFFER_POSITIVES}`)
+          Text('满足上述条件后恢复高亮')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+            .fontColor(this.appTheme.fontSecondary)
+        } else {
+          Text(`已学习 ${this.status.sampleCount} 个样本（含 ${this.status.clickSampleCount} 个点击样本）`)
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+            .fontColor(this.appTheme.fontSecondary)
+          if (this.status.lastAuc >= 0) {
+            Text(`最近评估 AUC：${this.status.lastAuc.toFixed(3)}`)
+              .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+              .fontColor(this.appTheme.fontSecondary)
+          }
+        }
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+    .padding({ top: 8, bottom: 8 })
+    .attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
   }
 
   @Builder
@@ -240,30 +312,13 @@ export struct RecommendPage {
         Text('加载中…')
           .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
           .fontColor(this.appTheme.fontSecondary)
-      } else if (this.status.state == RecommendState.collecting) {
-        Column({ space: 10 }) {
-          this.progressRow('样本', this.status.sampleCount, RECOMMEND_MIN_SAMPLES)
-          this.progressRow('点击', this.status.clickSampleCount, RECOMMEND_MIN_CLICKS)
-          Text('样本量与预测准确率达标后自动激活高亮')
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-            .fontColor(this.appTheme.fontSecondary)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .width('100%')
-        .padding({ top: 8, bottom: 8 })
       } else if (this.status.aucHistory.length == 0) {
-        Text('暂无评估数据')
+        Text('暂无评估数据。每次列表翻页、刷新或离开版面时进行一次评估')
           .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
           .fontColor(this.appTheme.fontSecondary)
           .padding({ top: 8, bottom: 8 })
       } else {
         Stack({ alignContent: Alignment.BottomStart }) {
-          Row()
-            .width('100%')
-            .height(1)
-            .backgroundColor(this.appTheme.fontSecondary)
-            .opacity(0.4)
-
           Row({ space: 6 }) {
             ForEach(this.status.aucHistory.slice(-CHART_BARS), (auc: number, idx: number) => {
               Column()
@@ -274,32 +329,46 @@ export struct RecommendPage {
                 this.appTheme.fontEmphasize : this.appTheme.fontSecondary)
             }, (auc: number, idx: number) => `${idx}-${auc}`)
           }
+          .alignItems(VerticalAlign.Bottom)
           .padding({ left: 6, right: 6 })
 
-          Line()
+          Row()
             .width('100%')
             .height(1)
-            .startPoint([0, 0.5])
-            .endPoint(['100%', 0.5])
-            .strokeWidth(1)
-            .strokeDashArray([5, 4])
-            .stroke(this.appTheme.fontEmphasize)
+            .backgroundColor(this.appTheme.fontSecondary)
+            .opacity(0.4)
+
+          Row()
+            .width('100%')
+            .height(1)
+            .backgroundColor(this.appTheme.fontEmphasize)
             .opacity(0.7)
             .position({ x: 0, y: this.thresholdLineY() })
 
           Row() {
             Blank()
-            Text('冷启动阈值 0.65')
+            Text(this.status.lastAuc.toFixed(3))
               .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-              .fontColor(this.appTheme.fontEmphasize)
-              .opacity(0.8)
+              .fontColor(this.appTheme.fontPrimary)
           }
           .width('100%')
-          .position({ x: 0, y: this.thresholdLineY() - 18 })
+          .padding({ right: 6 })
+          .position({ x: 0, y: this.lastAnnotY() })
         }
         .width('100%')
-        .height(CHART_TOTAL_HEIGHT)
-        .padding({ top: 8, bottom: 4 })
+        .height(CHART_STACK_HEIGHT)
+
+        Row() {
+          Text('AUC 范围: [0.5 - 1]')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+            .fontColor(this.appTheme.fontSecondary)
+          Blank()
+          Text('最近一次评估值')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+            .fontColor(this.appTheme.fontSecondary)
+        }
+        .width('100%')
+        .margin({ top: 4 })
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -369,12 +438,13 @@ export struct RecommendPage {
         })
         Column() {
           this.statusCard()
+          this.modelStatusCard()
           this.aucChartCard()
           this.weightsCard()
           BottomSafeArea()
         }
         .width('100%')
-        .padding({ left: 12, right: 12 })
+        .padding({ left: 12, right: 12, bottom: 36 })
         .constraintSize({ minHeight: '100%' })
       }
     }

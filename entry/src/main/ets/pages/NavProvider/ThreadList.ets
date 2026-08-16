@@ -249,6 +249,7 @@ struct ThreadListPage {
   @State dataLoading: boolean = false
   @State threadNewReplyCount: Map<string, string> = new Map
   @State recommendTids: Set<string> = new Set
+  @State debugScores: Map<string, number> = new Map
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   loadingIcon?: SwipePageLoadingIcon
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
@@ -256,6 +257,7 @@ struct ThreadListPage {
   onAppStateChange() {
     if (!this.appState.recommendEnabled) {
       this.recommendTids = new Set
+      this.debugScores = new Map
     }
   }
 
@@ -267,6 +269,7 @@ struct ThreadListPage {
     if (this.generatePageKey() != this.pageLoadedKey) {
       this.threadList = []
       this.recommendTids = new Set
+      this.debugScores = new Map
     }
     this.requestPageData()
   }
@@ -364,7 +367,10 @@ struct ThreadListPage {
         return item
       })
       Recommend.onThreadListExposure(this.generatePageKey(), this.forumId, exposureItems)
-        .then(tids => this.recommendTids = tids)
+        .then(tids => {
+          this.recommendTids = tids
+          this.debugScores = Recommend.getDebugScores()
+        })
     })
     return v
   }
@@ -394,86 +400,97 @@ struct ThreadListPage {
       Column() {
         Repeat(this.threadList)
           .each(threadInfo => {
-            Row() {
-              Column() {
-                if (this.recommendTids.has(threadInfo.item.tid)) {
-                  Column()
-                    .width(3)
-                    .height(14)
-                    .borderRadius(2)
-                    .backgroundColor(this.appTheme.fontEmphasize)
+            Stack({ alignContent: Alignment.BottomEnd }) {
+              Row() {
+                Column() {
+                  if (this.recommendTids.has(threadInfo.item.tid)) {
+                    Column()
+                      .width(3)
+                      .height(14)
+                      .borderRadius(2)
+                      .backgroundColor(this.appTheme.fontEmphasize)
+                  }
                 }
-              }
-              .width(6)
+                .width(6)
 
-              Text() {
-                if (threadInfo.item.typeName.length > 0) {
-                  Span(`[${threadInfo.item.typeName}] `)
-                    .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                }
-                Span(threadInfo.item.subject)
-                if (threadInfo.item.readperm) {
-                  Span(` [阅读权限${threadInfo.item.readperm}] `)
-                    .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-                }
-                if (this.blockList.has(threadInfo.item.uid)) {
-                  Span(` [在黑名单中] `)
-                    .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-                }
-                Span('   ' + threadInfo.item.replies)
-                  .fontColor(this.appTheme.fontEmphasize)
-                if (this.threadNewReplyCount.has(threadInfo.item.tid)) {
-                  Span(` (+${this.threadNewReplyCount.get(threadInfo.item.tid)})`)
-                    .fontColor(this.appTheme.fontEmphasize).transition(OpacityTransition)
-                }
-              }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-              .lineSpacing({
-                value: this.appState.contentLineSpace,
-                unit: LengthUnit.VP
+                Text() {
+                  if (threadInfo.item.typeName.length > 0) {
+                    Span(`[${threadInfo.item.typeName}] `)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                  }
+                  Span(threadInfo.item.subject)
+                  if (threadInfo.item.readperm) {
+                    Span(` [阅读权限${threadInfo.item.readperm}] `)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  }
+                  if (this.blockList.has(threadInfo.item.uid)) {
+                    Span(` [在黑名单中] `)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  }
+                  Span('   ' + threadInfo.item.replies)
+                    .fontColor(this.appTheme.fontEmphasize)
+                  if (this.threadNewReplyCount.has(threadInfo.item.tid)) {
+                    Span(` (+${this.threadNewReplyCount.get(threadInfo.item.tid)})`)
+                      .fontColor(this.appTheme.fontEmphasize).transition(OpacityTransition)
+                  }
+                }.fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                .lineSpacing({
+                  value: this.appState.contentLineSpace,
+                  unit: LengthUnit.VP
+                })
+                .layoutWeight(1)
+                .padding({
+                  left: 12,
+                  right: 18,
+                  top: this.appState.threadItemGap,
+                  bottom: this.appState.threadItemGap
+                })
+              }
+              .enabled(this.threadReadAccess >= threadInfo.item.readperm)
+              .opacity(this.threadReadAccess >= threadInfo.item.readperm && !this.blockList.has(threadInfo.item.uid) ?
+                1 : 0.6)
+              .height('auto')
+              .width('100%')
+              .geometryTransition('thread_item' + this.pageToLoad + '_' + threadInfo.item.tid, { follow: true })
+              .transition(AppearDisappearAni)
+              .attributeModifier(this.clickEffectModifier)
+              .clickEffect({
+                level: ClickEffectLevel.MIDDLE,
+                scale: 0.9
               })
-              .layoutWeight(1)
-              .padding({
-                left: 12,
-                right: 18,
-                top: this.appState.threadItemGap,
-                bottom: this.appState.threadItemGap
+              .gesture(LongPressGesture().onAction(e => {
+                Recommend.onThreadClick(threadInfo.item.tid)
+                const param: ThreadPostParam = {
+                  tid: threadInfo.item.tid,
+                  fid: threadInfo.item.fid,
+                  typeid: threadInfo.item.typeid,
+                  jumpToPage: -1,
+                  subject: threadInfo.item.subject,
+                  replies: threadInfo.item.replies,
+                }
+                openThreadPost(param, this.pathStack, true)
+              }))
+              .onClick(e => {
+                Recommend.onThreadClick(threadInfo.item.tid)
+                const param: ThreadPostParam = {
+                  tid: threadInfo.item.tid,
+                  fid: threadInfo.item.fid,
+                  typeid: threadInfo.item.typeid,
+                  subject: threadInfo.item.subject,
+                  replies: threadInfo.item.replies,
+                }
+                openThreadPost(param, this.pathStack, true)
               })
+
+              if (this.appState.recommendDebug && this.debugScores.has(threadInfo.item.tid)) {
+                Text(this.debugScores.get(threadInfo.item.tid)?.toFixed(2) ?? '')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                  .fontColor(this.appTheme.fontSecondary)
+                  .padding({ right: 18, bottom: 2 })
+              }
             }
-            .enabled(this.threadReadAccess >= threadInfo.item.readperm)
-            .opacity(this.threadReadAccess >= threadInfo.item.readperm && !this.blockList.has(threadInfo.item.uid) ? 1 :
-              0.6)
             .height('auto')
             .width('100%')
-            .geometryTransition('thread_item' + this.pageToLoad + '_' + threadInfo.item.tid, { follow: true })
-            .transition(AppearDisappearAni)
-            .attributeModifier(this.clickEffectModifier)
-            .clickEffect({
-              level: ClickEffectLevel.MIDDLE,
-              scale: 0.9
-            })
-            .gesture(LongPressGesture().onAction(e => {
-              Recommend.onThreadClick(threadInfo.item.tid)
-              const param: ThreadPostParam = {
-                tid: threadInfo.item.tid,
-                fid: threadInfo.item.fid,
-                typeid: threadInfo.item.typeid,
-                jumpToPage: -1,
-                subject: threadInfo.item.subject,
-                replies: threadInfo.item.replies,
-              }
-              openThreadPost(param, this.pathStack, true)
-            }))
-            .onClick(e => {
-              Recommend.onThreadClick(threadInfo.item.tid)
-              const param: ThreadPostParam = {
-                tid: threadInfo.item.tid,
-                fid: threadInfo.item.fid,
-                typeid: threadInfo.item.typeid,
-                subject: threadInfo.item.subject,
-                replies: threadInfo.item.replies,
-              }
-              openThreadPost(param, this.pathStack, true)
-            })
           })
           .key(item => item.tid + item.replies)
         BottomSafeArea()

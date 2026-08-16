@@ -88,7 +88,7 @@ interface RecommendModelData {
 const MODEL_VERSION = 1
 export const RECOMMEND_MIN_SAMPLES = 300
 export const RECOMMEND_MIN_CLICKS = 40
-const MIN_BUFFER_POSITIVES = 20
+export const RECOMMEND_MIN_BUFFER_POSITIVES = 20
 const AUC_ACTIVATE = 0.65
 const AUC_DEGRADED = 0.55
 const DEGRADED_STREAK_LIMIT = 5
@@ -120,6 +120,7 @@ class RecommendManager {
   private pendingClicks: Map<string, PendingClick> = new Map()
   private enterTs: Map<string, number> = new Map()
   private featureSnapshots: Map<string, SparseFeature[]> = new Map()
+  private debugScores: Map<string, number> = new Map()
   private batch?: ExposureBatch
   private enabled: boolean = false
   private topK: number = 3
@@ -207,6 +208,7 @@ class RecommendManager {
     this.pendingClicks = new Map()
     this.enterTs = new Map()
     this.featureSnapshots = new Map()
+    this.debugScores = new Map()
     this.batch = undefined
   }
 
@@ -257,6 +259,7 @@ class RecommendManager {
 
   private createBatch(pageKey: string, fid: string, items: RecommendExposureItem[]): void {
     const entries = new Map<string, BatchEntry>()
+    this.debugScores.clear()
     items.forEach(item => {
       if (!this.isEligible(item)) {
         return
@@ -278,10 +281,12 @@ class RecommendManager {
       const features = this.extractor.buildFeatures(input, text, expo, this.clickCounts.get(item.tid) || 0)
       this.featureSnapshots.delete(item.tid)
       this.featureSnapshots.set(item.tid, features)
+      const score = this.model.predict(features, this.groupWeights)
+      this.debugScores.set(item.tid, score)
       entries.set(item.tid, {
         tid: item.tid,
         features: features,
-        score: this.model.predict(features, this.groupWeights),
+        score: score,
         resolved: false
       })
     })
@@ -338,7 +343,7 @@ class RecommendManager {
   }
 
   private updateState(auc: number): void {
-    const condB = auc >= AUC_ACTIVATE && this.bufferPositiveCount() >= MIN_BUFFER_POSITIVES
+    const condB = auc >= AUC_ACTIVATE && this.bufferPositiveCount() >= RECOMMEND_MIN_BUFFER_POSITIVES
     if (this.state == RecommendState.collecting) {
       if (this.sampleCount >= RECOMMEND_MIN_SAMPLES &&
         this.clickSampleCount >= RECOMMEND_MIN_CLICKS && condB) {
@@ -589,6 +594,11 @@ class RecommendManager {
       lastAuc: this.aucHistory.length > 0 ? this.aucHistory[this.aucHistory.length - 1] : -1,
       bufferPositives: this.bufferPositiveCount()
     }
+  }
+
+  /** 当前批次内 eligible 帖的预测分数（调试模式展示用），返回拷贝 */
+  getDebugScores(): Map<string, number> {
+    return new Map<string, number>(this.debugScores)
   }
 
   /** 清空模型与历史，状态回 COLLECTING；保留功能开关等配置 */

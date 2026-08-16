@@ -1,5 +1,5 @@
 /**
- * FTRL-Proximal 在线逻辑回归（McMullan et al., KDD 2013）与滚动 AUC 评估
+ * FTRL-Proximal 在线逻辑回归（McMahan et al., KDD 2013）与滚动 AUC 评估
  */
 import { ADJUSTABLE_GROUP_COUNT, SparseFeature } from './FeatureExtractor'
 

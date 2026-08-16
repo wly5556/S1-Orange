@@ -116,6 +116,7 @@ export class ApplicationConfig {
   ask_ai_include_main: boolean = true
   ask_ai_include_previous: boolean = false
   recommend_enabled: boolean = false
+  recommend_debug: boolean = false
   recommend_top_k: number = 3
   recommend_weights: RecommendWeights = new RecommendWeights()
 }

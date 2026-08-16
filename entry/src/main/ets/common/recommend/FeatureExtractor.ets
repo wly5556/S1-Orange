@@ -129,10 +129,11 @@ export class FeatureExtractor {
       }
     })
     replyText = normalizeText(replyText).substring(0, REPLIES_TEXT_MAX_LEN)
+    // 不同板块内容风格差异大，文本特征按 fid 隔离命名空间，各自独立学习权重
     const entry: ThreadTextFeature = {
-      title: ngramFeatures('t:', subject, FeatureGroup.titleText),
-      content: ngramFeatures('m:', message, FeatureGroup.contentText)
-        .concat(ngramFeatures('r:', replyText, FeatureGroup.contentText))
+      title: ngramFeatures(`t${input.fid}:`, subject, FeatureGroup.titleText),
+      content: ngramFeatures(`m${input.fid}:`, message, FeatureGroup.contentText)
+        .concat(ngramFeatures(`r${input.fid}:`, replyText, FeatureGroup.contentText))
     }
     this.textCache.set(input.tid, entry)
     if (this.textCache.size > TEXT_CACHE_LIMIT) {
