@@ -23,6 +23,7 @@ import { waitFor } from '../AwaitUtil'
 import { Event } from '../Events'
 import { PropKey } from '../Constants'
 import { ApiCacheSetUser, clearApiCache } from '../dataStore/ApiCacheData'
+import { Recommend } from '../recommend/RecommendManager'
 import json from '@ohos.util.json'
 
 export enum LoginResult {
@@ -236,6 +237,7 @@ function accountPromiseReset() {
       await DraftDbSetUser(conf.user_uid)
       await BlockListSetUser(conf.user_uid)
       await ApiCacheSetUser(conf.user_uid)
+      Recommend.setUser(conf.user_uid)
       AppStorage.setOrCreate<string>(PropKey.userId, conf.user_uid)
     })
     resolve()

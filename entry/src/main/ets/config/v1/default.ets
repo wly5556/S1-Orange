@@ -65,6 +65,16 @@ export interface UserAccount {
   lastSign: number
 }
 
+export class RecommendWeights {
+  board: number = 1
+  type: number = 1
+  titleText: number = 1
+  contentText: number = 1
+  hot: number = 1
+  fresh: number = 1
+  history: number = 1
+}
+
 export class ApplicationConfig {
   version = '3'
   account_list: Record<string, UserAccount> = {}
@@ -105,6 +115,9 @@ export class ApplicationConfig {
   ask_ai_include_quoted: boolean = true
   ask_ai_include_main: boolean = true
   ask_ai_include_previous: boolean = false
+  recommend_enabled: boolean = false
+  recommend_top_k: number = 3
+  recommend_weights: RecommendWeights = new RecommendWeights()
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

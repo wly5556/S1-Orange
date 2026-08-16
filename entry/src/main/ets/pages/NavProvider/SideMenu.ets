@@ -17,6 +17,7 @@ import { openFavoriteList } from '../NavDest/FavoriteList'
 import { openNoteList } from '../NavDest/NoteList'
 import { openPreferences } from '../NavDest/Preferences'
 import { openPrivateMessage } from '../NavDest/PrivateMessage'
+import { openRecommend } from '../NavDest/RecommendPage'
 import { openUserSpace, UserSpaceParam } from '../NavDest/UserSpace'
 import { openHistoryPage } from '../NavDest/ViewHistory'
 import { PreferenceState } from './NavigationPage'
@@ -268,6 +269,9 @@ export struct SideMenu {
             })
             this.MenuButton($r('app.media.arrow_counterclockwise_clock'), '历史记录', () => {
               openHistoryPage(this.pathStack)
+            })
+            this.MenuButton($r('app.media.recommend'), '推荐系统', () => {
+              openRecommend(this.pathStack)
             })
             Divider()
             Badge({

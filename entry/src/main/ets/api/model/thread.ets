@@ -17,6 +17,8 @@ export interface ForumThread {
   replies: string
   readperm: string
   displayorder: ForumThreadDisplayOrder.normal | ForumThreadDisplayOrder.top
+  message?: string // 楼主主帖内容
+  reply?: Reply[] // 前几楼回复
 }
 
 export interface Reply {

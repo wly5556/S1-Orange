@@ -68,6 +68,7 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 import { ThreadPostAttachmentItem } from '../../common/component/ThreadPostAttachmentItem'
 import { UserCreditText } from '../../common/component/UserCredit'
 import { openFreeCopy } from './FreeCopy'
+import { Recommend } from '../../common/recommend/RecommendManager'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -524,6 +525,7 @@ export struct ThreadPostList {
         }
       }
       this.pageParam = pageParam
+      Recommend.onThreadPostShown(this.pageParam.tid)
       if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0') {
         this.jumpToPost = this.pageParam.jumpToPid
         this.contentVisible = false
@@ -543,6 +545,7 @@ export struct ThreadPostList {
         },)
     })
     .onShown(() => {
+      Recommend.onThreadPostShown(this.pageParam.tid)
       if (this.replyButtonExpand) {
         this.getUIContext().animateTo(SpringCurve, () => {
           this.replyButtonExpand = false
@@ -550,6 +553,7 @@ export struct ThreadPostList {
       }
     })
     .onWillHide(() => {
+      Recommend.onThreadPostHidden(this.pageParam.tid)
       FlushThreadViewHistory(this.pageParam.tid)
     })
     .onBackPressed(() => {
@@ -566,6 +570,7 @@ export struct ThreadPostList {
       return false
     })
     .onWillDisappear(() => {
+      Recommend.onThreadPostHidden(this.pageParam.tid)
       FlushThreadViewHistory(this.pageParam.tid)
       this.context.eventHub.off(openImgViewerEventName(this.pageParam))
     })

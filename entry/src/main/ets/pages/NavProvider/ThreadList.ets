@@ -29,6 +29,7 @@ import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
 import { LengthUnit } from '@ohos.arkui.node'
 import { setThreadTypeNameMap } from '../../common/ForumUtil'
+import { Recommend, RecommendExposureItem } from '../../common/recommend/RecommendManager'
 
 export const THREAD_PER_PAGE = 50
 
@@ -111,6 +112,10 @@ export struct ThreadListView {
     this.onForumInfoUpdate()
     this.context.eventHub.on(Event.ThreadTypesInit, (v: ThreadtypeRecord): void => this.processThreadTypes(v))
     this.loadReadAccess()
+  }
+
+  aboutToDisappear(): void {
+    Recommend.closeBatch()
   }
 
   @Builder
@@ -229,7 +234,7 @@ export struct ThreadListView {
 @Reusable
 struct ThreadListPage {
   @Consume appTheme: AppThemeColor
-  @Consume appState: PreferenceState
+  @Consume @Watch('onAppStateChange') appState: PreferenceState
   @Consume forumInfo?: ForumInfo
   context = getContext(this) as common.UIAbilityContext
   clickEffectModifier: AttributeModifier<CommonAttribute> = new ClickDarkenEffect()
@@ -243,9 +248,16 @@ struct ThreadListPage {
   @State threadList: ThreadListItemViewData[] = []
   @State dataLoading: boolean = false
   @State threadNewReplyCount: Map<string, string> = new Map
+  @State recommendTids: Set<string> = new Set
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   loadingIcon?: SwipePageLoadingIcon
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
+
+  onAppStateChange() {
+    if (!this.appState.recommendEnabled) {
+      this.recommendTids = new Set
+    }
+  }
 
   aboutToAppear(): void {
     this.requestPageData()
@@ -254,6 +266,7 @@ struct ThreadListPage {
   aboutToReuse(): void {
     if (this.generatePageKey() != this.pageLoadedKey) {
       this.threadList = []
+      this.recommendTids = new Set
     }
     this.requestPageData()
   }
@@ -336,6 +349,22 @@ struct ThreadListPage {
           this.threadNewReplyCount.delete(tid)
         }
       }
+      const exposureItems: RecommendExposureItem[] = v.Variables.forum_threadlist.map(v => {
+        const item: RecommendExposureItem = {
+          tid: v.tid,
+          fid: v.fid,
+          typeid: v.typeid,
+          subject: unescapeAll(v.subject),
+          message: v.message ? unescapeAll(v.message) : '',
+          replyMessages: v.reply ? v.reply.slice(0, 3).map(r => r.message ? unescapeAll(r.message) : '') : [],
+          replies: parseInt(v.replies) || 0,
+          displayOrder: v.displayorder,
+          viewedReply: viewedThread[v.tid]
+        }
+        return item
+      })
+      Recommend.onThreadListExposure(this.generatePageKey(), this.forumId, exposureItems)
+        .then(tids => this.recommendTids = tids)
     })
     return v
   }
@@ -366,6 +395,17 @@ struct ThreadListPage {
         Repeat(this.threadList)
           .each(threadInfo => {
             Row() {
+              Column() {
+                if (this.recommendTids.has(threadInfo.item.tid)) {
+                  Column()
+                    .width(3)
+                    .height(14)
+                    .borderRadius(2)
+                    .backgroundColor(this.appTheme.fontEmphasize)
+                }
+              }
+              .width(6)
+
               Text() {
                 if (threadInfo.item.typeName.length > 0) {
                   Span(`[${threadInfo.item.typeName}] `)
@@ -391,9 +431,9 @@ struct ThreadListPage {
                 value: this.appState.contentLineSpace,
                 unit: LengthUnit.VP
               })
-              .width('100%')
+              .layoutWeight(1)
               .padding({
-                left: 18,
+                left: 12,
                 right: 18,
                 top: this.appState.threadItemGap,
                 bottom: this.appState.threadItemGap
@@ -412,6 +452,7 @@ struct ThreadListPage {
               scale: 0.9
             })
             .gesture(LongPressGesture().onAction(e => {
+              Recommend.onThreadClick(threadInfo.item.tid)
               const param: ThreadPostParam = {
                 tid: threadInfo.item.tid,
                 fid: threadInfo.item.fid,
@@ -423,6 +464,7 @@ struct ThreadListPage {
               openThreadPost(param, this.pathStack, true)
             }))
             .onClick(e => {
+              Recommend.onThreadClick(threadInfo.item.tid)
               const param: ThreadPostParam = {
                 tid: threadInfo.item.tid,
                 fid: threadInfo.item.fid,
