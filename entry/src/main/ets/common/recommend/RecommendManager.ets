@@ -39,6 +39,9 @@ export interface RecommendStatus {
   aucHistory: number[]
   lastAuc: number // -1 表示暂无
   bufferPositives: number
+  memEstimateBytes: number // 按数据量估算
+  diskEstimateBytes: number // 按数据量估算
+  lastComputeMs: number // 上次曝光打分总耗时，-1 表示尚未计算
 }
 
 interface BatchEntry {
@@ -93,6 +96,8 @@ const AUC_ACTIVATE = 0.65
 const AUC_DEGRADED = 0.55
 const DEGRADED_STREAK_LIMIT = 5
 const EVAL_BUFFER_MAX = 500
+/** 评估缓冲负样本降采样（每 N 条保留 1 条）：AUC 对均匀采样无偏，避免低点击率用户缓冲内正样本稳态过低 */
+const EVAL_NEG_SAMPLE = 5
 const AUC_HISTORY_MAX = 30
 const COUNTER_MAX = 2000
 const SNAPSHOT_CACHE_MAX = 300
@@ -117,6 +122,7 @@ class RecommendManager {
   private degradedStreak: number = 0
   private aucHistory: number[] = []
   private evalBuffer: EvalEntry[] = []
+  private evalNegCounter: number = 0
   private pendingClicks: Map<string, PendingClick> = new Map()
   private enterTs: Map<string, number> = new Map()
   private featureSnapshots: Map<string, SparseFeature[]> = new Map()
@@ -127,6 +133,7 @@ class RecommendManager {
   private groupWeights: number[] = [1, 1, 1, 1, 1, 1, 1]
   private lastPersist: number = 0
   private persisting: boolean = false
+  private lastComputeMs: number = -1
 
   async ensureLoaded(): Promise<void> {
     if (this.loaded) {
@@ -205,6 +212,7 @@ class RecommendManager {
     this.degradedStreak = 0
     this.aucHistory = []
     this.evalBuffer = []
+    this.evalNegCounter = 0
     this.pendingClicks = new Map()
     this.enterTs = new Map()
     this.featureSnapshots = new Map()
@@ -306,9 +314,10 @@ class RecommendManager {
     if (this.state != RecommendState.active || batch.entries.size == 0) {
       return top
     }
-    const base = this.bufferPositiveCount() / this.evalBuffer.length
-    if (this.evalBuffer.length == 0 || base <= 0) {
-      // 无正样本基准（如长期无任何点击）时无法判断兴趣，保守不高亮
+    // 基准点击率用累计值：评估缓冲负样本已降采样，占比不再等于真实点击率
+    const base = this.sampleCount > 0 ? this.clickSampleCount / this.sampleCount : 0
+    if (base <= 0) {
+      // 尚无点击（无法判断兴趣）时保守不高亮
       return top
     }
     const threshold = Math.min(base * SCORE_GATE_RATIO, SCORE_GATE_CAP)
@@ -326,6 +335,12 @@ class RecommendManager {
   }
 
   private pushEval(entry: EvalEntry): void {
+    if (entry.y == 0) {
+      this.evalNegCounter++
+      if (this.evalNegCounter % EVAL_NEG_SAMPLE != 0) {
+        return
+      }
+    }
     this.evalBuffer.push(entry)
     if (this.evalBuffer.length > EVAL_BUFFER_MAX) {
       this.evalBuffer.shift()
@@ -443,10 +458,13 @@ class RecommendManager {
     if (this.batch && (pageKey !== this.batch.key || now - this.batch.createdAt > BATCH_TIMEOUT_MS)) {
       this.closeBatchInternal()
     }
+    const computeStart = Date.now()
     if (!this.batch) {
       this.createBatch(pageKey, fid, items)
     }
-    return this.scoreBatch(this.batch!)
+    const top = this.scoreBatch(this.batch!)
+    this.lastComputeMs = Date.now() - computeStart
+    return top
   }
 
   /** 帖子点击（列表 onClick / 长按） */
@@ -584,6 +602,28 @@ class RecommendManager {
     }
   }
 
+  /** 按数据量估算内存占用：z/n 坐标、特征快照、文本缓存、评估缓冲、计数器 */
+  private estimateMemoryBytes(): number {
+    let snapshotFeatures = 0
+    this.featureSnapshots.forEach((f: SparseFeature[]) => snapshotFeatures += f.length)
+    return (this.model.z.size + this.model.n.size) * 48
+      + (snapshotFeatures + this.extractor.cachedFeatureCount()) * 40
+      + this.evalBuffer.length * 32
+      + (this.expoCounts.size + this.clickCounts.size) * 64
+  }
+
+  /** 按数据量估算磁盘占用（持久化 JSON 体积） */
+  private estimateDiskBytes(): number {
+    let coords = 0
+    this.model.z.forEach((v: number, k: number) => {
+      if (Math.abs(this.model.weight(k)) >= PERSIST_WEIGHT_EPS) {
+        coords++
+      }
+    })
+    return coords * 50 + this.evalBuffer.length * 28
+      + (this.expoCounts.size + this.clickCounts.size) * 20 + 200
+  }
+
   async getStatus(): Promise<RecommendStatus> {
     await this.ensureLoaded()
     return {
@@ -592,7 +632,10 @@ class RecommendManager {
       clickSampleCount: this.clickSampleCount,
       aucHistory: this.aucHistory.slice(),
       lastAuc: this.aucHistory.length > 0 ? this.aucHistory[this.aucHistory.length - 1] : -1,
-      bufferPositives: this.bufferPositiveCount()
+      bufferPositives: this.bufferPositiveCount(),
+      memEstimateBytes: this.estimateMemoryBytes(),
+      diskEstimateBytes: this.estimateDiskBytes(),
+      lastComputeMs: this.lastComputeMs
     }
   }
 

@@ -250,6 +250,16 @@ export struct RecommendPage {
     return `最近评估 AUC ${this.status.lastAuc.toFixed(3)}（需 ≥${AUC_THRESHOLD}）`
   }
 
+  formatBytes(bytes: number): string {
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    }
+    if (bytes >= 1024) {
+      return `${Math.round(bytes / 1024)} KB`
+    }
+    return `${bytes} B`
+  }
+
   @Builder
   modelStatusCard() {
     SettingGroupHeader({
@@ -293,6 +303,15 @@ export struct RecommendPage {
               .fontColor(this.appTheme.fontSecondary)
           }
         }
+        Divider().opacity(0.4).margin({ top: 2, bottom: 2 })
+        Text(`内存占用：约 ${this.formatBytes(this.status.memEstimateBytes)} · ` +
+          `磁盘占用：约 ${this.formatBytes(this.status.diskEstimateBytes)}（按数据量估算）`)
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+          .fontColor(this.appTheme.fontSecondary)
+        Text(this.status.lastComputeMs >= 0 ?
+          `上次推荐计算耗时：${this.status.lastComputeMs} ms` : '上次推荐计算耗时：尚未计算')
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+          .fontColor(this.appTheme.fontSecondary)
       }
     }
     .alignItems(HorizontalAlign.Start)

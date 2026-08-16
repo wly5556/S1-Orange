@@ -145,6 +145,15 @@ export class FeatureExtractor {
     return entry
   }
 
+  /** 文本特征缓存中的稀疏特征总数（内存占用估算用） */
+  cachedFeatureCount(): number {
+    let count = 0
+    this.textCache.forEach((v: ThreadTextFeature) => {
+      count += v.title.length + v.content.length
+    })
+    return count
+  }
+
   /**
    * 构造完整特征向量。文本特征来自缓存，其余特征（随回帖数/曝光/点击变化）每次现算
    */
