@@ -735,8 +735,11 @@ struct SinglePostPage {
   visiblePageChanged() {
     if (this.scroller && typeof this.scroller.getItemIndex == 'function' &&
       typeof this.scroller.currentOffset == 'function') {
-      const index = this.scroller.getItemIndex(0, this.scroller.currentOffset().yOffset)
-      this.recordViewHistory(index)
+      const offset = this.scroller.currentOffset()
+      if (offset) {
+        const index = this.scroller.getItemIndex(0, offset.yOffset)
+        this.recordViewHistory(index)
+      }
     }
   }
 

@@ -37,6 +37,7 @@ export struct SwipePageViewer {
   @Link currentPage: number
   @Prop @Watch('requestJump') jumpToPage: number = -1
   @State currentSwiperIndex: number = 0
+  prevMaxPage: number = 0
   @State swiperDisabled: boolean = false
   @State contentReady: Record<number, boolean> = {}
   @Provide dataControlCounter: number = 0
@@ -45,7 +46,14 @@ export struct SwipePageViewer {
   useList: boolean = false
 
   maxPageUpdate() {
-    this.dataSource.setPageCount(this.maxPage)
+    if (this.prevMaxPage != this.maxPage) {
+      this.prevMaxPage = this.maxPage
+      if (this.currentSwiperIndex >= this.maxPage) {
+        this.currentSwiperIndex = this.maxPage - 1
+        this.currentPage = this.maxPage
+      }
+      this.dataSource.setPageCount(this.maxPage)
+    }
   }
 
   requestJump() {
@@ -57,6 +65,7 @@ export struct SwipePageViewer {
   }
 
   aboutToAppear(): void {
+    this.prevMaxPage = this.maxPage
     this.requestJump()
     this.reloadCtrl.reload = (): void => this.allContentReload()
   }
@@ -124,7 +133,11 @@ export struct SwipePageViewer {
     .effectMode(EdgeEffect.None)
     .index($$this.currentSwiperIndex)
     .onAnimationStart((i, targetIndex) => {
-      this.currentPage = targetIndex + 1
+      if (targetIndex >= 0 && targetIndex < this.maxPage) {
+        setTimeout(() => {
+          this.currentPage = targetIndex + 1
+        }, 0)
+      }
     })
   }
 }
