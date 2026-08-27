@@ -855,9 +855,9 @@ struct SinglePostPage {
     if (this.pageParam.subject != latestTitle) {
       this.pageParam.subject = latestTitle
     }
-    if (parseInt(this.pageParam.replies ?? '0') < parseInt(v.Variables.thread.replies)) {
-      this.pageParam.replies = v.Variables.thread.replies
-    }
+    const apiReplies = parseInt(v.Variables.thread.replies)
+    this.pageParam.replies = v.Variables.thread.replies
+    this.totalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
     if (this.pageParam.fid === undefined) {
       this.pageParam.fid = v.Variables.thread.fid
     }
@@ -885,9 +885,9 @@ struct SinglePostPage {
   }
 
   processThreadDataApp(v: wrapperApp<ThreadDataApp>) {
-    if (parseInt(this.pageParam.replies ?? '0') < v.data.totalCount) {
-      this.pageParam.replies = String(v.data.totalCount)
-    }
+    const apiReplies = v.data.totalCount
+    this.pageParam.replies = String(apiReplies)
+    this.totalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
     let postArray: PostViewModel[] = []
     const searchItems: PostSearchItem[] = []
     let rawPostList = v.data.list
