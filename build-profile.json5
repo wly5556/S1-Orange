@@ -1,20 +1,6 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\PC\\.ohos\\config\\default_S1-Orange-github_KUP3orkDJIPe_6K0vnWIdDvM04ytkmN7z-FGiAn2fO0=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B3AC0CCFEE810C5C9ECFB0381CA6698A4D844A644DC05C09E457BC156510747C48767CE6182F36E",
-          "profile": "C:\\Users\\PC\\.ohos\\config\\default_S1-Orange-github_KUP3orkDJIPe_6K0vnWIdDvM04ytkmN7z-FGiAn2fO0=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\PC\\.ohos\\config\\default_S1-Orange-github_KUP3orkDJIPe_6K0vnWIdDvM04ytkmN7z-FGiAn2fO0=.p12",
-          "storePassword": "0000001BDDF5D3A10FA27CA2F99BA10ADF7499D5E37E0EEADBA71E3C3A42550D6110D7A32EC5CACC62E386"
-        }
-      }
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
