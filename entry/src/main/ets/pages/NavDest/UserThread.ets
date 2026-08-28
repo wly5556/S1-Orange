@@ -82,7 +82,6 @@ export struct UserThread {
               currentPage: this.currentPage,
               contentBuilder: this.ThreadList,
               jumpToPage: this.jumpToPage,
-              onJumpDone: () => this.jumpToPage = -1,
               maxPage: this.totalPage,
               useList: true,
               reloadCtrl: this.reloadCtrl

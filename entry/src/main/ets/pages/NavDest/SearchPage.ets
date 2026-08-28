@@ -139,7 +139,6 @@ export struct SearchPage {
               currentPage: this.currentPage,
               contentBuilder: this.SearchContent,
               jumpToPage: this.jumpToPage,
-              onJumpDone: () => this.jumpToPage = -1,
               maxPage: this.totalPage,
               useList: true,
               reloadCtrl: this.reloadCtrl

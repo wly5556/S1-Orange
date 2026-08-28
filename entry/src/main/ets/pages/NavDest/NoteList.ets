@@ -87,7 +87,6 @@ export struct NoteList {
             contentBuilder: this.contentBuilder,
             reloadCtrl: this.reloadCtrl,
             jumpToPage: this.jumpToPage,
-            onJumpDone: () => this.jumpToPage = -1,
             maxPage: this.totalPage,
             cacheCount: 0
           }).backgroundColor(this.appTheme.backgroundSecondary)

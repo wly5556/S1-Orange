@@ -223,7 +223,6 @@ export struct ThreadListView {
         currentPage: this.currentPage,
         contentBuilder: this.threadPageContent,
         jumpToPage: this.jumpToPage,
-        onJumpDone: () => this.jumpToPage = -1,
         reloadCtrl: this.reloadCtrl,
         maxPage: this.totalPage
       })

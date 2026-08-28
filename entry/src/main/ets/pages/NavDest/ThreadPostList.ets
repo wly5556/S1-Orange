@@ -117,6 +117,10 @@ const PostContentVerticalPadding = 12
 const PostContentHorizontalPadding = 16
 const POST_PER_PAGE = 40
 
+function totalPageFromReplies(replies: number): number {
+  return Math.ceil((replies + 1) / POST_PER_PAGE) || 1
+}
+
 function genThreadPostViewKey(pageParam: ThreadPostParam) {
   return `${pageParam.tid},${pageParam.jumpToPid},${pageParam.authorid}`
 }
@@ -168,8 +172,8 @@ export struct ThreadPostList {
       this.jumpToPageDone = false
     }
     this.prevTid = this.pageParam.tid
-    const newTotalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
-      Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
+    const repliesCount = parseInt(this.pageParam.replies || '0')
+    const newTotalPage = totalPageFromReplies(repliesCount)
     if (tidChanged || newTotalPage > this.totalPage ||
       (newTotalPage < this.totalPage && this.currentPage >= this.totalPage)) {
       this.totalPage = newTotalPage
@@ -393,7 +397,6 @@ export struct ThreadPostList {
               currentPage: this.currentPage,
               contentBuilder: this.threadPostPageBuilder,
               jumpToPage: this.jumpToPage,
-              onJumpDone: () => this.jumpToPage = -1,
               reloadCtrl: this.reloadCtrl,
               useList: true,
               maxPage: this.totalPage
@@ -871,7 +874,7 @@ struct SinglePostPage {
     }
     const apiReplies = parseInt(v.Variables.thread.replies)
     this.pageParam.replies = v.Variables.thread.replies
-    const newTotalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    const newTotalPage = totalPageFromReplies(apiReplies)
     if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
       this.totalPage = newTotalPage
     }
@@ -902,9 +905,9 @@ struct SinglePostPage {
   }
 
   processThreadDataApp(v: wrapperApp<ThreadDataApp>) {
-    const apiReplies = v.data.totalCount
-    this.pageParam.replies = String(apiReplies)
-    const newTotalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    const totalCount = v.data.totalCount
+    this.pageParam.replies = String(totalCount - 1)
+    const newTotalPage = Math.ceil(totalCount / POST_PER_PAGE) || 1
     if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
       this.totalPage = newTotalPage
     }
