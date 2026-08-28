@@ -96,6 +96,7 @@ export struct PrivateMessageViewer {
             contentBuilder: this.contentBuilder,
             reloadCtrl: this.reloadCtrl,
             jumpToPage: this.jumpToPage,
+            onJumpDone: () => this.jumpToPage = -1,
             maxPage: this.totalPage
           }).backgroundColor(this.appTheme.backgroundSecondary)
         } else {

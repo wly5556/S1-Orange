@@ -44,6 +44,7 @@ export struct SwipePageViewer {
   @Provide @Watch('pullDownStageChanged') refreshStage: PullToRefreshStage = PullToRefreshStage.unactivated
   reloadCtrl: ReloadController = new ReloadController()
   useList: boolean = false
+  onJumpDone: () => void = () => {}
 
   maxPageUpdate() {
     if (this.prevMaxPage != this.maxPage) {
@@ -57,16 +58,19 @@ export struct SwipePageViewer {
   }
 
   requestJump() {
-    if (this.jumpToPage > 0 && this.jumpToPage <= this.maxPage) {
-      this.currentSwiperIndex = this.jumpToPage - 1
-      this.currentPage = this.jumpToPage
-      this.jumpToPage = -1
+    const targetPage = Math.round(this.jumpToPage)
+    if (targetPage > 0 && targetPage <= this.maxPage) {
+      this.currentSwiperIndex = targetPage - 1
+      this.currentPage = targetPage
+      this.onJumpDone()
     }
   }
 
   aboutToAppear(): void {
     this.prevMaxPage = this.maxPage
-    this.requestJump()
+    if (this.jumpToPage > 0) {
+      this.requestJump()
+    }
     this.reloadCtrl.reload = (): void => this.allContentReload()
   }
 

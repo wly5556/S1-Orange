@@ -138,6 +138,7 @@ export struct ThreadPostList {
   @State imgViewerShow: boolean = false
   @Provide('visiblePage') currentPage: number = 1
   @Provide totalPage: number = 1
+  @State prevTid: string = ''
   @State jumpToPage: number = -1
   jumpToPageDone: boolean = false
   @Provide jumpToPost?: string = undefined
@@ -159,11 +160,20 @@ export struct ThreadPostList {
 
   onPageParamUpdate() {
     if (this.pageParam.replies == undefined) {
-      return // 页面参数只有tid时的初始化情形，等待子页面回传正确的回帖数量
+      return
     }
-    // 此时认为真正打开了帖子
-    this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
+    const tidChanged = this.prevTid != '' && this.prevTid != this.pageParam.tid
+    if (tidChanged) {
+      this.totalPage = 1
+      this.jumpToPageDone = false
+    }
+    this.prevTid = this.pageParam.tid
+    const newTotalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
       Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
+    if (tidChanged || newTotalPage > this.totalPage ||
+      (newTotalPage < this.totalPage && this.currentPage >= this.totalPage)) {
+      this.totalPage = newTotalPage
+    }
     if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
       let jumpToPage = this.pageParam.jumpToPage!
       if (jumpToPage < 0) {
@@ -383,6 +393,7 @@ export struct ThreadPostList {
               currentPage: this.currentPage,
               contentBuilder: this.threadPostPageBuilder,
               jumpToPage: this.jumpToPage,
+              onJumpDone: () => this.jumpToPage = -1,
               reloadCtrl: this.reloadCtrl,
               useList: true,
               maxPage: this.totalPage
@@ -860,7 +871,10 @@ struct SinglePostPage {
     }
     const apiReplies = parseInt(v.Variables.thread.replies)
     this.pageParam.replies = v.Variables.thread.replies
-    this.totalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    const newTotalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
+      this.totalPage = newTotalPage
+    }
     if (this.pageParam.fid === undefined) {
       this.pageParam.fid = v.Variables.thread.fid
     }
@@ -890,7 +904,10 @@ struct SinglePostPage {
   processThreadDataApp(v: wrapperApp<ThreadDataApp>) {
     const apiReplies = v.data.totalCount
     this.pageParam.replies = String(apiReplies)
-    this.totalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    const newTotalPage = apiReplies > 1 ? Math.ceil(apiReplies / POST_PER_PAGE) : 1
+    if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
+      this.totalPage = newTotalPage
+    }
     let postArray: PostViewModel[] = []
     const searchItems: PostSearchItem[] = []
     let rawPostList = v.data.list
@@ -1255,8 +1272,7 @@ struct SinglePostPage {
         fontSizeOverride: this.appState.fontSizeOverride,
         copyOption: this.appState ? CopyOptions.LocalDevice : CopyOptions.None,
         onLinkClick: (href: string): void => {
-          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
-            this.pageParam.replies)
+          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject)
         },
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
