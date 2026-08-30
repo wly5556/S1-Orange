@@ -6,7 +6,7 @@ import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefreshStage } from '../../common/component/PullToRefresh'
 import { TitleBar } from '../../common/component/TitleBar'
 import { unescapeAll } from '../../common/XmlParser'
-import { RectSize } from '../../common/component/ImageContainer'
+import { RectSize, ImageContainer } from '../../common/component/ImageContainer'
 import { Avatar } from '../../common/component/Avatar'
 import { common } from '@kit.AbilityKit'
 import { openUserSpace, UserSpaceParam } from './UserSpace'
@@ -123,6 +123,11 @@ function genThreadPostViewKey(pageParam: ThreadPostParam) {
 
 function openImgViewerEventName(pageParam: ThreadPostParam) {
   return Event.OpenImageViewer + genThreadPostViewKey(pageParam)
+}
+
+function attachmentImageUrl(attach: Attachment): string {
+  return attach.url.length > 0 ? attach.url + attach.attachment
+    : URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode
 }
 
 @Component
@@ -630,6 +635,14 @@ struct SinglePostPage {
     this.context.eventHub.emit(openImgViewerEventName(this.pageParam), imgUrl, index)
   }
 
+  openAttachmentImageViewer(pid: string, url: string) {
+    const tailUrls = Object.values(this.postAttachment.get(pid) || {})
+      .filter(a => a.isimage !== '0' && !this.consumedAttachmentAid.has(a.aid))
+      .map(a => attachmentImageUrl(a))
+    const urls = this.imgUrl.concat(tailUrls)
+    this.openImageViewer(urls, Math.max(0, urls.indexOf(url)))
+  }
+
   loadingIcon?: SwipePageLoadingIcon
   @State threadAuthorUid: string = ''
   @StorageProp(PropKey.userId) currentUserUid?: string = undefined
@@ -808,6 +821,8 @@ struct SinglePostPage {
           const attachMap: Record<string, Attachment> = {}
           Object.values(p.attachments).forEach(attach => {
             if (attach.isimage === '0') {
+              attachMap[attach.aid] = attach
+            } else if (!p.message.includes(attach.attachment)) { // 未插入正文的图片附件(isimage为-1等)也纳入展示
               attachMap[attach.aid] = attach
             }
           })
@@ -1460,11 +1475,24 @@ struct SinglePostPage {
         if (this.postAttachment.has(post.pid)) {
           ForEach(Object.values(this.postAttachment.get(post.pid) || {}), (attach: Attachment) => {
             if (!this.consumedAttachmentAid.has(attach.aid)) {
-              ThreadPostAttachmentItem({
-                attach,
-                appTheme: this.appTheme,
-                fontSize: this.appState.fontSize
-              })
+              if (attach.isimage !== '0') {
+                Column() {
+                  ImageContainer({
+                    src: attachmentImageUrl(attach),
+                    lazyLoad: true,
+                    onImgClick: () => {
+                      this.openAttachmentImageViewer(post.pid, attachmentImageUrl(attach))
+                    }
+                  })
+                }.width('100%')
+                .margin({ top: 8 })
+              } else {
+                ThreadPostAttachmentItem({
+                  attach,
+                  appTheme: this.appTheme,
+                  fontSize: this.appState.fontSize
+                })
+              }
             }
           }, (attach: Attachment) => attach.aid)
         }
