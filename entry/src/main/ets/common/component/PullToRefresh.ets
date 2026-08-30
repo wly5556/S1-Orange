@@ -94,7 +94,8 @@ export struct PullToRefresh {
       if (!this.enable || event.touches.length == 0) {
         return
       }
-      if (this.scroller.currentOffset().yOffset > 0.001) {
+      const offset = this.scroller.currentOffset()
+      if (offset && offset.yOffset > 0.001) {
         return
       }
       const firstEle = this.scroller.getItemRect(0)

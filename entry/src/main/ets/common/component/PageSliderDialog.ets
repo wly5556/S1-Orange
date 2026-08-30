@@ -10,11 +10,10 @@ export struct SlideDialog {
   controller: CustomDialogController
 
   isPageValid(value: string) {
-    let page = -1
-    if (isNaN(parseInt(value))) {
+    let page = parseInt(value)
+    if (isNaN(page)) {
       page = 1
     }
-    page = parseInt(value)
     if (page < 1) {
       page = 1
     }
@@ -48,7 +47,12 @@ export struct SlideDialog {
         value: $$this.pageIndex,
         min: 1,
         max: this.totalPage,
+        step: 1,
         style: SliderStyle.InSet
+      }).onChange((value: number, mode: SliderChangeMode) => {
+        if (mode === SliderChangeMode.Moving || mode === SliderChangeMode.Click) {
+          this.pageIndex = Math.round(value)
+        }
       })
       Row() {
         Button('取消', { buttonStyle: ButtonStyleMode.TEXTUAL }).onClick(() => this.controller.close())
@@ -58,7 +62,7 @@ export struct SlideDialog {
           .margin({ left: 10 })
           .layoutWeight(1)
           .onClick(e => {
-            this.jump(this.pageIndex)
+            this.jump(Math.round(this.pageIndex))
             this.controller.close()
           })
       }.width('100%')
