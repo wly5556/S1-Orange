@@ -6,7 +6,6 @@ import { ForumThreadDisplayOrder } from '../../api/model/thread'
 import { PreferenceManager } from '../../config/UserConfig'
 import { readJson, removeJson, writeJson } from '../dataStore/JsonPersist'
 import {
-  ADJUSTABLE_GROUP_COUNT,
   FeatureExtractor,
   SparseFeature,
   ThreadFeatureInput,
@@ -30,32 +29,32 @@ export interface RecommendExposureItem {
   replies: number
   displayOrder: ForumThreadDisplayOrder
   viewedReply?: number // 上次查看时数据库记录的回帖数（含主楼），undefined 表示从未看过
+  uid: string
+  readperm: number
 }
 
 export interface RecommendStatus {
   state: RecommendState
-  sampleCount: number
-  clickSampleCount: number
-  aucHistory: number[]
-  lastAuc: number // -1 表示暂无
-  bufferPositives: number
-  memEstimateBytes: number // 按数据量估算
-  diskEstimateBytes: number // 按数据量估算
-  lastComputeMs: number // 上次曝光打分总耗时，-1 表示尚未计算
+  /** 训练进度 0~1：样本量/点击量占 70%，AUC 达标程度占 30%；active 时为 1 */
+  progress: number
 }
 
 interface BatchEntry {
-  tid: string
+  item: RecommendExposureItem
   features: SparseFeature[]
   score: number // 曝光时刻的预测分数，用于 prequential AUC
   resolved: boolean
 }
 
 interface ExposureBatch {
-  key: string
-  fid: string
-  createdAt: number
+  pageNum: number
+  contextKey: string
   entries: Map<string, BatchEntry>
+}
+
+interface RankedEntry {
+  score: number
+  entry: BatchEntry
 }
 
 interface PendingClick {
@@ -83,30 +82,31 @@ interface RecommendModelData {
   clickSampleCount: number
   state: number
   degradedStreak: number
-  aucHistory: number[]
   evalBuffer: EvalEntry[]
   pendingClicks: Record<string, PersistClick>
 }
 
-const MODEL_VERSION = 1
+const MODEL_VERSION = 2
 export const RECOMMEND_MIN_SAMPLES = 300
 export const RECOMMEND_MIN_CLICKS = 40
-export const RECOMMEND_MIN_BUFFER_POSITIVES = 20
+const RECOMMEND_MIN_BUFFER_POSITIVES = 20
 const AUC_ACTIVATE = 0.65
 const AUC_DEGRADED = 0.55
 const DEGRADED_STREAK_LIMIT = 5
 const EVAL_BUFFER_MAX = 500
 /** 评估缓冲负样本降采样（每 N 条保留 1 条）：AUC 对均匀采样无偏，避免低点击率用户缓冲内正样本稳态过低 */
 const EVAL_NEG_SAMPLE = 5
-const AUC_HISTORY_MAX = 30
 const COUNTER_MAX = 2000
 const SNAPSHOT_CACHE_MAX = 300
-const BATCH_TIMEOUT_MS = 30 * 60 * 1000
 const PERSIST_INTERVAL_MS = 60 * 1000
 const PERSIST_WEIGHT_EPS = 1e-4
 /** 高亮门槛：分数需达到用户滚动点击基准率的倍数（封顶），全都不感兴趣时自然无高亮 */
 const SCORE_GATE_RATIO = 2
 const SCORE_GATE_CAP = 0.8
+const TOP_K_MIN = 3
+const TOP_K_MAX = 10
+/** 推荐偏好每级的 log-odds 偏移：偏向一侧时该侧帖子的胜出概率按 e^shift 放大 */
+const PREF_LOGIT_SHIFT = 1.25
 
 class RecommendManager {
   private uid: string = 'guest'
@@ -120,20 +120,20 @@ class RecommendManager {
   private clickSampleCount: number = 0
   private state: RecommendState = RecommendState.collecting
   private degradedStreak: number = 0
-  private aucHistory: number[] = []
   private evalBuffer: EvalEntry[] = []
   private evalNegCounter: number = 0
+  private lastAuc: number = -1
   private pendingClicks: Map<string, PendingClick> = new Map()
   private enterTs: Map<string, number> = new Map()
   private featureSnapshots: Map<string, SparseFeature[]> = new Map()
-  private debugScores: Map<string, number> = new Map()
-  private batch?: ExposureBatch
+  /** 当前版面上下文（版面/刷新代数/分类筛选）下，第 1、2 页的曝光批次 */
+  private batches: Map<number, ExposureBatch> = new Map()
+  private contextKey: string = ''
   private enabled: boolean = false
-  private topK: number = 3
-  private groupWeights: number[] = [1, 1, 1, 1, 1, 1, 1]
+  private topK: number = 5
+  private pref: number = 2
   private lastPersist: number = 0
   private persisting: boolean = false
-  private lastComputeMs: number = -1
 
   async ensureLoaded(): Promise<void> {
     if (this.loaded) {
@@ -158,6 +158,7 @@ class RecommendManager {
     }
     this.loaded = true
     this.backfillPendingClicks()
+    this.evaluate()
     this.schedulePersist()
   }
 
@@ -177,7 +178,6 @@ class RecommendManager {
     this.clickSampleCount = data.clickSampleCount
     this.state = data.state as RecommendState
     this.degradedStreak = data.degradedStreak
-    this.aucHistory = data.aucHistory
     this.evalBuffer = data.evalBuffer
     this.pendingClicks = new Map()
     Object.keys(data.pendingClicks).forEach(tid => {
@@ -210,14 +210,14 @@ class RecommendManager {
     this.clickSampleCount = 0
     this.state = RecommendState.collecting
     this.degradedStreak = 0
-    this.aucHistory = []
     this.evalBuffer = []
     this.evalNegCounter = 0
+    this.lastAuc = -1
     this.pendingClicks = new Map()
     this.enterTs = new Map()
     this.featureSnapshots = new Map()
-    this.debugScores = new Map()
-    this.batch = undefined
+    this.batches = new Map()
+    this.contextKey = ''
   }
 
   /** 账号切换时重新加载对应 uid 的模型（参照 HistoryDbSetUser 时机调用） */
@@ -237,13 +237,12 @@ class RecommendManager {
     await this.ensureLoaded()
   }
 
-  /** 重新读取配置缓存（开关/K/权重变更后由 UI 调用；曝光时也会自动刷新） */
+  /** 重新读取配置缓存（开关/K/偏好变更后由 UI 调用；曝光时也会自动刷新） */
   async refreshConfig(): Promise<void> {
     await PreferenceManager.readonly(conf => {
       this.enabled = conf.recommend_enabled
-      this.topK = conf.recommend_top_k
-      const w = conf.recommend_weights
-      this.groupWeights = [w.board, w.type, w.titleText, w.contentText, w.hot, w.fresh, w.history]
+      this.topK = Math.min(Math.max(conf.recommend_top_k, TOP_K_MIN), TOP_K_MAX)
+      this.pref = Math.min(Math.max(conf.recommend_pref, 0), 4)
     })
   }
 
@@ -265,9 +264,8 @@ class RecommendManager {
     return item.replies + 1 - item.viewedReply
   }
 
-  private createBatch(pageKey: string, fid: string, items: RecommendExposureItem[]): void {
+  private createBatch(pageNum: number, contextKey: string, items: RecommendExposureItem[]): void {
     const entries = new Map<string, BatchEntry>()
-    this.debugScores.clear()
     items.forEach(item => {
       if (!this.isEligible(item)) {
         return
@@ -289,16 +287,14 @@ class RecommendManager {
       const features = this.extractor.buildFeatures(input, text, expo, this.clickCounts.get(item.tid) || 0)
       this.featureSnapshots.delete(item.tid)
       this.featureSnapshots.set(item.tid, features)
-      const score = this.model.predict(features, this.groupWeights)
-      this.debugScores.set(item.tid, score)
       entries.set(item.tid, {
-        tid: item.tid,
+        item: item,
         features: features,
-        score: score,
+        score: this.model.predict(features),
         resolved: false
       })
     })
-    this.batch = { key: pageKey, fid: fid, createdAt: Date.now(), entries: entries }
+    this.batches.set(pageNum, { pageNum: pageNum, contextKey: contextKey, entries: entries })
     while (this.featureSnapshots.size > SNAPSHOT_CACHE_MAX) {
       const oldest = Array.from(this.featureSnapshots.keys())[0]
       if (oldest === undefined) {
@@ -308,30 +304,67 @@ class RecommendManager {
     }
   }
 
-  /** 打分并返回 Top K tid 集合（仅 ACTIVE 状态返回非空集合） */
-  private scoreBatch(batch: ExposureBatch): Set<string> {
-    const top: Set<string> = new Set()
-    if (this.state != RecommendState.active || batch.entries.size == 0) {
-      return top
+  /** 推荐偏好后处理：对新帖子/看过的帖子做对称的 log-odds 偏移，改变两类帖子入选的期望分布 */
+  private adjustedScore(entry: BatchEntry): number {
+    if (this.pref == 2) {
+      return entry.score
+    }
+    const viewed = entry.item.viewedReply !== undefined
+    const shift = (this.pref - 2) * PREF_LOGIT_SHIFT * (viewed ? 1 : -1)
+    const s = Math.min(Math.max(entry.score, 1e-6), 1 - 1e-6)
+    const logit = Math.log(s / (1 - s)) + shift
+    return 1 / (1 + Math.exp(-logit))
+  }
+
+  /**
+   * 综合第 1、2 页批次打分，返回置顶的推荐帖子（按分数降序，最多 topK 条）。
+   * 仅 ACTIVE 状态返回非空列表
+   */
+  private computePinned(): RecommendExposureItem[] {
+    const result: RecommendExposureItem[] = []
+    if (this.state != RecommendState.active || this.batches.size == 0) {
+      return result
     }
     // 基准点击率用累计值：评估缓冲负样本已降采样，占比不再等于真实点击率
     const base = this.sampleCount > 0 ? this.clickSampleCount / this.sampleCount : 0
     if (base <= 0) {
       // 尚无点击（无法判断兴趣）时保守不高亮
-      return top
+      return result
     }
     const threshold = Math.min(base * SCORE_GATE_RATIO, SCORE_GATE_CAP)
-    const ranked: BatchEntry[] = Array.from(batch.entries.values())
-    ranked.sort((a: BatchEntry, b: BatchEntry): number => b.score - a.score)
-    let picked = 0
-    for (let i = 0; i < ranked.length && picked < this.topK; i++) {
+    const ranked: RankedEntry[] = []
+    this.batches.forEach((batch: ExposureBatch) => {
+      batch.entries.forEach(entry => {
+        const viewed = entry.item.viewedReply !== undefined
+        if ((this.pref == 0 && viewed) || (this.pref == 4 && !viewed)) {
+          return
+        }
+        ranked.push({ score: this.adjustedScore(entry), entry: entry })
+      })
+    })
+    ranked.sort((a: RankedEntry, b: RankedEntry): number => b.score - a.score)
+    for (let i = 0; i < ranked.length && result.length < this.topK; i++) {
       if (ranked[i].score < threshold) {
         break
       }
-      top.add(ranked[i].tid)
-      picked++
+      result.push(ranked[i].entry.item)
     }
-    return top
+    return result
+  }
+
+  private findEntry(tid: string): BatchEntry | undefined {
+    const pages: number[] = Array.from(this.batches.keys())
+    for (const page of pages) {
+      const batch = this.batches.get(page)
+      if (!batch) {
+        continue
+      }
+      const entry = batch.entries.get(tid)
+      if (entry !== undefined) {
+        return entry
+      }
+    }
+    return undefined
   }
 
   private pushEval(entry: EvalEntry): void {
@@ -390,10 +423,7 @@ class RecommendManager {
     if (auc < 0) {
       return
     }
-    this.aucHistory.push(auc)
-    if (this.aucHistory.length > AUC_HISTORY_MAX) {
-      this.aucHistory.shift()
-    }
+    this.lastAuc = auc
     this.updateState(auc)
   }
 
@@ -415,56 +445,58 @@ class RecommendManager {
   }
 
   private closeBatchInternal(): void {
-    const batch = this.batch
-    if (!batch) {
+    if (this.batches.size == 0) {
       return
     }
-    this.batch = undefined
-    batch.entries.forEach(entry => {
-      if (entry.resolved || this.pendingClicks.has(entry.tid)) {
-        return
-      }
-      const expo = this.expoCounts.get(entry.tid) || 1
-      this.model.update(entry.features, 0, 1 / Math.sqrt(expo))
-      this.sampleCount++
-      this.pushEval({ p: entry.score, y: 0 })
+    this.batches.forEach((batch: ExposureBatch) => {
+      batch.entries.forEach(entry => {
+        if (entry.resolved || this.pendingClicks.has(entry.item.tid)) {
+          return
+        }
+        const expo = this.expoCounts.get(entry.item.tid) || 1
+        this.model.update(entry.features, 0, 1 / Math.sqrt(expo))
+        this.sampleCount++
+        this.pushEval({ p: entry.score, y: 0 })
+      })
     })
+    this.batches.clear()
     this.evaluate()
     this.trimCounters()
     this.schedulePersist()
   }
 
-  /** 列表页销毁 / 版面退出等场景下关闭当前批次 */
+  /** 列表页销毁 / 版面退出等场景下关闭全部批次 */
   closeBatch(): void {
     if (!this.loaded || !this.enabled) {
-      this.batch = undefined
+      this.batches.clear()
       return
     }
     this.closeBatchInternal()
   }
 
   /**
-   * 列表曝光（初次进入、翻页、刷新、缓存命中）。返回 Top K 高亮 tid 集合。
-   * 同 key 数据重复到达时只重新打分，不重复建批
+   * 列表曝光（第 1、2 页的初次进入、预载、翻页、刷新、缓存命中）。
+   * 返回当前应置顶的推荐帖子列表（含从第 2 页选出的内容，最多 topK 条）。
+   * 同 contextKey 同页数据重复到达时只重新打分，不重复建批
    */
-  async onThreadListExposure(pageKey: string, fid: string,
-    items: RecommendExposureItem[]): Promise<Set<string>> {
+  async onThreadListExposure(pageNum: number, contextKey: string,
+    items: RecommendExposureItem[]): Promise<RecommendExposureItem[]> {
     await this.ensureLoaded()
     if (!this.enabled) {
-      this.batch = undefined
-      return new Set<string>()
+      this.batches.clear()
+      return []
     }
-    const now = Date.now()
-    if (this.batch && (pageKey !== this.batch.key || now - this.batch.createdAt > BATCH_TIMEOUT_MS)) {
+    if (pageNum < 1 || pageNum > 2) {
+      return []
+    }
+    if (contextKey !== this.contextKey) {
       this.closeBatchInternal()
+      this.contextKey = contextKey
     }
-    const computeStart = Date.now()
-    if (!this.batch) {
-      this.createBatch(pageKey, fid, items)
+    if (!this.batches.has(pageNum)) {
+      this.createBatch(pageNum, contextKey, items)
     }
-    const top = this.scoreBatch(this.batch!)
-    this.lastComputeMs = Date.now() - computeStart
-    return top
+    return this.computePinned()
   }
 
   /** 帖子点击（列表 onClick / 长按） */
@@ -473,7 +505,7 @@ class RecommendManager {
       return
     }
     this.clickCounts.set(tid, (this.clickCounts.get(tid) || 0) + 1)
-    const entry = this.batch?.entries.get(tid)
+    const entry = this.findEntry(tid)
     const features = entry ? entry.features : this.featureSnapshots.get(tid)
     this.pendingClicks.set(tid, {
       tid: tid,
@@ -522,7 +554,7 @@ class RecommendManager {
     if (!pending || pending.features.length == 0) {
       return
     }
-    const entry = this.batch?.entries.get(tid)
+    const entry = this.findEntry(tid)
     const p = entry ? entry.score : this.model.predict(pending.features)
     if (entry) {
       entry.resolved = true
@@ -596,52 +628,23 @@ class RecommendManager {
       clickSampleCount: this.clickSampleCount,
       state: this.state,
       degradedStreak: this.degradedStreak,
-      aucHistory: this.aucHistory,
       evalBuffer: this.evalBuffer,
       pendingClicks: pendingClicks
     }
   }
 
-  /** 按数据量估算内存占用：z/n 坐标、特征快照、文本缓存、评估缓冲、计数器 */
-  private estimateMemoryBytes(): number {
-    let snapshotFeatures = 0
-    this.featureSnapshots.forEach((f: SparseFeature[]) => snapshotFeatures += f.length)
-    return (this.model.z.size + this.model.n.size) * 48
-      + (snapshotFeatures + this.extractor.cachedFeatureCount()) * 40
-      + this.evalBuffer.length * 32
-      + (this.expoCounts.size + this.clickCounts.size) * 64
-  }
-
-  /** 按数据量估算磁盘占用（持久化 JSON 体积） */
-  private estimateDiskBytes(): number {
-    let coords = 0
-    this.model.z.forEach((v: number, k: number) => {
-      if (Math.abs(this.model.weight(k)) >= PERSIST_WEIGHT_EPS) {
-        coords++
-      }
-    })
-    return coords * 50 + this.evalBuffer.length * 28
-      + (this.expoCounts.size + this.clickCounts.size) * 20 + 200
-  }
-
   async getStatus(): Promise<RecommendStatus> {
     await this.ensureLoaded()
-    return {
-      state: this.state,
-      sampleCount: this.sampleCount,
-      clickSampleCount: this.clickSampleCount,
-      aucHistory: this.aucHistory.slice(),
-      lastAuc: this.aucHistory.length > 0 ? this.aucHistory[this.aucHistory.length - 1] : -1,
-      bufferPositives: this.bufferPositiveCount(),
-      memEstimateBytes: this.estimateMemoryBytes(),
-      diskEstimateBytes: this.estimateDiskBytes(),
-      lastComputeMs: this.lastComputeMs
+    if (this.state == RecommendState.active) {
+      return { state: this.state, progress: 1 }
     }
-  }
-
-  /** 当前批次内 eligible 帖的预测分数（调试模式展示用），返回拷贝 */
-  getDebugScores(): Map<string, number> {
-    return new Map<string, number>(this.debugScores)
+    const dataRatio = Math.min(this.sampleCount / RECOMMEND_MIN_SAMPLES,
+      this.clickSampleCount / RECOMMEND_MIN_CLICKS, 1)
+    // AUC 侧进度：从随机基线 0.5 到激活阈值的线性达成度
+    const aucRatio = this.lastAuc > 0.5 ?
+      Math.min((this.lastAuc - 0.5) / (AUC_ACTIVATE - 0.5), 1) : 0
+    const progress = Math.min(0.7 * dataRatio + 0.3 * aucRatio, 0.99)
+    return { state: this.state, progress: progress }
   }
 
   /** 清空模型与历史，状态回 COLLECTING；保留功能开关等配置 */

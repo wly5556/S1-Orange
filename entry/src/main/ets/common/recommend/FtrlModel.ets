@@ -1,7 +1,7 @@
 /**
  * FTRL-Proximal 在线逻辑回归（McMahan et al., KDD 2013）与滚动 AUC 评估
  */
-import { ADJUSTABLE_GROUP_COUNT, SparseFeature } from './FeatureExtractor'
+import { SparseFeature } from './FeatureExtractor'
 
 export interface EvalEntry {
   p: number // 曝光时刻的预测分数
@@ -27,21 +27,15 @@ export class FtrlModel {
     return -(zi - sign * this.l1) / (this.l2 + (this.beta + Math.sqrt(ni)) / this.alpha)
   }
 
-  /**
-   * sigmoid 打分。groupWeights 为推理期各组乘数（训练时不应传入）
-   */
-  predict(features: SparseFeature[], groupWeights?: number[]): number {
+  /** sigmoid 打分 */
+  predict(features: SparseFeature[]): number {
     let sum = 0
     for (const f of features) {
       const w = this.weight(f.i)
       if (w === 0) {
         continue
       }
-      let mult = 1
-      if (groupWeights && f.g < ADJUSTABLE_GROUP_COUNT) {
-        mult = groupWeights[f.g]
-      }
-      sum += w * f.v * mult
+      sum += w * f.v
     }
     return 1 / (1 + Math.exp(-sum))
   }

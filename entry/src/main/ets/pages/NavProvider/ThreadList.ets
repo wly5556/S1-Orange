@@ -64,6 +64,7 @@ export struct ThreadListView {
   @Provide threadReadAccess: number = 0
   @Provide forumId: string = ""
   @Provide sublist: ForumInfo[] = []
+  @Provide recommendPinned: RecommendExposureItem[] = []
   @State currentPage: number = 1
   @State displayPage: number = 1
   @State totalPage: number = 1
@@ -116,6 +117,7 @@ export struct ThreadListView {
 
   aboutToDisappear(): void {
     Recommend.closeBatch()
+    this.recommendPinned = []
   }
 
   @Builder
@@ -246,18 +248,18 @@ struct ThreadListPage {
   @Consume sublist: ForumInfo[]
   @Consume threadReadAccess: number
   @State threadList: ThreadListItemViewData[] = []
+  @State displayList: ThreadListItemViewData[] = []
   @State dataLoading: boolean = false
   @State threadNewReplyCount: Map<string, string> = new Map
-  @State recommendTids: Set<string> = new Set
-  @State debugScores: Map<string, number> = new Map
+  @Consume @Watch('onRecommendPinnedUpdate') recommendPinned: RecommendExposureItem[]
+  threadTypeNames: Map<string, string> = new Map()
   @Consume(PropKey.pathStack) pathStack: NavPathStack
   loadingIcon?: SwipePageLoadingIcon
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
 
   onAppStateChange() {
-    if (!this.appState.recommendEnabled) {
-      this.recommendTids = new Set
-      this.debugScores = new Map
+    if (!this.appState.recommendEnabled && this.recommendPinned.length > 0) {
+      this.recommendPinned = []
     }
   }
 
@@ -268,14 +270,61 @@ struct ThreadListPage {
   aboutToReuse(): void {
     if (this.generatePageKey() != this.pageLoadedKey) {
       this.threadList = []
-      this.recommendTids = new Set
-      this.debugScores = new Map
+      this.displayList = []
     }
     this.requestPageData()
   }
 
   generatePageKey() {
     return `${this.pageToLoad},${this.dataControlCounter},${this.threadTypeFilter}`
+  }
+
+  recommendContextKey() {
+    return `${this.forumId},${this.dataControlCounter},${this.threadTypeFilter}`
+  }
+
+  onRecommendPinnedUpdate() {
+    this.recommendPinned.forEach(p => {
+      if (p.viewedReply !== undefined) {
+        const newCount = p.replies + 1 - p.viewedReply
+        if (newCount >= 0) {
+          this.threadNewReplyCount.set(p.tid, newCount.toString())
+        }
+      }
+    })
+    this.rebuildDisplayList()
+  }
+
+  rebuildDisplayList() {
+    if (this.pageToLoad != 1 || this.recommendPinned.length == 0) {
+      this.displayList = this.threadList
+      return
+    }
+    const pinnedTids: Set<string> = new Set()
+    this.recommendPinned.forEach(p => pinnedTids.add(p.tid))
+    const pinnedItems: ThreadListItemViewData[] = this.recommendPinned.map(p => {
+      const view: ThreadListItemViewData = {
+        subject: p.subject,
+        replies: p.replies.toString(),
+        typeName: this.threadTypeNames.get(p.typeid) || '',
+        fid: p.fid,
+        typeid: p.typeid,
+        tid: p.tid,
+        uid: p.uid,
+        readperm: p.readperm
+      }
+      return view
+    })
+    this.displayList = pinnedItems.concat(this.threadList.filter(t => !pinnedTids.has(t.tid)))
+  }
+
+  isRecommended(tid: string): boolean {
+    for (let i = 0; i < this.recommendPinned.length; i++) {
+      if (this.recommendPinned[i].tid == tid) {
+        return true
+      }
+    }
+    return false
   }
 
   async processThreadList(v: wrapper<ThreadList>) {
@@ -299,6 +348,7 @@ struct ThreadListPage {
     Object.keys(threadTypeNameMap).forEach(typeid => {
       threadTypeMap.set(typeid, threadTypeNameMap[typeid])
     })
+    this.threadTypeNames = threadTypeMap
     const threadTypeForumMap: Map<string, Map<string, string>> = new Map()
     threadTypeForumMap.set(v.Variables.forum.fid, threadTypeMap)
     setThreadTypeNameMap(threadTypeForumMap)
@@ -323,12 +373,15 @@ struct ThreadListPage {
       if (viewData.filter(t => tidSet.has(t.tid)).length > THREAD_PER_PAGE * 0.1) {
         animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseInOut }, () => {
           this.threadList = viewData
+          this.rebuildDisplayList()
         })
       } else {
         this.threadList = viewData
+        this.rebuildDisplayList()
       }
     } else {
       this.threadList = viewData
+      this.rebuildDisplayList()
     }
     this.loadingIcon?.hide(this.pageToLoad)
     this.dataLoading = false
@@ -353,6 +406,8 @@ struct ThreadListPage {
         }
       }
       const exposureItems: RecommendExposureItem[] = v.Variables.forum_threadlist.map(v => {
+        let readperm = parseInt(v.readperm)
+        readperm = isNaN(readperm) ? 0 : readperm
         const item: RecommendExposureItem = {
           tid: v.tid,
           fid: v.fid,
@@ -362,15 +417,18 @@ struct ThreadListPage {
           replyMessages: v.reply ? v.reply.slice(0, 3).map(r => r.message ? unescapeAll(r.message) : '') : [],
           replies: parseInt(v.replies) || 0,
           displayOrder: v.displayorder,
-          viewedReply: viewedThread[v.tid]
+          viewedReply: viewedThread[v.tid],
+          uid: v.authorid,
+          readperm: readperm
         }
         return item
       })
-      Recommend.onThreadListExposure(this.generatePageKey(), this.forumId, exposureItems)
-        .then(tids => {
-          this.recommendTids = tids
-          this.debugScores = Recommend.getDebugScores()
-        })
+      if (this.pageToLoad <= 2) {
+        Recommend.onThreadListExposure(this.pageToLoad, this.recommendContextKey(), exposureItems)
+          .then(pinned => {
+            this.recommendPinned = pinned
+          })
+      }
     })
     return v
   }
@@ -382,6 +440,9 @@ struct ThreadListPage {
     }
     this.loadingIcon?.show(this.pageToLoad)
     this.pageLoadedKey = this.generatePageKey()
+    if (this.pageToLoad == 1 && this.recommendPinned.length > 0) {
+      this.recommendPinned = []
+    }
     this.dataLoading = true
     let requestPageIndex = this.pageToLoad.toString()
     return new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
@@ -398,17 +459,27 @@ struct ThreadListPage {
   build() {
     Stack() {
       Column() {
-        Repeat(this.threadList)
+        if (this.pageToLoad == 1 && this.recommendPinned.length > 0) {
+          Text('你可能感兴趣的帖子')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+            .fontColor(this.appTheme.fontSecondary)
+            .width('100%')
+            .padding({ left: 12, top: 4, bottom: 2 })
+          Divider().opacity(0.4)
+            .transition(OpacityTransition)
+        }
+        Repeat(this.displayList)
           .each(threadInfo => {
             Stack({ alignContent: Alignment.BottomEnd }) {
               Row() {
                 Column() {
-                  if (this.recommendTids.has(threadInfo.item.tid)) {
+                  if (this.isRecommended(threadInfo.item.tid)) {
                     Column()
                       .width(3)
                       .height(14)
                       .borderRadius(2)
                       .backgroundColor(this.appTheme.fontEmphasize)
+                      .transition(OpacityTransition)
                   }
                 }
                 .width(6)
@@ -481,13 +552,6 @@ struct ThreadListPage {
                 }
                 openThreadPost(param, this.pathStack, true)
               })
-
-              if (this.appState.recommendDebug && this.debugScores.has(threadInfo.item.tid)) {
-                Text(this.debugScores.get(threadInfo.item.tid)?.toFixed(2) ?? '')
-                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-                  .fontColor(this.appTheme.fontSecondary)
-                  .padding({ right: 18, bottom: 2 })
-              }
             }
             .height('auto')
             .width('100%')

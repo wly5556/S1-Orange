@@ -1,26 +1,11 @@
 /**
  * 帖子推荐系统的特征提取：
- * 文本归一化、字符 1+2-gram、FNV-1a 特征哈希、数值分桶、特征组标记、tid 级文本特征 LRU 缓存
+ * 文本归一化、字符 1+2-gram、FNV-1a 特征哈希、数值分桶、tid 级文本特征 LRU 缓存
  */
-
-export enum FeatureGroup {
-  board = 0,
-  type,
-  titleText,
-  contentText,
-  hot,
-  fresh,
-  history,
-  bias
-}
-
-/** 用户可调乘数的特征组数量（不含 bias） */
-export const ADJUSTABLE_GROUP_COUNT = 7
 
 export interface SparseFeature {
   i: number // 哈希桶坐标
   v: number // 特征值
-  g: number // FeatureGroup
 }
 
 export interface ThreadTextFeature {
@@ -70,7 +55,7 @@ export function normalizeText(raw: string): string {
 }
 
 /** 字符 1+2-gram，子线性 TF：1 + ln(tf) */
-function ngramFeatures(prefix: string, text: string, group: FeatureGroup): SparseFeature[] {
+function ngramFeatures(prefix: string, text: string): SparseFeature[] {
   const counts = new Map<string, number>()
   for (let i = 0; i < text.length; i++) {
     counts.set(text.charAt(i), (counts.get(text.charAt(i)) || 0) + 1)
@@ -83,8 +68,7 @@ function ngramFeatures(prefix: string, text: string, group: FeatureGroup): Spars
   counts.forEach((tf: number, gram: string) => {
     feats.push({
       i: featureIndex(prefix + gram),
-      v: 1 + Math.log(tf),
-      g: group
+      v: 1 + Math.log(tf)
     })
   })
   return feats
@@ -131,9 +115,9 @@ export class FeatureExtractor {
     replyText = normalizeText(replyText).substring(0, REPLIES_TEXT_MAX_LEN)
     // 不同板块内容风格差异大，文本特征按 fid 隔离命名空间，各自独立学习权重
     const entry: ThreadTextFeature = {
-      title: ngramFeatures(`t${input.fid}:`, subject, FeatureGroup.titleText),
-      content: ngramFeatures(`m${input.fid}:`, message, FeatureGroup.contentText)
-        .concat(ngramFeatures(`r${input.fid}:`, replyText, FeatureGroup.contentText))
+      title: ngramFeatures(`t${input.fid}:`, subject),
+      content: ngramFeatures(`m${input.fid}:`, message)
+        .concat(ngramFeatures(`r${input.fid}:`, replyText))
     }
     this.textCache.set(input.tid, entry)
     if (this.textCache.size > TEXT_CACHE_LIMIT) {
@@ -160,21 +144,21 @@ export class FeatureExtractor {
   buildFeatures(input: ThreadFeatureInput, text: ThreadTextFeature, expoCount: number,
     clickCount: number): SparseFeature[] {
     const feats: SparseFeature[] = []
-    feats.push({ i: featureIndex('bias'), v: 1, g: FeatureGroup.bias })
-    feats.push({ i: featureIndex(`fid=${input.fid}`), v: 1, g: FeatureGroup.board })
+    feats.push({ i: featureIndex('bias'), v: 1 })
+    feats.push({ i: featureIndex(`fid=${input.fid}`), v: 1 })
     if (input.typeid.length > 0) {
-      feats.push({ i: featureIndex(`type=${input.typeid}`), v: 1, g: FeatureGroup.type })
-      feats.push({ i: featureIndex(`fidtype=${input.fid}|${input.typeid}`), v: 1, g: FeatureGroup.type })
+      feats.push({ i: featureIndex(`type=${input.typeid}`), v: 1 })
+      feats.push({ i: featureIndex(`fidtype=${input.fid}|${input.typeid}`), v: 1 })
     }
     feats.push(...text.title)
     feats.push(...text.content)
     const repliesBucket = Math.floor(Math.log10(Math.max(input.replies, 1)))
-    feats.push({ i: featureIndex(`replies=b${repliesBucket}`), v: 1, g: FeatureGroup.hot })
-    feats.push({ i: featureIndex(`expo=b${expoBucket(expoCount)}`), v: 1, g: FeatureGroup.hot })
+    feats.push({ i: featureIndex(`replies=b${repliesBucket}`), v: 1 })
+    feats.push({ i: featureIndex(`expo=b${expoBucket(expoCount)}`), v: 1 })
     const freshCount = input.viewed ? input.newReplies : input.replies
-    feats.push({ i: featureIndex(`new=b${freshBucket(freshCount)}`), v: 1, g: FeatureGroup.fresh })
+    feats.push({ i: featureIndex(`new=b${freshBucket(freshCount)}`), v: 1 })
     if (clickCount >= 1) {
-      feats.push({ i: featureIndex(`clk=b${clickCount >= 2 ? 1 : 0}`), v: 1, g: FeatureGroup.history })
+      feats.push({ i: featureIndex(`clk=b${clickCount >= 2 ? 1 : 0}`), v: 1 })
     }
     return feats
   }

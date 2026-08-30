@@ -27,6 +27,5 @@ export enum PageNameEnum {
   FreeCopy = "FreeCopy",
   WriteReplyPreview = "WriteReplyPreview",
   ForumDisplayPref = "ForumDisplayPref",
-  CustomTheme = "CustomTheme",
-  Recommend = "Recommend"
+  CustomTheme = "CustomTheme"
 }

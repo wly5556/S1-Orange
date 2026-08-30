@@ -65,15 +65,16 @@ export interface UserAccount {
   lastSign: number
 }
 
-export class RecommendWeights {
-  board: number = 1
-  type: number = 1
-  titleText: number = 1
-  contentText: number = 1
-  hot: number = 1
-  fresh: number = 1
-  history: number = 1
-}
+/**
+ * 推荐偏好：0 仅新帖子 … 4 完全看过的帖子，2 为居中（不调整后处理）
+ */
+export const RecommendPrefDesc: string[] = [
+  '仅推荐新帖子',
+  '偏向推荐新帖子',
+  '根据你的浏览行为确定',
+  '偏向推荐看过的帖子',
+  '完全推荐看过的帖子'
+]
 
 export class ApplicationConfig {
   version = '3'
@@ -116,9 +117,8 @@ export class ApplicationConfig {
   ask_ai_include_main: boolean = true
   ask_ai_include_previous: boolean = false
   recommend_enabled: boolean = false
-  recommend_debug: boolean = false
-  recommend_top_k: number = 3
-  recommend_weights: RecommendWeights = new RecommendWeights()
+  recommend_top_k: number = 5
+  recommend_pref: number = 2
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

@@ -45,6 +45,12 @@ import { collectCrashLogs, CrashLogMode, exportCrashLogs } from '../../common/da
 import { CopyText } from '../../common/ShareKit'
 import { Event } from '../../common/Events'
 import { waitFor } from '../../common/AwaitUtil'
+import {
+  Recommend,
+  RecommendState,
+  RecommendStatus
+} from '../../common/recommend/RecommendManager'
+import { RecommendPrefDesc } from '../../config/v1/default'
 
 export interface PreferenceParam {}
 
@@ -71,11 +77,15 @@ export struct PreferencePage {
   @State personalDataWorking: boolean = false
   @State personalDataExportPath: string = ''
   @State crashLogModeSelected: number = 0
+  @State recommendTopK: number = defaultApplicationConfig.recommend_top_k
+  @State recommendPref: number = defaultApplicationConfig.recommend_pref
+  @State recommendStatus?: RecommendStatus = undefined
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
     getApiCacheState().then(v => this.apiCacheUsage = v)
     this.reloadConfigState()
+    this.refreshRecommendStatus()
   }
 
   reloadConfigState() {
@@ -85,6 +95,8 @@ export struct PreferencePage {
       this.postSignature = conf.post_signature
       this.postSignatureDeviceInfo = conf.post_signature_device_info
       this.aniSpeedRatio = conf.ani_speed_ratio
+      this.recommendTopK = Math.min(Math.max(conf.recommend_top_k, 3), 10)
+      this.recommendPref = Math.min(Math.max(conf.recommend_pref, 0), 4)
       this.appState.textCopyable = conf.post_copyable
       this.appState.postAlphabetIndexer = conf.post_alphabet_indexer
       this.appState.showCredit = conf.show_credit
@@ -186,6 +198,24 @@ export struct PreferencePage {
   appStateChanged() {
     this.settingRow = new SettingRow(FontSizeEnum[this.appState.fontSize])
     this.textSecondary = new TextSecondary(this.appState.fontSize)
+  }
+
+  refreshRecommendStatus() {
+    Recommend.getStatus().then(s => this.recommendStatus = s)
+  }
+
+  recommendStatusText(): string {
+    if (!this.recommendStatus) {
+      return ''
+    }
+    if (this.recommendStatus.state == RecommendState.active) {
+      return ''
+    }
+    if (this.recommendStatus.state == RecommendState.degraded) {
+      return '预测准确率下降，推荐暂时停用，继续观察浏览行为中'
+    }
+    const percent = Math.floor(this.recommendStatus.progress * 100)
+    return `模型正在训练中，进度（${percent}%），完成后将出现推荐`
   }
 
   @LocalBuilder
@@ -689,6 +719,97 @@ export struct PreferencePage {
               }.attributeModifier(this.settingRow)
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
+            SettingGroupHeader({
+              text: '实验性功能：帖子高亮',
+              fontSizeIndex: this.appState.fontSize
+            })
+            Column() {
+              Row() {
+                Column({ space: SettingColumnSpace }) {
+                  this.TextPrimary('高亮可能感兴趣的帖子')
+                  Text('基于轻量的机器学习算法').attributeModifier(this.textSecondary)
+                }.SettingColumn()
+
+                Toggle({ type: ToggleType.Switch, isOn: this.appState.recommendEnabled }).onChange(isOn => {
+                  PreferenceManager.modify(conf => {
+                    conf.recommend_enabled = isOn
+                    this.appState.recommendEnabled = isOn
+                  })
+                  Recommend.refreshConfig()
+                  this.refreshRecommendStatus()
+                })
+              }.attributeModifier(this.settingRow)
+
+              if (this.appState.recommendEnabled) {
+                Column({ space: SettingColumnSpace }) {
+                  Row() {
+                    Text('帖子列表内，会有一批“你可能感兴趣的帖子”自动升到顶部，方便你快速查看有新回复的专楼、或者发现新鲜的内容')
+                      .attributeModifier(this.textSecondary)
+                      .width('100%')
+                  }.attributeModifier(this.settingRow).transition(OpacityTransition)
+
+                  if (this.recommendStatusText().length > 0) {
+                    Row() {
+                      Text(this.recommendStatusText())
+                        .attributeModifier(this.textSecondary)
+                        .width('100%')
+                    }.attributeModifier(this.settingRow).transition(OpacityTransition)
+                  }
+
+                  SettingDivider()
+                  Row() {
+                    Column({ space: SettingColumnSpace }) {
+                      this.TextPrimary('最大推荐数量')
+                      Text(`当前：${this.recommendTopK} 个`).attributeModifier(this.textSecondary)
+                    }.SettingColumn()
+                  }.attributeModifier(this.settingRow)
+                  SliderReset({
+                    value: this.recommendTopK,
+                    min: 3,
+                    max: 10,
+                    step: 1,
+                    resetValue: defaultApplicationConfig.recommend_top_k,
+                    onChange: v => {
+                      PreferenceManager.modify(conf => {
+                        conf.recommend_top_k = v
+                        this.recommendTopK = v
+                      })
+                      Recommend.refreshConfig()
+                    }
+                  })
+
+                  SettingDivider()
+                  Row() {
+                    Column({ space: SettingColumnSpace }) {
+                      this.TextPrimary('推荐偏好')
+                      Text('调整被置顶的帖子类型')
+                        .attributeModifier(this.textSecondary)
+                      Text(`当前：${RecommendPrefDesc[this.recommendPref]}`)
+                        .attributeModifier(this.textSecondary)
+                    }.SettingColumn()
+                  }.attributeModifier(this.settingRow)
+                  Row({ space: 8 }) {
+                    Text('新帖子').attributeModifier(this.textSecondary)
+                    Slider({
+                      value: this.recommendPref,
+                      min: 0,
+                      max: 4,
+                      step: 1
+                    })
+                      .layoutWeight(1)
+                      .onChange(v => {
+                        PreferenceManager.modify(conf => {
+                          conf.recommend_pref = v
+                          this.recommendPref = v
+                        })
+                        Recommend.refreshConfig()
+                      })
+                    Text('看过的帖子').attributeModifier(this.textSecondary)
+                  }.attributeModifier(this.settingRow)
+                }.transition(OpacityTransition)
+              }
+            }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
+
           }
           .padding({
             top: 0,
@@ -712,6 +833,9 @@ export struct PreferencePage {
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack
       this.pageParam = context.pathInfo.param as PreferenceParam
+    })
+    .onShown(() => {
+      this.refreshRecommendStatus()
     })
   }
 }
