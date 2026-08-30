@@ -215,7 +215,7 @@ export struct PreferencePage {
       return '预测准确率下降，推荐暂时停用，继续观察浏览行为中'
     }
     const percent = Math.floor(this.recommendStatus.progress * 100)
-    return `模型正在训练中，进度（${percent}%），完成后将出现推荐`
+    return `模型正在训练中，进度（${percent}%），需要约 30 分钟的正常浏览数据。训练完成后将出现推荐`
   }
 
   @LocalBuilder

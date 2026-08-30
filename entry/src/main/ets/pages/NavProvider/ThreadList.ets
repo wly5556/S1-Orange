@@ -459,15 +459,6 @@ struct ThreadListPage {
   build() {
     Stack() {
       Column() {
-        if (this.pageToLoad == 1 && this.recommendPinned.length > 0) {
-          Text('你可能感兴趣的帖子')
-            .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
-            .fontColor(this.appTheme.fontSecondary)
-            .width('100%')
-            .padding({ left: 12, top: 4, bottom: 2 })
-          Divider().opacity(0.4)
-            .transition(OpacityTransition)
-        }
         Repeat(this.displayList)
           .each(threadInfo => {
             Stack({ alignContent: Alignment.BottomEnd }) {
@@ -555,6 +546,17 @@ struct ThreadListPage {
             }
             .height('auto')
             .width('100%')
+            if (this.pageToLoad == 1 && threadInfo.index == this.recommendPinned.length - 1) {
+              Text('你可能感兴趣的帖子')
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                .fontColor(this.appTheme.fontSecondary)
+                .width('100%')
+                .padding({ left: 12, bottom: 2 })
+                .transition(OpacityTransition)
+              Divider()
+                .opacity(0.4)
+                .transition(OpacityTransition)
+            }
           })
           .key(item => item.tid + item.replies)
         BottomSafeArea()
