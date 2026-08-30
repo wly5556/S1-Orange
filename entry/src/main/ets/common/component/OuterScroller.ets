@@ -21,8 +21,7 @@ export struct OuterScroller {
   }
 
   reportPos() {
-    const offset = this.scroller.currentOffset()
-    if (offset && offset.yOffset > 0.001) {
+    if (this.scroller.currentOffset().yOffset > 0.001) {
       if (this.atTop) {
         this.atTop = false
         this.onEnterAndLeaveTop(this.atTop)

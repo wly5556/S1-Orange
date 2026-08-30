@@ -47,12 +47,7 @@ export struct SlideDialog {
         value: $$this.pageIndex,
         min: 1,
         max: this.totalPage,
-        step: 1,
         style: SliderStyle.InSet
-      }).onChange((value: number, mode: SliderChangeMode) => {
-        if (mode === SliderChangeMode.Moving || mode === SliderChangeMode.Click) {
-          this.pageIndex = Math.round(value)
-        }
       })
       Row() {
         Button('取消', { buttonStyle: ButtonStyleMode.TEXTUAL }).onClick(() => this.controller.close())
@@ -62,7 +57,7 @@ export struct SlideDialog {
           .margin({ left: 10 })
           .layoutWeight(1)
           .onClick(e => {
-            this.jump(Math.round(this.pageIndex))
+            this.jump(this.pageIndex)
             this.controller.close()
           })
       }.width('100%')

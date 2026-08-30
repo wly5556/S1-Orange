@@ -117,10 +117,6 @@ const PostContentVerticalPadding = 12
 const PostContentHorizontalPadding = 16
 const POST_PER_PAGE = 40
 
-function totalPageFromReplies(replies: number): number {
-  return Math.ceil((replies + 1) / POST_PER_PAGE) || 1
-}
-
 function genThreadPostViewKey(pageParam: ThreadPostParam) {
   return `${pageParam.tid},${pageParam.jumpToPid},${pageParam.authorid}`
 }
@@ -142,7 +138,6 @@ export struct ThreadPostList {
   @State imgViewerShow: boolean = false
   @Provide('visiblePage') currentPage: number = 1
   @Provide totalPage: number = 1
-  @State prevTid: string = ''
   @State jumpToPage: number = -1
   jumpToPageDone: boolean = false
   @Provide jumpToPost?: string = undefined
@@ -164,20 +159,11 @@ export struct ThreadPostList {
 
   onPageParamUpdate() {
     if (this.pageParam.replies == undefined) {
-      return
+      return // 页面参数只有tid时的初始化情形，等待子页面回传正确的回帖数量
     }
-    const tidChanged = this.prevTid != '' && this.prevTid != this.pageParam.tid
-    if (tidChanged) {
-      this.totalPage = 1
-      this.jumpToPageDone = false
-    }
-    this.prevTid = this.pageParam.tid
-    const repliesCount = parseInt(this.pageParam.replies || '0')
-    const newTotalPage = totalPageFromReplies(repliesCount)
-    if (tidChanged || newTotalPage > this.totalPage ||
-      (newTotalPage < this.totalPage && this.currentPage >= this.totalPage)) {
-      this.totalPage = newTotalPage
-    }
+    // 此时认为真正打开了帖子
+    this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
+      Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
     if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
       let jumpToPage = this.pageParam.jumpToPage!
       if (jumpToPage < 0) {
@@ -749,11 +735,8 @@ struct SinglePostPage {
   visiblePageChanged() {
     if (this.scroller && typeof this.scroller.getItemIndex == 'function' &&
       typeof this.scroller.currentOffset == 'function') {
-      const offset = this.scroller.currentOffset()
-      if (offset) {
-        const index = this.scroller.getItemIndex(0, offset.yOffset)
-        this.recordViewHistory(index)
-      }
+      const index = this.scroller.getItemIndex(0, this.scroller.currentOffset().yOffset)
+      this.recordViewHistory(index)
     }
   }
 
@@ -872,11 +855,8 @@ struct SinglePostPage {
     if (this.pageParam.subject != latestTitle) {
       this.pageParam.subject = latestTitle
     }
-    const apiReplies = parseInt(v.Variables.thread.replies)
-    this.pageParam.replies = v.Variables.thread.replies
-    const newTotalPage = totalPageFromReplies(apiReplies)
-    if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
-      this.totalPage = newTotalPage
+    if (parseInt(this.pageParam.replies ?? '0') < parseInt(v.Variables.thread.replies)) {
+      this.pageParam.replies = String(parseInt(v.Variables.thread.replies) + 1)
     }
     if (this.pageParam.fid === undefined) {
       this.pageParam.fid = v.Variables.thread.fid
@@ -905,11 +885,8 @@ struct SinglePostPage {
   }
 
   processThreadDataApp(v: wrapperApp<ThreadDataApp>) {
-    const totalCount = v.data.totalCount
-    this.pageParam.replies = String(totalCount - 1)
-    const newTotalPage = Math.ceil(totalCount / POST_PER_PAGE) || 1
-    if (newTotalPage > this.totalPage || (newTotalPage < this.totalPage && this.pageToLoad >= this.totalPage)) {
-      this.totalPage = newTotalPage
+    if (parseInt(this.pageParam.replies ?? '0') < v.data.totalCount) {
+      this.pageParam.replies = String(v.data.totalCount)
     }
     let postArray: PostViewModel[] = []
     const searchItems: PostSearchItem[] = []
@@ -1275,7 +1252,8 @@ struct SinglePostPage {
         fontSizeOverride: this.appState.fontSizeOverride,
         copyOption: this.appState ? CopyOptions.LocalDevice : CopyOptions.None,
         onLinkClick: (href: string): void => {
-          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject)
+          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
+            this.pageParam.replies, true, this.pageParam.tid)
         },
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
@@ -1713,14 +1691,15 @@ async function resolveS1ThreadRedirectLink(href: string | undefined,
 }
 
 export function openThreadPostByLink(href: string,
-  pathStack: NavPathStack, onFailed: () => void, subject = '', replies = '1') {
+  pathStack: NavPathStack, onFailed: () => void, subject = '', replies = '1', sourceTid?: string) {
   resolveS1ThreadRedirectLink(href, (tid: string, page: number, pid?: string, authorId?: string) => {
+    const sameThread = sourceTid == undefined || sourceTid == tid
     const param: ThreadPostParam = {
       tid: tid,
       jumpToPid: pid,
       jumpToPage: page,
-      subject: subject,
-      replies: replies,
+      subject: sameThread ? subject : undefined,
+      replies: sameThread ? replies : undefined,
       jumpToPidWithHighlight: true,
       authorid: authorId
     }

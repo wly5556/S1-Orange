@@ -24,7 +24,7 @@ export function openInBrowser(abilityContext: common.UIAbilityContext, url?: str
 
 export function openS1LinkLike(href: string, pathStack: NavPathStack, context: common.UIAbilityContext,
   subject: string = '',
-  replies: string = '1', fallbackToBrowser = true) {
+  replies: string = '1', fallbackToBrowser = true, sourceTid?: string) {
   href = ObsoleteDomain.replace(href)
   openUserSpaceByLink(href, pathStack, (): void =>
   openThreadPostByLink(href, pathStack, (): void => {
@@ -35,7 +35,7 @@ export function openS1LinkLike(href: string, pathStack: NavPathStack, context: c
         message: '未能解析链接'
       })
     }
-  }, subject, replies
+  }, subject, replies, sourceTid
   ))
 }
 
