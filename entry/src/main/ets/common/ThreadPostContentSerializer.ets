@@ -29,6 +29,9 @@ function reverseSmilyGroupPrefix(source: Map<string, string>): Map<string, strin
 
 const SMILY_PREFIX_GROUP: Map<string, string> = reverseSmilyGroupPrefix(SMILY_GROUP_PREFIX)
 
+// 行内代码背景：半透明灰遮罩（与多行代码块浅色背景 #45b1b1b1 一致），浅色/深色背景下均可见
+const CODE_BG = '#45b1b1b1'
+
 export abstract class ContentSerializer {
   abstract convert(nodes: UIRootNode[]): string
 }
@@ -119,9 +122,10 @@ interface ParserTextStyle {
   strike?: boolean
   href?: string
   fontSize?: number
+  backgroundColor?: ResourceColor
 }
 
-type ParserRootType = UINodeName.Text | UINodeName.Quote | UINodeName.Code | UINodeName.Div
+type ParserRootType = UINodeName.Text | UINodeName.Quote | UINodeName.Code | UINodeName.Div | UINodeName.Table
 
 interface MarkdownListItem {
   content: string
@@ -133,6 +137,54 @@ interface MarkdownListMatch {
   content: string
   marker: string
 }
+
+interface MarkdownTableResult {
+  root: UIRootNode
+  nextIndex: number
+}
+
+/**
+ * 按 GFM 规则拆分表格行：去掉首尾各一个未转义的 '|'，按未转义的 '|' 切分，单元格 trim。
+ * 单元格内的 '\|' 保留原样，交由 parseInline 的转义处理还原为 '|'。
+ */
+function splitTableRow(line: string): string[] {
+  let s = line.trim()
+  if (s.startsWith('|')) {
+    s = s.slice(1)
+  }
+  if (s.endsWith('|') && (s.length < 2 || s[s.length - 2] != '\\')) {
+    s = s.slice(0, -1)
+  }
+  const cells: string[] = []
+  let start = 0
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] == '|' && (i == 0 || s[i - 1] != '\\')) {
+      cells.push(s.slice(start, i).trim())
+      start = i + 1
+    }
+  }
+  cells.push(s.slice(start).trim())
+  return cells
+}
+
+const TABLE_DELIMITER_CELL = /^:?-+:?$/
+
+/** 判断分隔行（如 `| --- | :---: |`），返回列数；非分隔行返回 0 */
+function tableDelimiterColumns(line: string): number {
+  if (!line.includes('|') || !line.includes('-')) {
+    return 0
+  }
+  const cells = splitTableRow(line)
+  for (const cell of cells) {
+    if (!TABLE_DELIMITER_CELL.test(cell)) {
+      return 0
+    }
+  }
+  return cells.length
+}
+
+/** 表格 body 行遇到其它块级结构起始时终止（列表项另行用 matchListItem 判断） */
+const TABLE_ROW_BREAK = /^\s{0,3}(#{1,5}\s|```|~~~|>)/
 
 export class MarkdownParser extends ContentParser {
   private readonly headingSize: number[] = [7, 6, 5, 4, 3]
@@ -240,12 +292,54 @@ export class MarkdownParser extends ContentParser {
         continue
       }
 
+      if (line.includes('|') && index + 1 < lines.length) {
+        const colCount = tableDelimiterColumns(lines[index + 1])
+        if (colCount > 0 && splitTableRow(line).length == colCount) {
+          flushParagraph()
+          const table = this.parseTable(lines, index, colCount)
+          roots.push(table.root)
+          index = table.nextIndex
+          continue
+        }
+      }
+
       paragraphLines.push(line)
       index++
     }
 
     flushParagraph()
     return roots
+  }
+
+  /** 解析 GFM 表格块：lines[headerIndex] 为表头，headerIndex+1 为分隔行，其后连续 body 行 */
+  private parseTable(lines: string[], headerIndex: number, colCount: number): MarkdownTableResult {
+    const rows: GeneralNode[] = [this.makeTableRow(splitTableRow(lines[headerIndex]), colCount)]
+    let index = headerIndex + 2
+    while (index < lines.length) {
+      const line = lines[index]
+      if (line.trim().length == 0 || !line.includes('|') ||
+        TABLE_ROW_BREAK.test(line) || this.matchListItem(line) !== undefined) {
+        break
+      }
+      rows.push(this.makeTableRow(splitTableRow(line), colCount))
+      index++
+    }
+    return {
+      root: this.makeRoot(UINodeName.Table, rows),
+      nextIndex: index
+    }
+  }
+
+  private makeTableRow(cells: string[], colCount: number): GeneralNode {
+    const tr = new GeneralNode(UINodeName.Tr, '')
+    const tds: GeneralNode[] = []
+    for (let i = 0; i < colCount; i++) {
+      const td = new GeneralNode(UINodeName.Td, '')
+      td.nestedRootNode = [this.makeRoot(UINodeName.Text, this.parseInline(i < cells.length ? cells[i] : '', {}))]
+      tds.push(td)
+    }
+    tr.nestedGeneralNode = tds
+    return tr
   }
 
   private pushParagraph(roots: UIRootNode[], lines: string[]): void {
@@ -322,65 +416,132 @@ export class MarkdownParser extends ContentParser {
 
   private parseInline(text: string, style: ParserTextStyle): GeneralNode[] {
     const nodes: GeneralNode[] = []
-    let buffer = ''
+    // 字面量累积：literalParts 存放已切下的片段与转义字符，literalStart 为尚未切段的起始下标。
+    // 避免逐字符 +=（ArkTS 字符串不可变，逐字符拼接是 O(n^2) 拷贝）。
+    const literalParts: string[] = []
+    let literalStart = 0
     let index = 0
+    // 失败备忘录：indexOf 全扫失败一次后记录位置，之后起点不早于该位置的同类查询必然失败，直接跳过。
+    const noMarkerFrom: Map<string, number> = new Map()
+    let noCloseBracketFrom = -1
+    let noCloseParenFrom = -1
 
-    const flushText = (): void => {
-      if (buffer.length > 0) {
-        nodes.push(this.textNode(buffer, style))
-        buffer = ''
+    const flushLiteral = (end: number): void => {
+      if (end > literalStart) {
+        literalParts.push(text.slice(literalStart, end))
+      }
+      if (literalParts.length > 0) {
+        nodes.push(this.textNode(literalParts.join(''), style))
+        literalParts.splice(0, literalParts.length)
       }
     }
 
+    const findMarkerClose = (marker: string, from: number): number => {
+      const failedFrom = noMarkerFrom.get(marker)
+      if (failedFrom !== undefined && from >= failedFrom) {
+        return -1
+      }
+      const found = text.indexOf(marker, from)
+      if (found < 0) {
+        noMarkerFrom.set(marker, from)
+      }
+      return found
+    }
+
     while (index < text.length) {
-      if (text[index] == '\\' && index + 1 < text.length) {
-        buffer += text[index + 1]
+      const ch = text[index]
+
+      if (ch == '\\' && index + 1 < text.length) {
+        if (index > literalStart) {
+          literalParts.push(text.slice(literalStart, index))
+        }
+        literalParts.push(text[index + 1])
         index += 2
+        literalStart = index
         continue
       }
 
-      if (text[index] == '\n') {
-        flushText()
+      if (ch == '\n') {
+        flushLiteral(index)
         nodes.push(new GeneralNode(UINodeName.Br, ''))
+        index++
+        literalStart = index
+        continue
+      }
+
+      if (ch == '[' || (ch == '!' && index + 1 < text.length && text[index + 1] == '[')) {
+        const isImage = ch == '!'
+        const labelStart = isImage ? index + 1 : index
+        let labelEnd = -1
+        if (noCloseBracketFrom < 0 || labelStart + 1 < noCloseBracketFrom) {
+          labelEnd = text.indexOf(']', labelStart + 1)
+          if (labelEnd < 0) {
+            noCloseBracketFrom = labelStart + 1
+          }
+        }
+        if (labelEnd >= 0 && labelEnd + 1 < text.length && text[labelEnd + 1] == '(') {
+          let urlEnd = -1
+          if (noCloseParenFrom < 0 || labelEnd + 2 < noCloseParenFrom) {
+            urlEnd = text.indexOf(')', labelEnd + 2)
+            if (urlEnd < 0) {
+              noCloseParenFrom = labelEnd + 2
+            }
+          }
+          if (urlEnd >= 0) {
+            flushLiteral(index)
+            const url = text.slice(labelEnd + 2, urlEnd).trim()
+            if (isImage) {
+              nodes.push(this.textNode(`[img]${url}[/img]`, style))
+            } else {
+              this.appendNodes(nodes, this.parseInline(text.slice(labelStart + 1, labelEnd),
+                this.mergeStyle(style, { href: url })))
+            }
+            index = urlEnd + 1
+            literalStart = index
+            continue
+          }
+        }
         index++
         continue
       }
 
-      const image = this.inlineImage(text, index)
-      if (image.nextIndex > index) {
-        flushText()
-        nodes.push(this.textNode(`[img]${image.url}[/img]`, style))
-        index = image.nextIndex
-        continue
-      }
-
-      const link = this.inlineLink(text, index)
-      if (link.nextIndex > index) {
-        flushText()
-        this.appendNodes(nodes, this.parseInline(link.text, this.mergeStyle(style, {
-          href: link.url
-        })))
-        index = link.nextIndex
-        continue
-      }
-
-      const marker = this.inlineMarker(text, index)
-      if (marker.length > 0) {
-        const closeIndex = text.indexOf(marker, index + marker.length)
-        if (closeIndex > index + marker.length) {
-          flushText()
-          this.appendNodes(nodes, this.parseInline(text.slice(index + marker.length, closeIndex),
-            this.mergeStyle(style, this.styleForMarker(marker))))
-          index = closeIndex + marker.length
+      if (ch == '`') {
+        // 行内代码：等长反引号串成对，内容内换行折为空格（CommonMark）
+        let len = 1
+        while (index + len < text.length && text[index + len] == '`') len++
+        const marker = '`'.repeat(len)
+        const closeIndex = findMarkerClose(marker, index + len)
+        if (closeIndex > index + len) {
+          flushLiteral(index)
+          nodes.push(this.textNode(text.slice(index + len, closeIndex).replace(/\n/g, ' '),
+            this.mergeStyle(style, { backgroundColor: CODE_BG })))
+          index = closeIndex + len
+          literalStart = index
           continue
         }
       }
 
-      buffer += text[index]
+      if (ch == '*' || ch == '_' || ch == '~') {
+        const marker = this.inlineMarker(text, index)
+        if (marker.length > 0) {
+          const closeIndex = findMarkerClose(marker, index + marker.length)
+          if (closeIndex > index + marker.length) {
+            flushLiteral(index)
+            this.appendNodes(nodes, this.parseInline(text.slice(index + marker.length, closeIndex),
+              this.mergeStyle(style, this.styleForMarker(marker))))
+            index = closeIndex + marker.length
+            literalStart = index
+            continue
+          }
+        }
+        index++
+        continue
+      }
+
       index++
     }
 
-    flushText()
+    flushLiteral(text.length)
     return nodes
   }
 
@@ -415,63 +576,19 @@ export class MarkdownParser extends ContentParser {
     }
   }
 
-  private inlineImage(text: string, index: number): MarkdownInlineLink {
-    if (!text.startsWith('![', index)) {
-      return {
-        text: '',
-        url: '',
-        nextIndex: index
-      }
+  private standaloneImageUrl(text: string): string {
+    if (!text.startsWith('![')) {
+      return ''
     }
-    const link = this.inlineLinkBody(text, index + 1)
-    if (link.nextIndex <= index + 1) {
-      return {
-        text: '',
-        url: '',
-        nextIndex: index
-      }
-    }
-    return link
-  }
-
-  private inlineLink(text: string, index: number): MarkdownInlineLink {
-    if (!text.startsWith('[', index)) {
-      return {
-        text: '',
-        url: '',
-        nextIndex: index
-      }
-    }
-    return this.inlineLinkBody(text, index)
-  }
-
-  private inlineLinkBody(text: string, startIndex: number): MarkdownInlineLink {
-    const labelEnd = text.indexOf(']', startIndex + 1)
+    const labelEnd = text.indexOf(']', 2)
     if (labelEnd < 0 || labelEnd + 1 >= text.length || text[labelEnd + 1] != '(') {
-      return {
-        text: '',
-        url: '',
-        nextIndex: startIndex
-      }
+      return ''
     }
     const urlEnd = text.indexOf(')', labelEnd + 2)
-    if (urlEnd < 0) {
-      return {
-        text: '',
-        url: '',
-        nextIndex: startIndex
-      }
+    if (urlEnd < 0 || urlEnd + 1 != text.length) {
+      return ''
     }
-    return {
-      text: text.slice(startIndex + 1, labelEnd),
-      url: text.slice(labelEnd + 2, urlEnd).trim(),
-      nextIndex: urlEnd + 1
-    }
-  }
-
-  private standaloneImageUrl(text: string): string {
-    const image = this.inlineImage(text, 0)
-    return image.nextIndex == text.length ? image.url : ''
+    return text.slice(labelEnd + 2, urlEnd).trim()
   }
 
   private textNode(text: string, style: ParserTextStyle): GeneralNode {
@@ -481,6 +598,7 @@ export class MarkdownParser extends ContentParser {
     node.styleControl.strike = style.strike
     node.styleControl.href = style.href
     node.styleControl.fontSize = style.fontSize
+    node.styleControl.backgroundColor = style.backgroundColor
     return node
   }
 
@@ -491,6 +609,7 @@ export class MarkdownParser extends ContentParser {
     result.strike = patch.strike !== undefined ? patch.strike : result.strike
     result.href = patch.href !== undefined ? patch.href : result.href
     result.fontSize = patch.fontSize !== undefined ? patch.fontSize : result.fontSize
+    result.backgroundColor = patch.backgroundColor !== undefined ? patch.backgroundColor : result.backgroundColor
     return result
   }
 
@@ -500,15 +619,10 @@ export class MarkdownParser extends ContentParser {
       italic: style.italic,
       strike: style.strike,
       href: style.href,
-      fontSize: style.fontSize
+      fontSize: style.fontSize,
+      backgroundColor: style.backgroundColor
     }
   }
-}
-
-interface MarkdownInlineLink {
-  text: string
-  url: string
-  nextIndex: number
 }
 
 export const markdownParser = new MarkdownParser()
@@ -583,6 +697,23 @@ function markdownSuspicionScore(text: string): number {
         score += 0.5
         i = j + 1
         continue
+      } else if (text[j] == '|') {
+        const lineEnd = text.indexOf('\n', j)
+        const row = lineEnd < 0 ? text.slice(j) : text.slice(j, lineEnd)
+        if (tableDelimiterColumns(row) > 0) {
+          score += 2
+        } else {
+          let pipes = 0
+          const end = lineEnd < 0 ? text.length : lineEnd
+          for (let p = j; p < end; p++) {
+            if (text[p] == '|') {
+              pipes++
+            }
+          }
+          if (pipes >= 2) {
+            score += 0.5
+          }
+        }
       }
     }
     const ch = text[i]
@@ -643,9 +774,50 @@ export function tryParseMarkdown(rootList: UIRootNode[], plaintextPost: string):
   if (markdownSuspicionScore(plaintextPost) <= MD_SUSPICION_THRESHOLD) {
     return undefined
   }
+  return convertMarkdownRoots(rootList)
+}
 
+/** 克隆节点，并对其中的 nestedRootNode（引用块）递归做 markdown 解析 */
+function cloneNodeWithMarkdownRoots(node: GeneralNode): GeneralNode {
+  const cloned = new GeneralNode(node.name, node.content, node.attribute)
+  cloned.styleControl.color = node.styleControl.color
+  cloned.styleControl.weight = node.styleControl.weight
+  cloned.styleControl.italic = node.styleControl.italic
+  cloned.styleControl.underline = node.styleControl.underline
+  cloned.styleControl.strike = node.styleControl.strike
+  cloned.styleControl.href = node.styleControl.href
+  cloned.styleControl.fontSize = node.styleControl.fontSize
+  cloned.styleControl.fontSizeStyle = node.styleControl.fontSizeStyle
+  cloned.styleControl.fontFamily = node.styleControl.fontFamily
+  cloned.styleControl.backgroundColor = node.styleControl.backgroundColor
+  if (node.nestedRootNode) {
+    cloned.nestedRootNode = convertMarkdownRoots(node.nestedRootNode)
+  }
+  if (node.nestedGeneralNode) {
+    const nested: GeneralNode[] = []
+    for (const child of node.nestedGeneralNode) {
+      nested.push(cloneGeneralNode(child))
+    }
+    cloned.nestedGeneralNode = nested
+  }
+  return cloned
+}
+
+function convertMarkdownRoots(rootList: UIRootNode[]): UIRootNode[] {
   const result: UIRootNode[] = []
   for (const root of rootList) {
+    if (root.type == UINodeName.Quote) {
+      const block: GeneralNode[] = []
+      for (const node of root.block) {
+        block.push(cloneNodeWithMarkdownRoots(node))
+      }
+      result.push({
+        type: root.type,
+        block,
+        textAlign: root.textAlign
+      })
+      continue
+    }
     if (root.type != UINodeName.Text) {
       result.push(cloneUIRootNode(root))
       continue
@@ -679,6 +851,9 @@ export function tryParseMarkdown(rootList: UIRootNode[], plaintextPost: string):
     for (const node of root.block) {
       if (isUnstyledTextNode(node)) {
         markdownParts.push(node.content)
+      } else if (node.name == UINodeName.Br) {
+        // Br 并入 markdown 流：多行结构（跨行引用、表格、围栏代码）才能被解析
+        markdownParts.push('\n')
       } else {
         convertMarkdownParts()
         flushBlocksIntoResult([cloneGeneralNode(node)])
@@ -1297,7 +1472,7 @@ export class MarkdownSerializer extends StyledContentSerializer {
         const cells: string[] = []
         for (const cellNode of node.nestedGeneralNode) {
           if (cellNode.name == UINodeName.Td && cellNode.nestedRootNode) {
-            cells.push(this.convert(cellNode.nestedRootNode).replace(/\n/g, '<br>'))
+            cells.push(this.convert(cellNode.nestedRootNode).replace(/\n/g, '<br>').replace(/\|/g, '\\|'))
           }
         }
         rows.push(cells)
@@ -1349,6 +1524,9 @@ export class MarkdownSerializer extends StyledContentSerializer {
     }
     if (node.attribute == UINodeName.Ol) {
       return text.trim() + '. '
+    }
+    if (node.styleControl.backgroundColor == CODE_BG) {
+      return '`' + text + '`'
     }
     if (node.styleControl.href) {
       text = `[${text}](${node.styleControl.href})`
