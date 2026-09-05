@@ -126,7 +126,7 @@ function openImgViewerEventName(pageParam: ThreadPostParam) {
 }
 
 function attachmentImageUrl(attach: Attachment): string {
-  return attach.url.length > 0 ? attach.url + attach.attachment
+  return attach.url && attach.url.length > 0 ? attach.url + attach.attachment
     : URL.WEB_BASE + URL.ATTACHMENT_DOWNLOAD + attach.aidencode
 }
 

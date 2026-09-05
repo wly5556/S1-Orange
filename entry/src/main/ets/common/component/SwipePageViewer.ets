@@ -35,7 +35,7 @@ export struct SwipePageViewer {
   dataSource: PageIndexDataSource = new PageIndexDataSource(this.maxPage)
   cacheCount: number = 1
   @Link currentPage: number
-  @Prop @Watch('requestJump') jumpToPage: number = -1
+  @Link @Watch('requestJump') jumpToPage: number
   @State currentSwiperIndex: number = 0
   @State swiperDisabled: boolean = false
   @State contentReady: Record<number, boolean> = {}
