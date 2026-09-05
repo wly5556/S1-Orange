@@ -41,6 +41,13 @@ interface FetchedPost {
   pid: string
 }
 
+export interface LatestPostInfo {
+  nodes: UIRootNode[]
+  author: string
+  dateline: number
+  pid: string
+}
+
 interface AskAiSection {
   author: string
   dateline: number
@@ -366,6 +373,37 @@ async function fetchPreviousFloors(tid: string, currentFloor: number, count: num
   }
   sections.sort((a, b) => a.floor - b.floor)
   return sections
+}
+
+export async function fetchLatestPost(tid: string, latestFloor: number): Promise<LatestPostInfo | undefined> {
+  const page = Math.ceil(latestFloor / POST_PER_PAGE)
+  try {
+    const v = await new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .appToken()
+      .post({
+        tid: tid,
+        pageNo: page,
+        uid: ''
+      })
+    const list = v.data.list
+    for (let i = list.length - 1; i >= 0; i--) {
+      const floor = (page - 1) * POST_PER_PAGE + i + 1
+      if (floor <= latestFloor) {
+        const parsed = parseXML([list[i]])
+        if (parsed.length == 0) {
+          return undefined
+        }
+        return {
+          nodes: PostContentParser(parsed[0], []).node,
+          author: list[i].author,
+          dateline: list[i].dateline,
+          pid: list[i].pid.toString()
+        }
+      }
+    }
+  } catch (e) {
+  }
+  return undefined
 }
 
 export async function buildAskAiMarkdown(nodes: UIRootNode[], author: string, dateline: number,

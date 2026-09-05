@@ -5,12 +5,14 @@ import { AniSpeed } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { UIRootNode } from './ThreadPostContent'
 import { ShareText } from '../ShareKit'
-import { buildAskAiMarkdown, composeAskAiPayload, computeAskAiStats } from '../AskAiUtil'
+import { buildAskAiMarkdown, composeAskAiPayload, computeAskAiStats, fetchLatestPost } from '../AskAiUtil'
+import { LatestPostInfo } from '../AskAiUtil'
 import { PreferenceManager } from '../../config/UserConfig'
 import { defaultApplicationConfig } from '../../config/v1/default'
 
 const DEFAULT_PREVIOUS_COUNT = 5
 const MAX_PREVIOUS_COUNT = 400
+const SUMMARIZE_UNREAD_PROMPT = '总结讨论话题和主要观点，帮助我跟上最新讨论'
 const STATS_DEBOUNCE_MS = 300
 
 @CustomDialog
@@ -24,6 +26,7 @@ export struct AskAiDialog {
   @Prop postPid: string = ''
   @Prop postSubject: string = ''
   @Prop postFloorNumber: string = ''
+  @Prop summarizeUnreadCount: number = 0
   @Prop appTheme: AppThemeColor = new ThemeColorLight()
   @Prop fontSize: number = 0
   @State includeQuotes: boolean = defaultApplicationConfig.ask_ai_include_quoted
@@ -40,14 +43,25 @@ export struct AskAiDialog {
   lastMarkdown: string = ''
   lastKey: string = ''
   statsDebounceTimer: number = -1
+  anchorPost?: LatestPostInfo = undefined
+  anchorFetched: boolean = false
 
   aboutToAppear(): void {
-    PreferenceManager.readonly(conf => {
-      this.includeQuotes = conf.ask_ai_include_quoted
-      this.includeMainPost = conf.ask_ai_include_main
-      this.includePrevious = conf.ask_ai_include_previous
-      this.updateStats()
-    })
+    if (this.summarizeUnreadCount > 0) {
+      this.includeQuotes = true
+      this.includeMainPost = false
+      this.includePrevious = true
+      this.previousCountText = Math.min(this.summarizeUnreadCount, MAX_PREVIOUS_COUNT).toString()
+      this.inputText = SUMMARIZE_UNREAD_PROMPT
+      this.refreshStats()
+    } else {
+      PreferenceManager.readonly(conf => {
+        this.includeQuotes = conf.ask_ai_include_quoted
+        this.includeMainPost = conf.ask_ai_include_main
+        this.includePrevious = conf.ask_ai_include_previous
+        this.updateStats()
+      })
+    }
   }
 
   aboutToDisappear(): void {
@@ -74,10 +88,27 @@ export struct AskAiDialog {
     return `${this.postPid}|${this.includeMainPost}|${this.includeQuotes}|${this.includePrevious}|${this.getPreviousCount()}|${this.getCurrentFloor()}`
   }
 
-  buildMarkdown(): Promise<string> {
-    return buildAskAiMarkdown(this.postNodes, this.postAuthor, this.postDateline,
-      this.postTid, this.postPid, this.postSubject, this.includeMainPost, this.includeQuotes,
-      this.includePrevious, this.getPreviousCount(), this.getCurrentFloor())
+  async buildMarkdown(): Promise<string> {
+    let nodes = this.postNodes
+    let author = this.postAuthor
+    let dateline = this.postDateline
+    let pid = this.postPid
+    if (this.summarizeUnreadCount > 0) {
+      if (!this.anchorFetched) {
+        this.anchorFetched = true
+        this.anchorPost = await fetchLatestPost(this.postTid, this.getCurrentFloor())
+      }
+      const anchor = this.anchorPost
+      if (anchor) {
+        nodes = anchor.nodes
+        author = anchor.author
+        dateline = anchor.dateline
+        pid = anchor.pid
+      }
+    }
+    return buildAskAiMarkdown(nodes, author, dateline, this.postTid, pid, this.postSubject,
+      this.includeMainPost, this.includeQuotes, this.includePrevious,
+      this.getPreviousCount(), this.getCurrentFloor())
   }
 
   setPreviousCount(count: number): void {
@@ -146,19 +177,25 @@ export struct AskAiDialog {
   onContextToggle(which: 'main' | 'quoted' | 'previous', checked: boolean): void {
     if (which == 'main') {
       this.includeMainPost = checked
-      PreferenceManager.modify(conf => {
-        conf.ask_ai_include_main = checked
-      })
+      if (this.summarizeUnreadCount <= 0) {
+        PreferenceManager.modify(conf => {
+          conf.ask_ai_include_main = checked
+        })
+      }
     } else if (which == 'quoted') {
       this.includeQuotes = checked
-      PreferenceManager.modify(conf => {
-        conf.ask_ai_include_quoted = checked
-      })
+      if (this.summarizeUnreadCount <= 0) {
+        PreferenceManager.modify(conf => {
+          conf.ask_ai_include_quoted = checked
+        })
+      }
     } else {
       this.includePrevious = checked
-      PreferenceManager.modify(conf => {
-        conf.ask_ai_include_previous = checked
-      })
+      if (this.summarizeUnreadCount <= 0) {
+        PreferenceManager.modify(conf => {
+          conf.ask_ai_include_previous = checked
+        })
+      }
     }
     this.refreshStats()
   }
@@ -193,16 +230,6 @@ export struct AskAiDialog {
     this.controller.close()
   }
 
-  @Builder
-  quickCountButton(count: number) {
-    Button(count.toString() + '层')
-      .enabled(!this.sending && this.includePrevious)
-      .buttonStyle(ButtonStyleMode.NORMAL)
-      .onClick(() => {
-        this.setPreviousCount(count)
-      })
-  }
-
   build() {
     Column({ space: 16 }) {
       Row({ space: 12 }) {
@@ -234,12 +261,12 @@ export struct AskAiDialog {
           .onChange((checked: boolean) => {
             this.onContextToggle('previous', checked)
           })
-        Text('之前的')
+        Text(this.summarizeUnreadCount <= 0 ? '这层之前的' : '最新的')
           .fontSize(FontSizeEnum[this.fontSize].vp16)
         TextInput({ text: this.previousCountText })
           .fontSize(FontSizeEnum[this.fontSize].vp16)
           .type(InputType.Number)
-          .flexShrink(1)
+          .layoutWeight(1)
           .padding({ left: 8, right: 8 })
           .enabled(!this.sending && this.includePrevious)
           .onChange((value: string) => {
@@ -255,9 +282,13 @@ export struct AskAiDialog {
           })
         Text('层')
           .fontSize(FontSizeEnum[this.fontSize].vp16)
-        Blank()
-        this.quickCountButton(10)
-        this.quickCountButton(40)
+        Button('+20层')
+          .fontSize(FontSizeEnum[this.fontSize].vp16)
+          .buttonStyle(ButtonStyleMode.NORMAL)
+          .enabled(!this.sending && this.includePrevious)
+          .onClick(() => {
+            this.setPreviousCount(this.getPreviousCount() + 20)
+          })
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)

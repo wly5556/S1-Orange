@@ -22,10 +22,10 @@ export struct TitleBar {
   @Consume appState: PreferenceState
   @Prop titleContent?: string = undefined
   leftButtonType: TitleBarLeftButtonType = TitleBarLeftButtonType.BACK
-  @State useRightMenu: boolean = true
+  @Prop useRightMenu: boolean = true
   titleCopyable: boolean = false
   @State private showRightMenu: boolean = false
-  menu?: MenuElement[]
+  @Prop menu?: MenuElement[] = undefined
   @State transparent: boolean = false
 
   @Builder
