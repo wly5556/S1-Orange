@@ -18,6 +18,7 @@ import { PreferenceState } from '../NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PropKey } from '../../common/Constants'
 import { AniSpeed } from '../../common/Animation'
+import { promptAction } from '@kit.ArkUI'
 
 export enum SearchType {
   Thread = 0,
@@ -118,7 +119,6 @@ export struct SearchPage {
                     })
                     return
                   }
-                  this.searchRequestKeyword = this.keywordInput
                   const searchType = this.searchTypeInput
                   new request<string>(URL.SEARCH_WEB, URL.WEB_BASE)
                     .redirectLocation()
@@ -126,10 +126,19 @@ export struct SearchPage {
                     .toText()
                     .post({
                       'mod': SearchTypeParam[searchType],
-                      'srchtxt': this.searchTypeInput == SearchType.Thread ? this.searchRequestKeyword :
-                      encodeURIComponent(this.searchRequestKeyword)
+                      'srchtxt': searchType == SearchType.Thread ? this.keywordInput :
+                      encodeURIComponent(this.keywordInput)
                     })
                     .then(location => {
+                      if (location.startsWith('<')) {
+                        // 服务器限频等提示页面直接作为响应返回，而不是 302 location
+                        this.searchRequestKeyword = ''
+                        promptAction.showToast({
+                          message: extractSearchAlertText(location) ?? '搜索频率过快，请稍后再试',
+                        })
+                        return
+                      }
+                      this.searchRequestKeyword = this.keywordInput
                       this.getSearchResult(URL.WEB_BASE + location, searchType)
                     })
                 })
@@ -360,6 +369,15 @@ interface SearchInfo {
 }
 
 export const pagePattern = /<span title="共 (\d+) 页">/
+
+function extractSearchAlertText(html: string): string | undefined {
+  const match = html.match(/<div[^>]*class="alert_info"[^>]*>\s*<p>([\s\S]*?)<\/p>/)
+  if (match) {
+    const text = match[1].replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]*>/g, '')
+    return text.replace(/\s+/g, ' ').trim()
+  }
+  return undefined
+}
 
 function extractThreadSearchInfo(html: string): SearchInfo {
   const totalItemPattern = /<em>[\s\S]*?(相关内容 (\d+) 个)[\s\S]*?<\/em>/
