@@ -630,14 +630,20 @@ struct SinglePostPage {
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
   pageToLoad: number = 1
   imgUrl: string[] = []
+  postContentMessage: Map<string, string> = new Map
 
   openImageViewer(imgUrl: string[], index: number) {
     this.context.eventHub.emit(openImgViewerEventName(this.pageParam), imgUrl, index)
   }
 
+  attachmentImageInContent(pid: string, attach: Attachment): boolean {
+    return (this.postContentMessage.get(pid) || '').includes(attach.attachment)
+  }
+
   openAttachmentImageViewer(pid: string, url: string) {
     const tailUrls = Object.values(this.postAttachment.get(pid) || {})
-      .filter(a => a.isimage !== '0' && !this.consumedAttachmentAid.has(a.aid))
+      .filter(a => a.isimage !== '0' && !this.consumedAttachmentAid.has(a.aid) &&
+        !this.attachmentImageInContent(pid, a))
       .map(a => attachmentImageUrl(a))
     const urls = this.imgUrl.concat(tailUrls)
     this.openImageViewer(urls, Math.max(0, urls.indexOf(url)))
@@ -818,17 +824,7 @@ struct SinglePostPage {
 
       rawPostList.forEach((p, i) => {
         if (p.attachments) {
-          const attachMap: Record<string, Attachment> = {}
-          Object.values(p.attachments).forEach(attach => {
-            if (attach.isimage === '0') {
-              attachMap[attach.aid] = attach
-            } else if (!p.message.includes(attach.attachment)) { // 未插入正文的图片附件(isimage为-1等)也纳入展示
-              attachMap[attach.aid] = attach
-            }
-          })
-          if (Object.keys(attachMap).length > 0) {
-            this.postAttachment.set(p.pid, attachMap)
-          }
+          this.postAttachment.set(p.pid, p.attachments)
         }
         if (p.groupid === '4') {
           parseXML([p]).forEach((root) => {
@@ -907,6 +903,7 @@ struct SinglePostPage {
     const searchItems: PostSearchItem[] = []
     let rawPostList = v.data.list
     this.imgUrl = []
+    this.postContentMessage.clear()
     this.postStringify.clear()
     this.mdRendered.clear()
     this.mdRenderShow.clear()
@@ -921,6 +918,7 @@ struct SinglePostPage {
         userCredit: rawPostList[index].e
       }
       this.postStringify.set(vm.pid, JSON.stringify(vm.node)) // 完整数据作为foreach key，刷新页面数据时没变动的楼层就不会闪烁
+      this.postContentMessage.set(vm.pid, rawPostList[index].message)
       const plaintextPost = plainTextSerializer.convert(vm.node)
       const floor = this.getFloorNumber(index) || String((this.pageToLoad - 1) * POST_PER_PAGE + index + 1)
       searchItems.push({
