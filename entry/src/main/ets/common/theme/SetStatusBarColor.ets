@@ -4,9 +4,9 @@ import { AppThemeColor } from './basic/basic'
 
 export function SetStatusBarColor(context: common.UIAbilityContext, theme: AppThemeColor) {
   window.getLastWindow(context).then((windowClass): void => {
-    windowClass.setWindowBackgroundColor(theme.titleBar?.toString())
+    windowClass.setWindowBackgroundColor(theme.backgroundSecondary?.toString())
     windowClass.setWindowSystemBarProperties({
-      statusBarColor: '#00000000',
+      statusBarColor: theme.titleBar?.toString(),
       statusBarContentColor: theme.titleBarFont?.toString()
     })
   })
