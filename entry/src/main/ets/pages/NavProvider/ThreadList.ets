@@ -9,7 +9,11 @@ import { TitleBar } from '../../common/component/TitleBar'
 import { common } from '@kit.AbilityKit'
 import {
   AniSpeed,
-  AppearDisappearAni, ClickDarkenEffect, HeavyClickEffect, OpacityTransition } from '../../common/Animation'
+  AppearDisappearAni,
+  ClickDarkenEffect,
+  HeavyClickEffect,
+  OpacityTransition
+} from '../../common/Animation'
 import { openThreadPost, ThreadPostParam } from '../NavDest/ThreadPostList'
 import { Event } from '../../common/Events'
 import { unescapeAll } from '../../common/XmlParser'
@@ -547,12 +551,13 @@ struct ThreadListPage {
             .height('auto')
             .width('100%')
             if (this.pageToLoad == 1 && threadInfo.index == this.recommendPinned.length - 1) {
-              Text('你可能感兴趣的帖子')
+              Text('∧  你可能感兴趣')
                 .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
                 .fontColor(this.appTheme.fontSecondary)
-                .width('100%')
-                .padding({ left: 12, bottom: 2 })
+                .width('90%')
+                .padding({ bottom: 2 })
                 .transition(OpacityTransition)
+                .textAlign(TextAlign.End)
               Divider()
                 .opacity(0.4)
                 .transition(OpacityTransition)

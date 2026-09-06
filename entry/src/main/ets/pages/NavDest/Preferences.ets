@@ -743,7 +743,7 @@ export struct PreferencePage {
               if (this.appState.recommendEnabled) {
                 Column({ space: SettingColumnSpace }) {
                   Row() {
-                    Text('帖子列表内，会有一批“你可能感兴趣的帖子”自动升到顶部，方便你快速查看有新回复的专楼、或者发现新鲜的内容')
+                    Text('帖子列表内，会有一批“你可能感兴趣的帖子”自动升到顶部，方便你快速查看有新回复的专楼、或者发现新鲜的内容。\n\n标注成实验性功能，是因为实际体验下来，各方面都很鸡肋')
                       .attributeModifier(this.textSecondary)
                       .width('100%')
                   }.attributeModifier(this.settingRow).transition(OpacityTransition)
