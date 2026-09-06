@@ -16,6 +16,10 @@ const relativeTimeFormat: intl.RelativeTimeFormat = new intl.RelativeTimeFormat(
   numeric: 'auto'
 })
 
+export function formatAbsoluteTime(then: Date): string {
+  return `${yearBeforeFormat.format(then)} ${hourFormat.format(then)}`
+}
+
 export function formatRelativeTime(now: Date, then: Date): string {
   const oneDay = 24 * 60 * 60 * 1000
   const diffInMs = now.getTime() - then.getTime()

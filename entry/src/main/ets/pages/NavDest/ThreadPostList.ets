@@ -12,6 +12,7 @@ import { common } from '@kit.AbilityKit'
 import { openUserSpace, UserSpaceParam } from './UserSpace'
 import { AniSpeed, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
+import { setLongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { PageNameEnum } from '../PageNameEnum'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 import { AppThemeColor } from '../../common/theme/basic/basic'
@@ -923,6 +924,11 @@ struct SinglePostPage {
       this.pageParam.typeid = v.Variables.thread.typeid
     }
     this.threadAuthorUid = v.Variables.thread.authorid
+    const threadDateline = parseInt(v.Variables.thread.dateline)
+    const threadReplies = parseInt(v.Variables.thread.replies)
+    setLongScreenshotThreadInfo(this.pageParam.tid,
+      !isNaN(threadDateline) && threadDateline > 0 ? threadDateline * 1000 : 0,
+      !isNaN(threadReplies) && threadReplies > 0 ? threadReplies : 0)
     const postRating = new Map<string, ThreadRatingInfo | undefined>()
     Object.keys(v.Variables.comments).forEach(pid => postRating.set(pid, undefined))
     this.postRatingInfo = postRating

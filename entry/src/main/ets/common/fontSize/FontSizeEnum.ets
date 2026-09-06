@@ -1,6 +1,7 @@
 import { FontSizeIndex } from '../../config/v1/default'
 
 export interface FontSize {
+  vp11: number
   vp12: number
   vp13: number
   vp14: number
@@ -25,6 +26,7 @@ export function FontSizeSetup(base: number) {
   const ratio: number = base / 16
   FontSizeEnum[base] = {
     ratio: ratio,
+    vp11: 11 * ratio,
     vp12: 12 * ratio,
     vp13: 13 * ratio,
     vp14: 14 * ratio,

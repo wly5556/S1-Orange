@@ -6,7 +6,8 @@ import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { PropKey } from '../../common/Constants'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
-import { formatRelativeTime } from '../../common/TimeFormat'
+import { formatAbsoluteTime } from '../../common/TimeFormat'
+import { getLongScreenshotThreadInfo, LongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { avatarPath } from '../../common/component/Avatar'
 import { ImageKnifeComponent } from '@ohos/imageknife'
 import {
@@ -21,6 +22,7 @@ import { getSnapshotArea, mergeImage } from '../../common/LongScreenshotMerger'
 import { promptAction } from '@kit.ArkUI'
 import { getGroupName, getThreadTypeName } from '../../common/ForumUtil'
 import { generateS1WebPostLink } from '../../common/WantUitl'
+import { URL } from '../../api/base'
 import { UserCreditText } from '../../common/component/UserCredit'
 import { PollPanelComp } from '../../common/component/PollPanel'
 
@@ -70,6 +72,48 @@ export struct LongScreenshotPage {
   private bottomPerforationSettings: RenderingContextSettings = new RenderingContextSettings(true)
   private bottomPerforationContext: CanvasRenderingContext2D =
     new CanvasRenderingContext2D(this.bottomPerforationSettings)
+
+  private threadTypeTag(): string {
+    const name = getThreadTypeName(this.pageParam.fid, this.pageParam.typeid)
+    return name.length > 0 ? `[${name}] ` : ''
+  }
+
+  private shotInfo(): LongScreenshotThreadInfo | undefined {
+    return getLongScreenshotThreadInfo(this.pageParam.tid)
+  }
+
+  private threadReplyTail(): string {
+    const info = this.shotInfo()
+    return info !== undefined && info.replyCount > 0 ? ` · 跟帖 ${info.replyCount}条` : ''
+  }
+
+  private threadCreTimeLine(): string {
+    const info = this.shotInfo()
+    const ts = info !== undefined ? info.threadDatelineTs : 0
+    return ts > 0 ? `主题发表于 ${formatAbsoluteTime(new Date(ts))}` : ''
+  }
+
+  private qrCodeLink(): string {
+    let firstFloorPost: LongScreenshotPost | undefined = undefined
+    let firstFloor = 0
+    for (const p of this.pageParam.posts) {
+      const floor = parseInt(p.floorNumber)
+      if (isNaN(floor)) {
+        continue
+      }
+      if (floor == 1) {
+        return generateS1WebPostLink(this.pageParam.tid, 1)
+      }
+      if (firstFloorPost === undefined || floor < firstFloor) {
+        firstFloorPost = p
+        firstFloor = floor
+      }
+    }
+    if (firstFloorPost && firstFloorPost.post.pid.length > 0) {
+      return `${URL.WEB_BASE}${URL.REDIRECT_TO_POST}&ptid=${this.pageParam.tid}&pid=${firstFloorPost.post.pid}`
+    }
+    return generateS1WebPostLink(this.pageParam.tid, 1)
+  }
 
   private updatePostContentHeight(key: string, height: number) {
     if (!this.postContentHeightMap.has(key)) {
@@ -209,7 +253,7 @@ export struct LongScreenshotPage {
           }
           .alignItems(VerticalAlign.Center)
 
-          Text(formatRelativeTime(new Date(), item.post.timestamp))
+          Text(formatAbsoluteTime(item.post.timestamp))
             .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
             .fontColor(this.appTheme.fontSecondary)
         }
@@ -385,9 +429,16 @@ export struct LongScreenshotPage {
 
         ListItem() {
           Column() {
-            Text(this.pageParam.subject || '')
+            Text() {
+              if (this.threadTypeTag().length > 0) {
+                Span(this.threadTypeTag())
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                  .fontWeight(FontWeight.Normal)
+              }
+              Span(this.pageParam.subject || '')
+                .fontWeight(FontWeight.Bold)
+            }
               .fontSize(FontSizeEnum[this.appState.fontSize].vp20)
-              .fontWeight(FontWeight.Bold)
               .fontColor(this.appTheme.fontPrimary)
               .maxLines(99)
               .width('100%')
@@ -414,18 +465,22 @@ export struct LongScreenshotPage {
             Row() {
               Column({ space: 4 }) {
                 Text(
-                  `Stage1st · ${getGroupName(this.pageParam.fid)} · ${getThreadTypeName(this.pageParam.fid,
-                    this.pageParam.typeid)}`)
+                  `Stage1st · ${getGroupName(this.pageParam.fid)}`)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
                   .fontColor(this.appTheme.fontSecondary)
-                Text(`帖子 ${this.pageParam.tid}`)
-                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                Text(`帖子 ${this.pageParam.tid}${this.threadReplyTail()}`)
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp11)
                   .fontColor(this.appTheme.fontSecondary)
+                if (this.threadCreTimeLine().length > 0) {
+                  Text(this.threadCreTimeLine())
+                    .fontSize(FontSizeEnum[this.appState.fontSize].vp11)
+                    .fontColor(this.appTheme.fontSecondary)
+                }
               }
               .alignItems(HorizontalAlign.Start)
               .flexShrink(1)
 
-              QRCode(generateS1WebPostLink(this.pageParam.tid, 1)).width(36).height(36)
+              QRCode(this.qrCodeLink()).width(36).height(36)
             }.justifyContent(FlexAlign.SpaceBetween)
             .alignItems(VerticalAlign.Center)
             .width('100%')
