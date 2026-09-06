@@ -1,8 +1,8 @@
 {
   "app": {
     "bundleName": "io.github.wly5556.s1orange",
-    "versionCode": 1000015,
-    "versionName": "1.4.2",
+    "versionCode": 1000016,
+    "versionName": "1.4.3",
     "icon": "$media:app_icon",
     "label": "$string:app_name"
   }
