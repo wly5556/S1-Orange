@@ -151,7 +151,7 @@ export struct ImageContainer {
                   w: imageSize.width,
                   h: imageSize.height
                 }
-                if (imageSize.width * imageSize.height >= 16777216 && this.usedByImageViewer === false) {
+                if (imageSize.width * imageSize.height >= 4_194_304 && this.usedByImageViewer === false) {
                   this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
                 }
                 this.resize(imageSize.componentWidth)
