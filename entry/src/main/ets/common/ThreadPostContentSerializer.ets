@@ -30,7 +30,7 @@ function reverseSmilyGroupPrefix(source: Map<string, string>): Map<string, strin
 const SMILY_PREFIX_GROUP: Map<string, string> = reverseSmilyGroupPrefix(SMILY_GROUP_PREFIX)
 
 // 行内代码背景：半透明灰遮罩（与多行代码块浅色背景 #45b1b1b1 一致），浅色/深色背景下均可见
-const CODE_BG = '#45b1b1b1'
+export const CODE_BG = '#45b1b1b1'
 
 export abstract class ContentSerializer {
   abstract convert(nodes: UIRootNode[]): string
@@ -1713,15 +1713,20 @@ export class BBCodeSerializer extends StyledContentSerializer {
   }
 
   private serializeSmily(src: string): string {
-    const matched = src.match(SMILY_PATTERN)
-    if (matched && matched.length == 3) {
-      const prefix = SMILY_GROUP_PREFIX.get(matched[1])
-      if (prefix) {
-        return `[${prefix}:${matched[2]}]`
-      }
-    }
-    return `[img]${src}[/img]`
+    const code = smilyBbCode(src)
+    return code.length > 0 ? code : `[img]${src}[/img]`
   }
+}
+
+export function smilyBbCode(src: string): string {
+  const matched = src.match(SMILY_PATTERN)
+  if (matched && matched.length == 3) {
+    const prefix = SMILY_GROUP_PREFIX.get(matched[1])
+    if (prefix) {
+      return `[${prefix}:${matched[2]}]`
+    }
+  }
+  return ''
 }
 
 export const markdownSerializer = new MarkdownSerializer()

@@ -12,7 +12,6 @@ import { defaultApplicationConfig } from '../../config/v1/default'
 
 const DEFAULT_PREVIOUS_COUNT = 5
 const MAX_PREVIOUS_COUNT = 400
-const SUMMARIZE_UNREAD_PROMPT = '总结讨论话题和主要观点，帮助我跟上最新讨论'
 const STATS_DEBOUNCE_MS = 300
 
 @CustomDialog
@@ -52,7 +51,7 @@ export struct AskAiDialog {
       this.includeMainPost = false
       this.includePrevious = true
       this.previousCountText = Math.min(this.summarizeUnreadCount, MAX_PREVIOUS_COUNT).toString()
-      this.inputText = SUMMARIZE_UNREAD_PROMPT
+      this.inputText = '总结讨论话题和主要观点，帮助我跟上最新讨论'
       this.refreshStats()
     } else {
       PreferenceManager.readonly(conf => {
@@ -307,7 +306,7 @@ export struct AskAiDialog {
           .buttonStyle(ButtonStyleMode.NORMAL)
           .layoutWeight(1)
           .enabled(!this.sending)
-          .onClick(() => this.sendToAi('真的吗？'))
+          .onClick(() => this.sendToAi('求证讨论内容真实性'))
       }
       .width('100%')
 

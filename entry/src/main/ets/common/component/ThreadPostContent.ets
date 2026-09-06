@@ -14,6 +14,7 @@ import { generateImageViewerTransitionKey } from './ImageViewer'
 import { CopyText } from '../ShareKit'
 import { adjustTextColorForDarkMode } from '../Colorjs'
 import { ThreadPostAttachmentItem } from './ThreadPostAttachmentItem'
+import { CODE_BG } from '../ThreadPostContentSerializer'
 
 enum XMLNodeType {
   element = 'element',
@@ -658,7 +659,8 @@ function foldPass(block: GeneralNode[], stats: SpanStats): void {
   let w = 0
   for (let r = 0; r < block.length; r++) {
     const b = block[r]
-    if (w > 0 && b.name == UINodeName.Br && isPlainText(block[w - 1])) {
+    if (w > 0 && b.name == UINodeName.Br && isPlainText(block[w - 1]) &&
+      !block[w - 1].styleControl.href && block[w - 1].styleControl.backgroundColor !== CODE_BG) {
       block[w - 1].content += '\n'
       stats.brFolded++
       stats.removed++
