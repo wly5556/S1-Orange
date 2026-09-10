@@ -678,20 +678,16 @@ struct SinglePostPage {
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
   pageToLoad: number = 1
   imgUrl: string[] = []
-  postContentMessage: Map<string, string> = new Map
+  @State inlineAttachmentAid: Set<string> = new Set // 已插入正文的图片附件，帖尾不再重复渲染
 
   openImageViewer(imgUrl: string[], index: number) {
     this.context.eventHub.emit(openImgViewerEventName(this.pageParam), imgUrl, index)
   }
 
-  attachmentImageInContent(pid: string, attach: Attachment): boolean {
-    return (this.postContentMessage.get(pid) || '').includes(attach.attachment)
-  }
-
   openAttachmentImageViewer(pid: string, url: string) {
     const tailUrls = Object.values(this.postAttachment.get(pid) || {})
       .filter(a => a.isimage !== '0' && !this.consumedAttachmentAid.has(a.aid) &&
-        !this.attachmentImageInContent(pid, a))
+        !this.inlineAttachmentAid.has(a.aid))
       .map(a => attachmentImageUrl(a))
     const urls = this.imgUrl.concat(tailUrls)
     this.openImageViewer(urls, Math.max(0, urls.indexOf(url)))
@@ -802,11 +798,8 @@ struct SinglePostPage {
   visiblePageChanged() {
     if (this.scroller && typeof this.scroller.getItemIndex == 'function' &&
       typeof this.scroller.currentOffset == 'function') {
-      const offset = this.scroller.currentOffset()
-      if (offset) {
-        const index = this.scroller.getItemIndex(0, offset.yOffset)
-        this.recordViewHistory(index)
-      }
+      const index = this.scroller.getItemIndex(0, this.scroller.currentOffset?.().yOffset ?? 0)
+      this.recordViewHistory(index)
     }
   }
 
@@ -850,6 +843,17 @@ struct SinglePostPage {
     this.mainPostForShot = mainPost
   }
 
+  refreshInlineAttachmentAid() {
+    this.postAttachment.forEach((atts: Record<string, Attachment>) => {
+      Object.values(atts).forEach((attach: Attachment) => {
+        if (attach.isimage !== '0' && !this.inlineAttachmentAid.has(attach.aid) &&
+          this.imgUrl.some((u: string) => u.includes(attach.attachment))) {
+          this.inlineAttachmentAid.add(attach.aid)
+        }
+      })
+    })
+  }
+
   processPostListV4(v: wrapper<PostListV4>) {
     let rawPostList = v.Variables.postlist
     if (rawPostList.length == 0) {
@@ -863,6 +867,7 @@ struct SinglePostPage {
       this.postHiddenExpand.clear()
       this.postAttachment.clear()
       this.consumedAttachmentAid.clear()
+      this.inlineAttachmentAid.clear()
       const pageFloorStart = POST_PER_PAGE * (this.pageToLoad - 1)
       if (pageFloorStart >= 10000) {
         this.indexerFontSize = 8
@@ -912,6 +917,7 @@ struct SinglePostPage {
           }
         }
       })
+      this.refreshInlineAttachmentAid()
     }
     const latestTitle = unescapeAll(v.Variables.thread.subject)
     if (this.pageParam.subject != latestTitle) {
@@ -959,7 +965,6 @@ struct SinglePostPage {
     const searchItems: PostSearchItem[] = []
     let rawPostList = v.data.list
     this.imgUrl = []
-    this.postContentMessage.clear()
     this.postStringify.clear()
     this.mdRendered.clear()
     this.mdRenderShow.clear()
@@ -974,7 +979,6 @@ struct SinglePostPage {
         userCredit: rawPostList[index].e
       }
       this.postStringify.set(vm.pid, JSON.stringify(vm.node)) // 完整数据作为foreach key，刷新页面数据时没变动的楼层就不会闪烁
-      this.postContentMessage.set(vm.pid, rawPostList[index].message)
       const plaintextPost = plainTextSerializer.convert(vm.node)
       const floor = this.getFloorNumber(index) || String((this.pageToLoad - 1) * POST_PER_PAGE + index + 1)
       searchItems.push({
@@ -992,6 +996,7 @@ struct SinglePostPage {
       }
       postArray.push(vm)
     })
+    this.refreshInlineAttachmentAid()
 
     this.searchItemsByPage.set(this.pageToLoad, searchItems)
 
@@ -1530,16 +1535,18 @@ struct SinglePostPage {
           ForEach(Object.values(this.postAttachment.get(post.pid) || {}), (attach: Attachment) => {
             if (!this.consumedAttachmentAid.has(attach.aid)) {
               if (attach.isimage !== '0') {
-                Column() {
-                  ImageContainer({
-                    src: attachmentImageUrl(attach),
-                    lazyLoad: true,
-                    onImgClick: () => {
-                      this.openAttachmentImageViewer(post.pid, attachmentImageUrl(attach))
-                    }
-                  })
-                }.width('100%')
-                .margin({ top: 8 })
+                if (!this.inlineAttachmentAid.has(attach.aid)) { // 已插入正文的图片附件不再于帖尾重复渲染
+                  Column() {
+                    ImageContainer({
+                      src: attachmentImageUrl(attach),
+                      lazyLoad: true,
+                      onImgClick: () => {
+                        this.openAttachmentImageViewer(post.pid, attachmentImageUrl(attach))
+                      }
+                    })
+                  }.width('100%')
+                  .margin({ top: 8 })
+                }
               } else {
                 ThreadPostAttachmentItem({
                   attach,
