@@ -29,6 +29,7 @@ import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { openInBrowser } from '../../common/WantUitl'
 import { ReloadController } from '../../common/BasicDataSource'
+import { joinInFlight, PageLoadGuard } from '../../common/PageLoad'
 import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
 import { LengthUnit } from '@ohos.arkui.node'
@@ -244,7 +245,7 @@ struct ThreadListPage {
   @Consume forumInfo?: ForumInfo
   context = getContext(this) as common.UIAbilityContext
   clickEffectModifier: AttributeModifier<CommonAttribute> = new ClickDarkenEffect()
-  pageLoadedKey: string = ''
+  loadGuard: PageLoadGuard = new PageLoadGuard()
   @Prop @Watch('requestPageData') pageToLoad: number
   @Consume @Watch('requestPageData') dataControlCounter: number
   @Consume threadTypeFilter: string
@@ -272,7 +273,7 @@ struct ThreadListPage {
   }
 
   aboutToReuse(): void {
-    if (this.generatePageKey() != this.pageLoadedKey) {
+    if (this.loadGuard.shouldLoad(this.generatePageKey())) {
       this.threadList = []
       this.displayList = []
     }
@@ -438,26 +439,39 @@ struct ThreadListPage {
   }
 
   requestPageData() {
-    if (this.generatePageKey() == this.pageLoadedKey) {
+    if (!this.loadGuard.shouldLoad(this.generatePageKey())) {
       this.loadingIcon?.hide(this.pageToLoad)
       return
     }
+    this.loadGuard.markLoading(this.generatePageKey())
     this.loadingIcon?.show(this.pageToLoad)
-    this.pageLoadedKey = this.generatePageKey()
     if (this.pageToLoad == 1 && this.recommendPinned.length > 0) {
       this.recommendPinned = []
     }
     this.dataLoading = true
     let requestPageIndex = this.pageToLoad.toString()
-    return new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
-      .param('fid', this.forumId)
-      .param('page', requestPageIndex)
-      .param('typeid', this.threadTypeFilter)
-      .param('tpp', THREAD_PER_PAGE.toString())
-      .cache((v): Promise<wrapper<ThreadList>> => this.processThreadList(v),
-        this.threadList.length > 0 && this.generatePageKey() == this.pageLoadedKey)
-      .get()
-      .then((v): Promise<wrapper<ThreadList>> => this.processThreadList(v))
+    const pageAtRequest = this.pageToLoad
+    joinInFlight(`forumThreads,${this.forumId},${requestPageIndex},${this.threadTypeFilter}`,
+      (): Promise<wrapper<ThreadList>> =>
+        new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
+          .param('fid', this.forumId)
+          .param('page', requestPageIndex)
+          .param('typeid', this.threadTypeFilter)
+          .param('tpp', THREAD_PER_PAGE.toString())
+          .cache((v): Promise<wrapper<ThreadList>> => this.processThreadList(v),
+            this.threadList.length > 0)
+          .get())
+      .then((v): Promise<wrapper<ThreadList>> => {
+        if (this.pageToLoad == pageAtRequest) {
+          return this.processThreadList(v)
+        }
+        return Promise.resolve(v)
+      })
+      .catch(() => {
+        this.loadGuard.markFailed()
+        this.dataLoading = false
+        this.loadingIcon?.hide(this.pageToLoad)
+      })
   }
 
   build() {

@@ -18,7 +18,7 @@ import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
 import { openOrJumpTo } from '../SingletonPage'
-import { SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
+import { PageLoadingSpot, SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
 import { Event } from '../../common/Events'
 import { PageSlider } from '../../common/component/PageSlider'
 import {
@@ -27,6 +27,7 @@ import {
   RecordThreadViewHistory
 } from '../../common/dataStore/HistoryData'
 import { ArrayDataSource, ReloadController } from '../../common/BasicDataSource'
+import { joinInFlight, PageLoadGuard } from '../../common/PageLoad'
 import { generateS1WebPostLink, openInBrowser, openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
@@ -793,7 +794,7 @@ struct SinglePostPage {
     return `PostRating${pid},${this.generateUniquePageKey()}`
   }
 
-  pageLoadedKey: string = ''
+  loadGuard: PageLoadGuard = new PageLoadGuard()
 
   visiblePageChanged() {
     if (this.scroller && typeof this.scroller.getItemIndex == 'function' &&
@@ -804,9 +805,8 @@ struct SinglePostPage {
   }
 
   loadingBegin() {
-    if (this.showBottomLoading == 0) {
-      this.loadingIcon?.show(this.pageToLoad)
-    }
+    this.loadingIcon?.show(this.pageToLoad,
+      this.showBottomLoading > 0 ? PageLoadingSpot.bottom : PageLoadingSpot.center)
     this.isLoading = true
   }
 
@@ -1031,7 +1031,7 @@ struct SinglePostPage {
       this.postDataSource.reload(postArray)
     }
     this.loadingFinish()
-    this.pageLoadedKey = this.generateDataFetchKey()
+    this.loadGuard.markLoading(this.generateDataFetchKey())
     if (lastUpdatePostCount > 0 && postArray.length > lastUpdatePostCount) {
       setTimeout(() => {
         this.scroller.scrollBy(0, this.showBottomLoading * BOTTOM_LOADING_AREA)
@@ -1047,34 +1047,44 @@ struct SinglePostPage {
   }
 
   requestPostData() {
-    if (this.generateDataFetchKey() == this.pageLoadedKey) {
+    if (!this.loadGuard.shouldLoad(this.generateDataFetchKey())) {
       return
     }
+    this.loadGuard.markLoading(this.generateDataFetchKey())
     this.loadingBegin()
 
-    new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
-      .param('tid', this.pageParam.tid)
-      .param('page', this.pageToLoad.toString())
-      .param('authorid', this.pageParam.authorid || '')
-      .cache((v): void => this.processPostListV4(v), this.postDataSource.totalCount() > 0)
-      .get()
+    joinInFlight(`threadPosts,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+      (): Promise<wrapper<PostListV4>> =>
+        new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
+          .param('tid', this.pageParam.tid)
+          .param('page', this.pageToLoad.toString())
+          .param('authorid', this.pageParam.authorid || '')
+          .cache((v): void => this.processPostListV4(v), this.postDataSource.totalCount() > 0)
+          .get())
       .then((v): void => this.processPostListV4(v))
       .catch((res: RequestError) => {
+        this.loadGuard.markFailed()
         if (res.type == 'Response') {
           if (res.data.statusCode == 404) {
             this.threadNotExist = true
           }
         }
       })
-    new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
-      .appToken()
-      .cache((v): void => this.processThreadDataApp(v), this.postDataSource.totalCount() > 0)
-      .post({
-        tid: this.pageParam.tid,
-        pageNo: this.pageToLoad,
-        uid: this.pageParam.authorid || ''
-      })
+    joinInFlight(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+      (): Promise<wrapperApp<ThreadDataApp>> =>
+        new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+          .appToken()
+          .cache((v): void => this.processThreadDataApp(v), this.postDataSource.totalCount() > 0)
+          .post({
+            tid: this.pageParam.tid,
+            pageNo: this.pageToLoad,
+            uid: this.pageParam.authorid || ''
+          }))
       .then((v): void => this.processThreadDataApp(v))
+      .catch(() => {
+        this.loadGuard.markFailed()
+        this.loadingFinish()
+      })
   }
 
   postDatetimeUpdateTimer?: number
@@ -1641,7 +1651,8 @@ struct SinglePostPage {
       })
       .onTouch(this.pageToLoad == this.totalPage ? (event => {
         let newLoadingState = 0
-        if (!this.scroller.isAtEnd() || !this.allowPullUpRefresh) {
+        if (!this.scroller.isAtEnd() || !this.allowPullUpRefresh ||
+          this.refreshStage == PullToRefreshStage.doLoading) {
           newLoadingState = 0
         } else {
           switch (event.type) {

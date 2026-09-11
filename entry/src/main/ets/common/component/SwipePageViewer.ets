@@ -23,8 +23,14 @@ export class PageIndexDataSource extends BasicDataSource<number> {
   }
 }
 
+export enum PageLoadingSpot {
+  none,
+  center,
+  bottom
+}
+
 export interface SwipePageLoadingIcon {
-  show: (page: number) => void
+  show: (page: number, spot?: PageLoadingSpot) => void
   hide: (page: number) => void
 }
 
@@ -38,7 +44,7 @@ export struct SwipePageViewer {
   @Link @Watch('requestJump') jumpToPage: number
   @State currentSwiperIndex: number = 0
   @State swiperDisabled: boolean = false
-  @State contentReady: Record<number, boolean> = {}
+  @State loadingSpot: Record<number, PageLoadingSpot> = {}
   @Provide dataControlCounter: number = 0
   @Provide @Watch('pullDownStageChanged') refreshStage: PullToRefreshStage = PullToRefreshStage.unactivated
   reloadCtrl: ReloadController = new ReloadController()
@@ -74,7 +80,7 @@ export struct SwipePageViewer {
 
   allContentReload() {
     if (this.maxPage > 0) {
-      this.contentReady = {}
+      this.loadingSpot = {}
       this.dataControlCounter += 1
     } else {
       this.maxPage = 1
@@ -97,17 +103,20 @@ export struct SwipePageViewer {
             stage: this.refreshStage,
             useList: this.useList,
             contentBuilder: (scroller) => this.contentBuilder(page, index, {
-              show: page => this.contentReady[page] = false,
-              hide: page => {
+              show: (page: number, spot?: PageLoadingSpot): void => {
+                this.loadingSpot[page] = spot ?? PageLoadingSpot.center
+              },
+              hide: (page: number): void => {
                 if (page == this.currentPage) {
                   this.refreshStage = PullToRefreshStage.unactivated
                   this.swiperDisabled = false
                 }
-                this.contentReady[page] = true
+                this.loadingSpot[page] = PageLoadingSpot.none
               }
             }, scroller)
           })
-          if (!this.contentReady[page] && this.refreshStage != PullToRefreshStage.doLoading) {
+          if (this.loadingSpot[page] == PageLoadingSpot.center &&
+            this.refreshStage != PullToRefreshStage.doLoading) {
             LoadingProgress()
               .width(64)
               .height(64)
