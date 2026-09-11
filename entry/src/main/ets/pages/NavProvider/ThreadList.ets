@@ -470,29 +470,31 @@ struct ThreadListPage {
           this.threadNewReplyCount.delete(tid)
         }
       }
-      const exposureItems: RecommendExposureItem[] = v.Variables.forum_threadlist.map(v => {
-        let readperm = parseInt(v.readperm)
-        readperm = isNaN(readperm) ? 0 : readperm
-        const item: RecommendExposureItem = {
-          tid: v.tid,
-          fid: v.fid,
-          typeid: v.typeid,
-          subject: unescapeAll(v.subject),
-          message: v.message ? unescapeAll(v.message) : '',
-          replyMessages: v.reply ? v.reply.slice(0, 3).map(r => r.message ? unescapeAll(r.message) : '') : [],
-          replies: parseInt(v.replies) || 0,
-          displayOrder: v.displayorder,
-          viewedReply: viewedThread[v.tid],
-          uid: v.authorid,
-          readperm: readperm
+      if (this.forumId != '27') {
+        const exposureItems: RecommendExposureItem[] = v.Variables.forum_threadlist.map(v => {
+          let readperm = parseInt(v.readperm)
+          readperm = isNaN(readperm) ? 0 : readperm
+          const item: RecommendExposureItem = {
+            tid: v.tid,
+            fid: v.fid,
+            typeid: v.typeid,
+            subject: unescapeAll(v.subject),
+            message: v.message ? unescapeAll(v.message) : '',
+            replyMessages: v.reply ? v.reply.slice(0, 3).map(r => r.message ? unescapeAll(r.message) : '') : [],
+            replies: parseInt(v.replies) || 0,
+            displayOrder: v.displayorder,
+            viewedReply: viewedThread[v.tid],
+            uid: v.authorid,
+            readperm: readperm
+          }
+          return item
+        })
+        if (this.pageToLoad <= 2) {
+          Recommend.onThreadListExposure(this.pageToLoad, this.recommendContextKey(), exposureItems)
+            .then(pinned => {
+              this.recommendPinned = pinned
+            })
         }
-        return item
-      })
-      if (this.pageToLoad <= 2) {
-        Recommend.onThreadListExposure(this.pageToLoad, this.recommendContextKey(), exposureItems)
-          .then(pinned => {
-            this.recommendPinned = pinned
-          })
       }
     })
     return v
@@ -513,16 +515,16 @@ struct ThreadListPage {
     const pageAtRequest = this.pageToLoad
     joinInFlight(`forumThreads,${this.forumId},${requestPageIndex},${this.threadTypeFilter}`,
       (): Promise<wrapper<ThreadList>> =>
-        new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
-          .param('fid', this.forumId)
-          .param('page', requestPageIndex)
-          .param('typeid', this.threadTypeFilter)
-          .param('tpp', THREAD_PER_PAGE.toString())
-          .cache((v): void => {
-            this.waitHint.begin()
-            this.processThreadList(v)
-          }, this.threadList.length > 0)
-          .get())
+      new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
+        .param('fid', this.forumId)
+        .param('page', requestPageIndex)
+        .param('typeid', this.threadTypeFilter)
+        .param('tpp', THREAD_PER_PAGE.toString())
+        .cache((v): void => {
+          this.waitHint.begin()
+          this.processThreadList(v)
+        }, this.threadList.length > 0)
+        .get())
       .then((v): Promise<wrapper<ThreadList>> => {
         if (this.pageToLoad == pageAtRequest) {
           return this.processThreadList(v)
@@ -627,6 +629,7 @@ struct ThreadListPage {
             }
             .height('auto')
             .width('100%')
+
             if (this.pageToLoad == 1 && threadInfo.index == this.recommendPinned.length - 1) {
               Text('∧  你可能感兴趣')
                 .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
