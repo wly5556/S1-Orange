@@ -36,3 +36,41 @@ export class PageLoadGuard {
     this.loadedKey = ''
   }
 }
+
+/**
+ * 延迟等待提示：begin() 后 800ms 内未被 end() 时回调 true。
+ * begin() / end() / destroy() 都会把等待态回落为 false（幂等），因此提示不会残留。
+ */
+export class CacheWaitHint {
+  private onWaitChange: (waiting: boolean) => void
+  private timer?: number
+
+  constructor(onWaitChange: (waiting: boolean) => void) {
+    this.onWaitChange = onWaitChange
+  }
+
+  begin(): void {
+    this.clearTimer()
+    this.onWaitChange(false)
+    this.timer = setTimeout((): void => {
+      this.timer = undefined
+      this.onWaitChange(true)
+    }, 800)
+  }
+
+  end(): void {
+    this.clearTimer()
+    this.onWaitChange(false)
+  }
+
+  destroy(): void {
+    this.end()
+  }
+
+  private clearTimer(): void {
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer)
+      this.timer = undefined
+    }
+  }
+}

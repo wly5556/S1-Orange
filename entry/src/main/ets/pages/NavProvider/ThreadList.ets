@@ -29,7 +29,7 @@ import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { openInBrowser } from '../../common/WantUitl'
 import { ReloadController } from '../../common/BasicDataSource'
-import { joinInFlight, PageLoadGuard } from '../../common/PageLoad'
+import { CacheWaitHint, joinInFlight, PageLoadGuard } from '../../common/PageLoad'
 import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
 import { LengthUnit } from '@ohos.arkui.node'
@@ -37,6 +37,21 @@ import { setThreadTypeNameMap } from '../../common/ForumUtil'
 import { Recommend, RecommendExposureItem } from '../../common/recommend/RecommendManager'
 
 export const THREAD_PER_PAGE = 50
+
+const CACHE_HINT_EDGE_WIDTH = 28
+
+function cacheHintGradient(bgColor: ResourceColor | undefined): Array<[ResourceColor, number]> {
+  const opaque: ResourceColor = bgColor ?? Color.Transparent
+  let faded: ResourceColor = Color.Transparent
+  if (typeof opaque == 'string' && opaque.charAt(0) == '#') {
+    if (opaque.length == 9) {
+      faded = '#00' + opaque.substring(3)
+    } else if (opaque.length == 7) {
+      faded = '#00' + opaque.substring(1)
+    }
+  }
+  return [[faded, 0], [opaque, 1]]
+}
 
 interface ThreadTypeItemViewData {
   typeid: string,
@@ -75,6 +90,7 @@ export struct ThreadListView {
   @State totalPage: number = 1
   @State jumpToPage: number = -1
   @State pullToRefreshEnabled: boolean = true
+  @Provide cacheWaitingPages: Set<number> = new Set
   @StorageProp(PropKey.userId) @Watch('onAccountUpdate') uid?: string = undefined
   loadingIcon?: SwipePageLoadingIcon
   reloadCtrl: ReloadController = new ReloadController()
@@ -212,18 +228,50 @@ export struct ThreadListView {
       }
 
       if (this.threadTypes.length > 1) {
-        TabBarSelector({
-          names: this.threadTypes.map(v => v.name),
-          showIndicator: true,
-          bgColor: this.appTheme.backgroundSecondary,
-          onAnimationStart: (index, target) => {
-            if (this.threadTypes[target]) {
-              this.threadTypeFilter = this.threadTypes[target].typeid
-              this.reloadCtrl.reload()
-            }
-            return true
+        Stack({ alignContent: Alignment.End }) {
+          Column() {
+            TabBarSelector({
+              names: this.threadTypes.map(v => v.name),
+              showIndicator: true,
+              bgColor: this.appTheme.backgroundSecondary,
+              onAnimationStart: (index, target) => {
+                if (this.threadTypes[target]) {
+                  this.threadTypeFilter = this.threadTypes[target].typeid
+                  this.reloadCtrl.reload()
+                }
+                return true
+              }
+            })
           }
-        })
+          .width('100%')
+
+          if (this.cacheWaitingPages.has(this.currentPage)) {
+            Row() {
+              Column()
+                .width(CACHE_HINT_EDGE_WIDTH)
+                .height('100%')
+                .linearGradient({
+                  angle: 90,
+                  colors: cacheHintGradient(this.appTheme.backgroundSecondary)
+                })
+              Row() {
+                Text('仍在等待数据\n当前内容来自缓存')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                  .fontColor(this.appTheme.fontSecondary)
+                  .textAlign(TextAlign.End)
+              }
+              .height('100%')
+              .justifyContent(FlexAlign.Center)
+              .padding({ left: 6, right: 12 })
+              .backgroundColor(this.appTheme.backgroundSecondary)
+            }
+            .height('100%')
+            .hitTestBehavior(HitTestMode.None)
+            .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+          }
+        }
+        .width('100%')
+        .height(Math.max(56, FontSizeEnum[this.appState.fontSize].vp56))
       }
       SwipePageViewer({
         enablePullToRefresh: this.pullToRefreshEnabled,
@@ -246,6 +294,14 @@ struct ThreadListPage {
   context = getContext(this) as common.UIAbilityContext
   clickEffectModifier: AttributeModifier<CommonAttribute> = new ClickDarkenEffect()
   loadGuard: PageLoadGuard = new PageLoadGuard()
+  @Consume cacheWaitingPages: Set<number>
+  waitHint: CacheWaitHint = new CacheWaitHint((waiting: boolean): void => {
+    if (waiting) {
+      this.cacheWaitingPages.add(this.pageToLoad)
+    } else {
+      this.cacheWaitingPages.delete(this.pageToLoad)
+    }
+  })
   @Prop @Watch('requestPageData') pageToLoad: number
   @Consume @Watch('requestPageData') dataControlCounter: number
   @Consume threadTypeFilter: string
@@ -278,6 +334,10 @@ struct ThreadListPage {
       this.displayList = []
     }
     this.requestPageData()
+  }
+
+  aboutToDisappear(): void {
+    this.waitHint.destroy()
   }
 
   generatePageKey() {
@@ -458,8 +518,10 @@ struct ThreadListPage {
           .param('page', requestPageIndex)
           .param('typeid', this.threadTypeFilter)
           .param('tpp', THREAD_PER_PAGE.toString())
-          .cache((v): Promise<wrapper<ThreadList>> => this.processThreadList(v),
-            this.threadList.length > 0)
+          .cache((v): void => {
+            this.waitHint.begin()
+            this.processThreadList(v)
+          }, this.threadList.length > 0)
           .get())
       .then((v): Promise<wrapper<ThreadList>> => {
         if (this.pageToLoad == pageAtRequest) {
@@ -472,6 +534,7 @@ struct ThreadListPage {
         this.dataLoading = false
         this.loadingIcon?.hide(this.pageToLoad)
       })
+      .finally((): void => this.waitHint.end())
   }
 
   build() {

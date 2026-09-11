@@ -108,7 +108,7 @@ export struct PullToRefresh {
         this.panGestureBeginX = windowX
         this.panGestureBeginY = windowY
       } else if (event.type == TouchType.Move) {
-        if (this.stage == PullToRefreshStage.unactivated
+        if (!(this.stage == PullToRefreshStage.pullDownBegin)
           && windowY - this.panGestureBeginY > 0) {
           this.panGestureMaxOffsetX = Math.max(Math.abs(windowX - this.panGestureBeginX), this.panGestureMaxOffsetX)
           this.panGestureMaxOffsetY = Math.max(Math.abs(windowY - this.panGestureBeginY), this.panGestureMaxOffsetY)

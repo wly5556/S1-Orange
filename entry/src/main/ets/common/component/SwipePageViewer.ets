@@ -37,7 +37,7 @@ export interface SwipePageLoadingIcon {
 @Component
 export struct SwipePageViewer {
   @Prop @Require @Watch('maxPageUpdate') maxPage: number
-  @Prop @Require enablePullToRefresh: boolean
+  @Prop @Require @Watch('pullToRefreshEnableChanged') enablePullToRefresh: boolean
   dataSource: PageIndexDataSource = new PageIndexDataSource(this.maxPage)
   cacheCount: number = 1
   @Link currentPage: number
@@ -65,6 +65,12 @@ export struct SwipePageViewer {
   aboutToAppear(): void {
     this.requestJump()
     this.reloadCtrl.reload = (): void => this.allContentReload()
+  }
+
+  pullToRefreshEnableChanged() {
+    if (!this.enablePullToRefresh && this.refreshStage == PullToRefreshStage.doLoading) {
+      this.refreshStage = PullToRefreshStage.unactivated
+    }
   }
 
   pullDownStageChanged() {

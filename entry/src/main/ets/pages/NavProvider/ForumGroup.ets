@@ -18,6 +18,7 @@ import { PropKey, SafeArea } from '../../common/Constants'
 import { Event } from '../../common/Events'
 import { ForumSortMode } from '../../config/v1/default'
 import { setForumGroupNameMap } from '../../common/ForumUtil'
+import { joinInFlight } from '../../common/PageLoad'
 
 
 @Component
@@ -108,10 +109,12 @@ export struct ForumGroupView {
     })
   }
 
-  refreshThreadGroup() {
-    return new request<wrapper<ForumGroup>>(URL.FORUM_GROUP)
-      .cache((v): void => this.processData(v), this.forumGroupId.length > 0, this.uid === undefined)
-      .get()
+  refreshThreadGroup(): Promise<void> {
+    return joinInFlight(`forumGroup,${this.uid ?? ''}`,
+      (): Promise<wrapper<ForumGroup>> =>
+        new request<wrapper<ForumGroup>>(URL.FORUM_GROUP)
+          .cache((v): void => this.processData(v), this.forumGroupId.length > 0, this.uid === undefined)
+          .get())
       .then((v): void => this.processData(v))
   }
 

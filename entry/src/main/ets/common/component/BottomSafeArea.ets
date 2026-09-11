@@ -3,7 +3,20 @@ import { SafeArea } from '../Constants'
 @Component
 export struct BottomSafeArea {
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
+
+  @Builder
+  blankBuilder() {
+  }
+
+  @BuilderParam contentBuilder: () => void = this.blankBuilder
+
   build() {
-    Row().width('100%').height(px2vp(this.bottomRectHeight))
+    Row() {
+      this.contentBuilder()
+    }
+    .width('100%')
+    .constraintSize({
+      minHeight: px2vp(this.bottomRectHeight)
+    })
   }
 }

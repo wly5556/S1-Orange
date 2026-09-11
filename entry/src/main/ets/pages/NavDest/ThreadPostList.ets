@@ -27,7 +27,7 @@ import {
   RecordThreadViewHistory
 } from '../../common/dataStore/HistoryData'
 import { ArrayDataSource, ReloadController } from '../../common/BasicDataSource'
-import { joinInFlight, PageLoadGuard } from '../../common/PageLoad'
+import { CacheWaitHint, joinInFlight, PageLoadGuard } from '../../common/PageLoad'
 import { generateS1WebPostLink, openInBrowser, openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
@@ -729,6 +729,11 @@ struct SinglePostPage {
   }
   @State nowDate: Date = new Date()
   @State showBottomLoading: number = 0
+  @State showCacheWaitHint: boolean = false
+  waitHint: CacheWaitHint = new CacheWaitHint(
+    (waiting: boolean): void => {
+      this.showCacheWaitHint = waiting
+    })
   @State pollList: PollOptionVM[] = []
   @State pollInfo: PollInfoVM = {
     expirations: 0,
@@ -1055,12 +1060,12 @@ struct SinglePostPage {
 
     joinInFlight(`threadPosts,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
       (): Promise<wrapper<PostListV4>> =>
-        new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
-          .param('tid', this.pageParam.tid)
-          .param('page', this.pageToLoad.toString())
-          .param('authorid', this.pageParam.authorid || '')
-          .cache((v): void => this.processPostListV4(v), this.postDataSource.totalCount() > 0)
-          .get())
+      new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
+        .param('tid', this.pageParam.tid)
+        .param('page', this.pageToLoad.toString())
+        .param('authorid', this.pageParam.authorid || '')
+        .cache((v): void => this.processPostListV4(v), this.postDataSource.totalCount() > 0)
+        .get())
       .then((v): void => this.processPostListV4(v))
       .catch((res: RequestError) => {
         this.loadGuard.markFailed()
@@ -1073,18 +1078,22 @@ struct SinglePostPage {
     joinInFlight(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
       (): Promise<wrapperApp<ThreadDataApp>> =>
         new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
-          .appToken()
-          .cache((v): void => this.processThreadDataApp(v), this.postDataSource.totalCount() > 0)
-          .post({
-            tid: this.pageParam.tid,
-            pageNo: this.pageToLoad,
-            uid: this.pageParam.authorid || ''
-          }))
+        .appToken()
+        .cache((v): void => {
+          this.waitHint.begin()
+          this.processThreadDataApp(v)
+        }, this.postDataSource.totalCount() > 0)
+        .post({
+          tid: this.pageParam.tid,
+          pageNo: this.pageToLoad,
+          uid: this.pageParam.authorid || ''
+        }))
       .then((v): void => this.processThreadDataApp(v))
       .catch(() => {
         this.loadGuard.markFailed()
         this.loadingFinish()
       })
+      .finally((): void => this.waitHint.end())
   }
 
   postDatetimeUpdateTimer?: number
@@ -1100,6 +1109,7 @@ struct SinglePostPage {
 
   aboutToDisappear(): void {
     clearInterval(this.postDatetimeUpdateTimer)
+    this.waitHint.destroy()
     const offset = this.scroller.currentOffset()
     if (offset) {
       this.pageScrollOffset.set(this.pageToLoad, offset.yOffset)
@@ -1622,7 +1632,28 @@ struct SinglePostPage {
           }
         }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + index.toString())
         ListItem() {
-          BottomSafeArea()
+          BottomSafeArea() {
+            if (this.showCacheWaitHint && this.postDataSource.totalCount() > 0) {
+              Row() {
+                Text('仍在等待数据')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                  .fontColor(this.appTheme.fontSecondary)
+                Blank()
+                Text('当前内容来自缓存')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                  .fontColor(this.appTheme.fontSecondary)
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+              .padding({
+                left: 24,
+                right: 24,
+                top: 4,
+                bottom: 4
+              })
+              .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
+            }
+          }
         }
 
         if (this.longScreenshotMode) {
