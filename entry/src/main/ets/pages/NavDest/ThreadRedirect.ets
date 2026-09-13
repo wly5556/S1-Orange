@@ -9,6 +9,7 @@ import { PreferenceState } from '../NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { openThreadPost, ThreadPostParam } from './ThreadPostList'
 import { openInBrowser } from '../../common/WantUitl'
+import { queryPostLocation } from '../../common/dataStore/PostLocationData'
 
 const REDIRECT_LOCATION_REGEX = /tid=(\d+)&page=(\d+)#pid(\d+)/
 
@@ -146,5 +147,21 @@ export function RegisterBuilder() {
 }
 
 export function openThreadRedirect(pathStack: NavPathStack, param: ThreadRedirectParam) {
+  // 已知落点的重定向链接查表直开，省去网络解析；未命中再走重定向页在线解析
+  const pid = parseS1RedirectPostPid(param.href)
+  const location = pid != undefined ? queryPostLocation(pid) : undefined
+  if (location) {
+    const sameThread = param.sourceTid == undefined || param.sourceTid == location.tid
+    const postParam: ThreadPostParam = {
+      tid: location.tid,
+      jumpToPid: pid,
+      jumpToPage: location.page,
+      subject: sameThread ? param.subject : undefined,
+      replies: sameThread ? param.replies : undefined,
+      jumpToPidWithHighlight: true
+    }
+    openThreadPost(postParam, pathStack)
+    return
+  }
   openOrJumpTo(pathStack, PageNameEnum.ThreadRedirect, param)
 }

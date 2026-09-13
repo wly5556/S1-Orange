@@ -71,8 +71,8 @@ import { UserCreditText } from '../../common/component/UserCredit'
 import { openFreeCopy } from './FreeCopy'
 import { Recommend } from '../../common/recommend/RecommendManager'
 import { ObsoleteDomain } from '../../api/ObsoleteDomain'
-import { isS1RedirectPostLink, openThreadRedirect, parseS1RedirectPostPid, ThreadRedirectParam } from './ThreadRedirect'
-import { queryPostLocation, reportPostLocation } from '../../common/dataStore/PostLocationData'
+import { isS1RedirectPostLink, openThreadRedirect, ThreadRedirectParam } from './ThreadRedirect'
+import { reportPostLocation } from '../../common/dataStore/PostLocationData'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -1410,10 +1410,8 @@ struct SinglePostPage {
         fontSizeOverride: this.appState.fontSizeOverride,
         copyOption: this.appState ? CopyOptions.LocalDevice : CopyOptions.None,
         onLinkClick: (href: string): void => {
-          if (!tryOpenLoadedPostLink(href, this.pageParam, this.pathStack)) {
-            openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
-              this.pageParam.replies, true, this.pageParam.tid)
-          }
+          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
+            this.pageParam.replies, true, this.pageParam.tid)
         },
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
@@ -1853,30 +1851,6 @@ export function openThreadPost(param: ThreadPostParam, pathStack: NavPathStack,
       return genThreadPostViewKey(u as ThreadPostParam) == genThreadPostViewKey(param)
     }
   })
-}
-
-function tryOpenLoadedPostLink(href: string, pageParam: ThreadPostParam, pathStack: NavPathStack): boolean {
-  const pid = parseS1RedirectPostPid(ObsoleteDomain.replace(href))
-  if (!pid) {
-    return false
-  }
-  const location = queryPostLocation(pid)
-  if (!location) {
-    return false
-  }
-  const sameThread = location.tid == pageParam.tid
-  const param: ThreadPostParam = {
-    tid: location.tid,
-    fid: sameThread ? pageParam.fid : undefined,
-    typeid: sameThread ? pageParam.typeid : undefined,
-    subject: sameThread ? pageParam.subject : undefined,
-    replies: sameThread ? pageParam.replies : undefined,
-    jumpToPage: location.page,
-    jumpToPid: pid,
-    jumpToPidWithHighlight: true
-  }
-  openThreadPost(param, pathStack)
-  return true
 }
 
 export function openThreadPostByLink(href: string,
