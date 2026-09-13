@@ -14,7 +14,6 @@ import { AniSpeed, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { setLongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { PageNameEnum } from '../PageNameEnum'
-import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
 import { openOrJumpTo } from '../SingletonPage'
@@ -27,7 +26,7 @@ import {
   RecordThreadViewHistory
 } from '../../common/dataStore/HistoryData'
 import { ArrayDataSource, ReloadController } from '../../common/BasicDataSource'
-import { CacheWaitHint, PageLoadGuard } from '../../common/PageLoad'
+import { CacheWaitHint as CacheHintTimer, PageLoadGuard } from '../../common/PageLoad'
 import { generateS1WebPostLink, openInBrowser, openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
@@ -693,7 +692,7 @@ struct SinglePostPage {
   @Consume @Watch('requestPostData') dataControlCounter: number
   context = getContext(this) as common.UIAbilityContext
   @Consume pageParam: ThreadPostParam
-  @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
+  @StorageProp(SafeArea.bottom) @Watch('bottomRectHeightChanged') bottomRectHeight: number = 0
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
   pageToLoad: number = 1
   imgUrl: string[] = []
@@ -749,9 +748,11 @@ struct SinglePostPage {
   @State nowDate: Date = new Date()
   @State showBottomLoading: number = 0
   @State showCacheWaitHint: boolean = false
-  waitHint: CacheWaitHint = new CacheWaitHint(
+  @State bottomSafeHeight: number = 0
+  cacheHintTimer: CacheHintTimer = new CacheHintTimer(
     (waiting: boolean): void => {
       this.showCacheWaitHint = waiting
+      this.updateBottomSafeHeight(true)
     })
   @State pollList: PollOptionVM[] = []
   @State pollInfo: PollInfoVM = {
@@ -845,6 +846,34 @@ struct SinglePostPage {
       })
       this.pageScrollOffset.delete(this.pageToLoad)
     }
+  }
+
+
+  bottomSafeTargetHeight(): number {
+    const safeHeight = px2vp(this.bottomRectHeight)
+    const cacheHintRowHeight = 8 + Math.ceil(FontSizeEnum[this.appState.fontSize].vp12 * 1.3)
+    return this.showCacheWaitHint && this.postDataSource.totalCount() > 0 ?
+      Math.max(safeHeight, cacheHintRowHeight) : safeHeight
+  }
+
+  updateBottomSafeHeight(animated: boolean): number {
+    const target = this.bottomSafeTargetHeight()
+    const delta = this.bottomSafeHeight - target
+    if (delta == 0) {
+      return 0
+    }
+    if (animated) {
+      this.getUIContext().animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseInOut }, () => {
+        this.bottomSafeHeight = target
+      })
+    } else {
+      this.bottomSafeHeight = target
+    }
+    return delta
+  }
+
+  bottomRectHeightChanged() {
+    this.updateBottomSafeHeight(false)
   }
 
   syncTagMap(posts: PostViewModel[]) {
@@ -1062,11 +1091,17 @@ struct SinglePostPage {
     }
     this.loadingFinish()
     if (lastUpdatePostCount > 0 && postArray.length > lastUpdatePostCount) {
+      this.showCacheWaitHint = false
+      this.cacheHintTimer.end()
+      const barDelta = this.updateBottomSafeHeight(false)
+      const loadingDelta = this.showBottomLoading * BOTTOM_LOADING_AREA
       setTimeout(() => {
-        this.scroller.scrollBy(0, this.showBottomLoading * BOTTOM_LOADING_AREA)
+        this.scroller.scrollBy(0, loadingDelta + barDelta)
         this.showBottomLoading = 0
       }, 20)
     } else {
+      // 没有新内容，只需让提示条和底部 loading 归位，高度用动画过渡，不涉及滚动补偿
+      this.cacheHintTimer.end()
       setTimeout(() => {
         animateTo(SpringCurve, () => {
           this.showBottomLoading = 0
@@ -1103,8 +1138,8 @@ struct SinglePostPage {
         new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
         .appToken()
         .cache((v): void => {
-          this.waitHint.begin()
           this.processThreadDataApp(v)
+          this.cacheHintTimer.begin()
         }, this.postDataSource.totalCount() > 0)
         .post({
           tid: this.pageParam.tid,
@@ -1115,7 +1150,7 @@ struct SinglePostPage {
       .catch(() => {
         this.loadingFinish()
       })
-      .finally((): void => this.waitHint.end())
+      .finally((): void => this.cacheHintTimer.end())
   }
 
   postDatetimeUpdateTimer?: number
@@ -1125,13 +1160,14 @@ struct SinglePostPage {
   }
 
   aboutToAppear(): void {
+    this.bottomSafeHeight = this.bottomSafeTargetHeight()
     this.requestPostData()
     this.postDatetimeUpdateTimer = setInterval((): void => this.updatePostDatetime(), 60 * 1000)
   }
 
   aboutToDisappear(): void {
     clearInterval(this.postDatetimeUpdateTimer)
-    this.waitHint.end()
+    this.cacheHintTimer.end()
     const offset = this.scroller.currentOffset()
     if (offset) {
       this.pageScrollOffset.set(this.pageToLoad, offset.yOffset)
@@ -1654,7 +1690,7 @@ struct SinglePostPage {
           }
         }, (post: PostViewModel, index: number) => this.postStringify.get(post.pid) + index.toString())
         ListItem() {
-          BottomSafeArea() {
+          Stack({ alignContent: Alignment.Top }) {
             if (this.showCacheWaitHint && this.postDataSource.totalCount() > 0) {
               Row() {
                 Text('仍在等待数据')
@@ -1676,6 +1712,8 @@ struct SinglePostPage {
               .transition(TransitionEffect.OPACITY.animation({ duration: 100 }))
             }
           }
+          .width('100%')
+          .height(this.bottomSafeHeight)
         }
 
         if (this.longScreenshotMode) {

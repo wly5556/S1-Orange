@@ -4,15 +4,8 @@ import { SafeArea } from '../Constants'
 export struct BottomSafeArea {
   @StorageProp(SafeArea.bottom) bottomRectHeight: number = 0
 
-  @Builder
-  blankBuilder() {
-  }
-
-  @BuilderParam contentBuilder: () => void = this.blankBuilder
-
   build() {
     Row() {
-      this.contentBuilder()
     }
     .width('100%')
     .constraintSize({
