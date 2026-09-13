@@ -23,7 +23,14 @@ import { themeColorDark } from '../../common/theme/basic/dark'
 import { ThemeColorLight } from '../../common/theme/basic/light'
 import { SetStatusBarColor } from '../../common/theme/SetStatusBarColor'
 import { openS1LinkLike } from '../../common/WantUitl'
-import { defaultApplicationConfig, FontSizeIndex, FontSizeOverride, HiddenPostDisplay, UpdateCheckInterval } from '../../config/v1/default'
+import {
+  defaultApplicationConfig,
+  FollowHandDialogMode,
+  FontSizeIndex,
+  FontSizeOverride,
+  HiddenPostDisplay,
+  UpdateCheckInterval
+} from '../../config/v1/default'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { openSplitModeShortcut } from '../NavDest/SplitModeShortcut'
 import { PageNameEnum } from '../PageNameEnum'
@@ -57,6 +64,7 @@ export interface PreferenceState {
   darkModeContentColorAdjust: boolean
   hiddenPostDisplay: HiddenPostDisplay
   splitMode: boolean
+  followHandDialog: FollowHandDialogMode
   threadItemGap: number
   contentLineSpace: number
   updateCheckInterval: UpdateCheckInterval
@@ -81,6 +89,7 @@ struct NavigationPage {
     darkModeContentColorAdjust: defaultApplicationConfig.dark_mode_content_color_adjust,
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
     splitMode: defaultApplicationConfig.split_mode,
+    followHandDialog: defaultApplicationConfig.follow_hand_dialog,
     threadItemGap: defaultApplicationConfig.thread_item_gap,
     contentLineSpace: defaultApplicationConfig.content_line_space,
     updateCheckInterval: defaultApplicationConfig.update_check_interval,
@@ -128,6 +137,7 @@ struct NavigationPage {
       this.appState.darkModeContentColorAdjust = conf.dark_mode_content_color_adjust
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
+      this.appState.followHandDialog = conf.follow_hand_dialog
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
       this.appState.updateCheckInterval = conf.update_check_interval

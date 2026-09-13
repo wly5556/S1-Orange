@@ -1,13 +1,11 @@
-import { common } from '@kit.AbilityKit'
-
-@CustomDialog
-export struct SlideDialog {
+@Component
+export struct SlideDialogContent {
   @Prop pageIndex: number
   @Prop totalPage: number
   jump: (page: number) => void = () => {
   }
-  context = getContext(this) as common.UIAbilityContext
-  controller: CustomDialogController
+  close: () => void = () => {
+  }
 
   isPageValid(value: string) {
     let page = parseInt(value)
@@ -50,7 +48,7 @@ export struct SlideDialog {
         style: SliderStyle.InSet
       })
       Row() {
-        Button('取消', { buttonStyle: ButtonStyleMode.TEXTUAL }).onClick(() => this.controller.close())
+        Button('取消', { buttonStyle: ButtonStyleMode.TEXTUAL }).onClick(() => this.close())
           .margin({ right: 10 })
           .layoutWeight(1)
         Button('跳转', { buttonStyle: ButtonStyleMode.TEXTUAL })
@@ -58,9 +56,27 @@ export struct SlideDialog {
           .layoutWeight(1)
           .onClick(e => {
             this.jump(this.pageIndex)
-            this.controller.close()
+            this.close()
           })
       }.width('100%')
     }.padding(24)
+  }
+}
+
+@CustomDialog
+export struct SlideDialog {
+  @Prop pageIndex: number
+  @Prop totalPage: number
+  jump: (page: number) => void = () => {
+  }
+  controller: CustomDialogController
+
+  build() {
+    SlideDialogContent({
+      pageIndex: this.pageIndex,
+      totalPage: this.totalPage,
+      jump: this.jump,
+      close: (): void => this.controller.close()
+    })
   }
 }

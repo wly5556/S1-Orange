@@ -1,8 +1,10 @@
+import { PopoverDialog, PopoverOptions } from '@kit.ArkUI'
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
 import { ClickDarkenEffect } from '../Animation'
+import { followHandDialogActive } from '../FollowHandDialogHelper'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { AppThemeColor } from '../theme/basic/basic'
-import { SlideDialog } from './PageSliderDialog'
+import { SlideDialog, SlideDialogContent } from './PageSliderDialog'
 
 @Component
 export struct PageSlider {
@@ -14,6 +16,16 @@ export struct PageSlider {
   hideTotal: boolean = false
   clickable: boolean = true
   doJump: (page: number) => void = () => {
+  }
+  // 跟手弹窗（PopoverDialog）与固定弹窗（CustomDialogController）两条路径共用同一份内容与目标组件
+  @State followHandShow: boolean = false
+  @State followHandPopover: PopoverOptions = {
+    builder: () => {
+      this.buildSlideContent()
+    },
+    width: 320,
+    enableArrow: false,
+    keyboardAvoidMode: KeyboardAvoidMode.DEFAULT
   }
   sliderDialog: CustomDialogController = new CustomDialogController({
     alignment: DialogAlignment.Top,
@@ -29,6 +41,21 @@ export struct PageSlider {
   })
 
   build() {
+    if (followHandDialogActive(this.appState)) {
+      PopoverDialog({
+        visible: this.followHandShow,
+        popover: this.followHandPopover,
+        targetBuilder: () => {
+          this.buildTarget()
+        }
+      })
+    } else {
+      this.buildTarget()
+    }
+  }
+
+  @Builder
+  buildTarget() {
     Stack() {
       Text() {
         Span(this.pageIndex.toString() + '/').fontSize(FontSizeEnum[this.appState.fontSize].vp24)
@@ -49,11 +76,28 @@ export struct PageSlider {
       minWidth: 50
     })
     .borderRadius(10)
-    .onClick(e => {
-      if (this.clickable) {
+    .onClick(() => {
+      if (followHandDialogActive(this.appState)) {
+        this.followHandShow = true
+      } else if (this.clickable) {
         this.sliderDialog.open()
       }
     })
     .enabled(this.clickable && this.totalPage > 1)
+  }
+
+  @Builder
+  buildSlideContent() {
+    SlideDialogContent({
+      pageIndex: this.pageIndex,
+      totalPage: this.totalPage,
+      jump: (page: number) => {
+        this.followHandShow = false
+        this.doJump(page)
+      },
+      close: () => {
+        this.followHandShow = false
+      }
+    })
   }
 }

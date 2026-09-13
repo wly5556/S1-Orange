@@ -49,6 +49,11 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       let windowClass: window.Window = windowStage.getMainWindowSync()
+      // 记录窗口宽度，供“双栏时启用跟手弹窗”等运行时判定使用
+      AppStorage.setOrCreate(PropKey.windowWidth, windowClass.getWindowProperties().windowRect.width)
+      windowClass.on('windowSizeChange', (size: window.Size) => {
+        AppStorage.setOrCreate(PropKey.windowWidth, size.width)
+      })
       let isLayoutFullScreen = true
       windowClass.setWindowLayoutFullScreen(isLayoutFullScreen).then(() => {
         // 把安全区大小挂到状态上

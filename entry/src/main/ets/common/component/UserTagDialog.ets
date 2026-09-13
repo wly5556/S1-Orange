@@ -10,10 +10,9 @@ import { UserCreditText } from './UserCredit'
 import { AppThemeColor } from '../theme/basic/basic'
 import { ThemeColorLight } from '../theme/basic/light'
 
-@CustomDialog
-export struct UserTagDialog {
-  controller: CustomDialogController
-  @Prop uid: string = ''
+@Component
+export struct UserTagDialogContent {
+  @Prop @Watch('loadTags') uid: string = ''
   @Prop username: string = ''
   @Prop userCredit: number = 0
   @Prop appTheme: AppThemeColor = new ThemeColorLight()
@@ -22,8 +21,13 @@ export struct UserTagDialog {
   @State historyTags: string[] = []
   @State inputText: string = ''
   onTagChanged: (uid: string) => void = () => {}
+  close: () => void = () => {}
 
   aboutToAppear(): void {
+    this.loadTags()
+  }
+
+  loadTags(): void {
     this.userTags = getUserTags(this.uid)
     this.historyTags = getTagHistory()
   }
@@ -153,5 +157,28 @@ export struct UserTagDialog {
       }
     }.width('100%')
     .padding(24)
+  }
+}
+
+@CustomDialog
+export struct UserTagDialog {
+  controller: CustomDialogController
+  @Prop uid: string = ''
+  @Prop username: string = ''
+  @Prop userCredit: number = 0
+  @Prop appTheme: AppThemeColor = new ThemeColorLight()
+  @Prop fontSize: number = 0
+  onTagChanged: (uid: string) => void = () => {}
+
+  build() {
+    UserTagDialogContent({
+      uid: this.uid,
+      username: this.username,
+      userCredit: this.userCredit,
+      appTheme: this.appTheme,
+      fontSize: this.fontSize,
+      onTagChanged: this.onTagChanged,
+      close: (): void => this.controller.close()
+    })
   }
 }

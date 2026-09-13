@@ -60,6 +60,20 @@ export enum UpdateCheckInterval {
   never = 2
 }
 
+/**
+ * 跟手弹窗的启用范围：从不 / 仅双栏显示时 / 总是
+ */
+export enum FollowHandDialogMode {
+  never = 0,
+  splitOnly = 1,
+  always = 2
+}
+
+export const FollowHandDialogDesc: string[] = []
+FollowHandDialogDesc[FollowHandDialogMode.never] = '弹窗位置总是固定，符合肌肉记忆'
+FollowHandDialogDesc[FollowHandDialogMode.splitOnly] = '双栏模式下，部分弹窗会在更接近操作位置的地方出现'
+FollowHandDialogDesc[FollowHandDialogMode.always] = '部分弹窗会在更接近操作位置的地方出现'
+
 export interface UserAccount {
   name: string
   lastSign: number
@@ -97,6 +111,7 @@ export class ApplicationConfig {
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
   split_mode: boolean = true
+  follow_hand_dialog: FollowHandDialogMode = FollowHandDialogMode.splitOnly
   first_run: boolean = true
   post_signature: boolean = false
   post_signature_device_info: boolean = false

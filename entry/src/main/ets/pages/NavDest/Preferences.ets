@@ -17,8 +17,9 @@ import {
 } from '../../common/component/preference/ContentFontSizeOverridePref'
 import { openOrJumpTo } from '../SingletonPage'
 import { PageNameEnum } from '../PageNameEnum'
-import { defaultApplicationConfig, FontSizeIndex } from '../../config/v1/default'
+import { defaultApplicationConfig, FollowHandDialogDesc, FontSizeIndex } from '../../config/v1/default'
 import { HiddenPostDisplayModeDesc, HiddenPostPref } from '../../common/component/preference/HiddenPostPref'
+import { FollowHandDialogPref } from '../../common/component/preference/FollowHandDialogPref'
 import { openSplitModeShortcut } from './SplitModeShortcut'
 import { PropKey } from '../../common/Constants'
 import {
@@ -106,6 +107,7 @@ export struct PreferencePage {
       this.appState.darkModeContentColorAdjust = conf.dark_mode_content_color_adjust
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
+      this.appState.followHandDialog = conf.follow_hand_dialog
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
       this.appState.updateCheckInterval = conf.update_check_interval
@@ -371,6 +373,16 @@ export struct PreferencePage {
                     }
                   })
                 })
+              }.attributeModifier(this.settingRow)
+
+              SettingDivider()
+
+              Row() {
+                Column({ space: SettingColumnSpace }) {
+                  this.TextPrimary('使用跟手弹窗')
+                  FollowHandDialogPref()
+                  Text(FollowHandDialogDesc[this.appState.followHandDialog]).attributeModifier(this.textSecondary)
+                }.SettingColumn()
               }.attributeModifier(this.settingRow)
 
               Row() {
