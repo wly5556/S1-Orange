@@ -339,7 +339,7 @@ export struct WriteReply {
     GridCol({
       span: {
         xs: 8,
-        md: 5,
+        md: 6,
       }
     }) {
 

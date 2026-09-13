@@ -159,178 +159,179 @@ export struct SideMenu {
   }
 
   build() {
-    Scroll() {
-      Column() {
-        Stack({ alignContent: Alignment.TopEnd }) {
-          Column({ space: 12 }) {
-            Row()
-            Avatar({
-              avatarSize: 70,
-              uid: this.currUid
-            }).geometryTransition(avatarTransitionId)
-              .onClick(v => {
-                if (this.currUid) {
-                  const userSpaceParam: UserSpaceParam = {
-                    uid: this.currUid,
-                    username: this.currUsername,
-                    avatarTransitionIndex: avatarTransitionId
-                  }
-                  openUserSpace(userSpaceParam, this.pathStack)
-                  this.sideMenuShow = 0
-                } else {
-                  this.context.eventHub.emit(Event.OpenLoginDialog)
+    Column() {
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Column({ space: 12 }) {
+          Row()
+          Avatar({
+            avatarSize: 70,
+            uid: this.currUid
+          }).geometryTransition(avatarTransitionId)
+            .onClick(v => {
+              if (this.currUid) {
+                const userSpaceParam: UserSpaceParam = {
+                  uid: this.currUid,
+                  username: this.currUsername,
+                  avatarTransitionIndex: avatarTransitionId
                 }
-              })
-            Text(this.currUsername && this.currUsername.length > 0 ? this.currUsername : '未登录')
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
-              .height(30)
-              .fontWeight(FontWeight.Medium)
-          }
-          .clickEffect({ level: ClickEffectLevel.LIGHT })
-          .onClick(() => {
-            this.showAccounts = !this.showAccounts
-          })
-          .width('100%')
-          .padding({ left: 30, bottom: 20 })
-          .height(150)
-          .justifyContent(FlexAlign.End)
-          .alignItems(HorizontalAlign.Start)
-          // -----
-          Row() {
-            Image(this.currentColorMode == ConfigurationConstant.ColorMode.COLOR_MODE_DARK
-              ? $r('app.media.sun')
-              : $r('app.media.moon'))
-              .width(20)
-              .height(20)
-              .fillColor($r('sys.color.font_primary'))
-          }
-          .width(36)
-          .height(36)
-          .borderRadius(18)
-          .backgroundColor($r('sys.color.background_tertiary'))
-          .opacity(0.6)
-          .justifyContent(FlexAlign.Center)
-          .clickEffect({ level: ClickEffectLevel.LIGHT })
-          .onClick(() => this.toggleColorMode())
-          .position({ top: 16, right: 16 })
-        }
-        .width('100%')
-
-        Divider()
-        if (this.showAccounts) {
-          Column({ space: 16 }) {
-            ForEach(Object.values(this.account_list), (account: UserAccount, index: number) => {
-              if (this.uidList[index] != this.currUid) {
-                LongPressDelete({
-                  delete: () => {
-                    this.getUIContext().showAlertDialog({
-                      title: '二次确认',
-                      message: '删除账号后，本地存储的历史记录、草稿等信息将一并被删除',
-                      buttons: [
-                        {
-                          value: '取消',
-                          action: () => {
-                          }
-                        },
-                        {
-                          value: '确定删除',
-                          fontColor: Color.Red,
-                          action: async () => {
-                            await removeAccount(this.uidList[index])
-                            this.updateState()
-                          }
-                        }]
-                    })
-                  }
-                }) {
-                  this.UserAccount(account.name, this.uidList[index])
-                }
+                openUserSpace(userSpaceParam, this.pathStack)
+                this.sideMenuShow = 0
               } else {
-                this.UserAccount(account.name, this.uidList[index])
+                this.context.eventHub.emit(Event.OpenLoginDialog)
               }
             })
-            Stack() {
-              this.MenuButton($r('app.media.plus'), '添加账户', () => {
-                this.context.eventHub.emit(Event.OpenLoginDialog)
-              })
-            }.padding({ left: 20, right: 20 })
-
-          }.transition(MenuFlyDownAni)
-          .alignItems(HorizontalAlign.Start)
-          .padding({ top: 20, bottom: 20 })
-        } else {
-          Column({ space: 16 }) {
-            this.MenuButton($r('app.media.house'), '首页', () => {
-              this.context.eventHub.emit(Event.ReturnToHomePage)
-            })
-            this.MenuButton($r('app.media.star_fill'), '收藏', () => {
-              openFavoriteList(this.pathStack)
-            })
-            this.MenuButton($r('app.media.arrow_counterclockwise_clock'), '历史记录', () => {
-              openHistoryPage(this.pathStack)
-            })
-            Divider()
-            Badge({
-              style: {},
-              position: BadgePosition.Right,
-              count: this.newReply
-            }) {
-              this.MenuButton($r('app.media.message'), '提醒', () => {
-                openNoteList(this.pathStack)
-              })
-            }
-
-            this.MenuButton($r('app.media.square_and_pencil'), '草稿', () => {
-              openDraftPage(this.pathStack)
-            })
-            this.MenuButton($r("app.media.envelope"), '私信', () => {
-              openPrivateMessage(this.pathStack)
-            })
-            this.MenuButton($r("app.media.nosign"), '黑名单', () => {
-              openBlockList(this.pathStack)
-            })
-            Divider()
-            this.MenuButton($r('app.media.gearshape'), '设置', () => {
-              openPreferences(this.pathStack)
-            })
-            Badge({
-              value:  '',
-              style: {
-                badgeSize: this.hasNewVersion ? 16 : 0
-              },
-              position: BadgePosition.Right,
-            }) {
-              this.MenuButton($r('app.media.questionmark_circle'), '关于', () => {
-                openAboutApp(this.pathStack)
-              })
-            }
-          }.transition(MenuFlyUpAni)
-          .padding(20)
+          Text(this.currUsername && this.currUsername.length > 0 ? this.currUsername : '未登录')
+            .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
+            .height(30)
+            .fontWeight(FontWeight.Medium)
         }
-        if (this.currUsername.length == 0) {
-          Row() {
-            Text('部分论坛图片/版面要求登录查看').opacity(0.6)
+        .clickEffect({ level: ClickEffectLevel.LIGHT })
+        .onClick(() => {
+          this.showAccounts = !this.showAccounts
+        })
+        .width('100%')
+        .padding({ left: 30, bottom: 20 })
+        .height(150)
+        .justifyContent(FlexAlign.End)
+        .alignItems(HorizontalAlign.Start)
+        // -----
+        Row() {
+          Image(this.currentColorMode == ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+            ? $r('app.media.sun')
+            : $r('app.media.moon'))
+            .width(20)
+            .height(20)
+            .fillColor($r('sys.color.font_primary'))
+        }
+        .width(36)
+        .height(36)
+        .borderRadius(18)
+        .backgroundColor($r('sys.color.background_tertiary'))
+        .opacity(0.6)
+        .justifyContent(FlexAlign.Center)
+        .clickEffect({ level: ClickEffectLevel.LIGHT })
+        .onClick(() => this.toggleColorMode())
+        .position({ top: 16, right: 16 })
+      }
+      .width('100%')
+
+      Divider()
+
+      Scroll() {
+        Column() {
+          if (this.showAccounts) {
+            Column({ space: 16 }) {
+              ForEach(Object.values(this.account_list), (account: UserAccount, index: number) => {
+                if (this.uidList[index] != this.currUid) {
+                  LongPressDelete({
+                    delete: () => {
+                      this.getUIContext().showAlertDialog({
+                        title: '二次确认',
+                        message: '删除账号后，本地存储的历史记录、草稿等信息将一并被删除',
+                        buttons: [
+                          {
+                            value: '取消',
+                            action: () => {
+                            }
+                          },
+                          {
+                            value: '确定删除',
+                            fontColor: Color.Red,
+                            action: async () => {
+                              await removeAccount(this.uidList[index])
+                              this.updateState()
+                            }
+                          }]
+                      })
+                    }
+                  }) {
+                    this.UserAccount(account.name, this.uidList[index])
+                  }
+                } else {
+                  this.UserAccount(account.name, this.uidList[index])
+                }
+              })
+              Stack() {
+                this.MenuButton($r('app.media.plus'), '添加账户', () => {
+                  this.context.eventHub.emit(Event.OpenLoginDialog)
+                })
+              }.padding({ left: 20, right: 20 })
+
+            }.transition(MenuFlyDownAni)
+            .alignItems(HorizontalAlign.Start)
+            .padding({ top: 20, bottom: 20 })
+          } else {
+            Column({ space: 16 }) {
+              this.MenuButton($r('app.media.house'), '首页', () => {
+                this.context.eventHub.emit(Event.ReturnToHomePage)
+              })
+              this.MenuButton($r('app.media.star_fill'), '收藏', () => {
+                openFavoriteList(this.pathStack)
+              })
+              this.MenuButton($r('app.media.arrow_counterclockwise_clock'), '历史记录', () => {
+                openHistoryPage(this.pathStack)
+              })
+              Divider()
+              Badge({
+                style: {},
+                position: BadgePosition.Right,
+                count: this.newReply
+              }) {
+                this.MenuButton($r('app.media.message'), '提醒', () => {
+                  openNoteList(this.pathStack)
+                })
+              }
+
+              this.MenuButton($r('app.media.square_and_pencil'), '草稿', () => {
+                openDraftPage(this.pathStack)
+              })
+              this.MenuButton($r("app.media.envelope"), '私信', () => {
+                openPrivateMessage(this.pathStack)
+              })
+              this.MenuButton($r("app.media.nosign"), '黑名单', () => {
+                openBlockList(this.pathStack)
+              })
+              Divider()
+              this.MenuButton($r('app.media.gearshape'), '设置', () => {
+                openPreferences(this.pathStack)
+              })
+              Badge({
+                value:  '',
+                style: {
+                  badgeSize: this.hasNewVersion ? 16 : 0
+                },
+                position: BadgePosition.Right,
+              }) {
+                this.MenuButton($r('app.media.questionmark_circle'), '关于', () => {
+                  openAboutApp(this.pathStack)
+                })
+              }
+            }.transition(MenuFlyUpAni)
+            .padding(20)
           }
-          .width('100%')
-          .padding(12)
-          .justifyContent(FlexAlign.Center)
+          if (this.currUsername.length == 0) {
+            Row() {
+              Text('部分论坛图片/版面要求登录查看').opacity(0.6)
+            }
+            .width('100%')
+            .padding(12)
+            .justifyContent(FlexAlign.Center)
+          }
         }
-      }.constraintSize({
-        minHeight: '100%'
-      })
-      .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
-        if (currentRatio == 0) {
-          this.showAccounts = false
-        }
-        if (currentRatio == 1) {
-          const notice = getUserNotice()
-          this.newReply = parseInt(notice.newmypost)
-          PreferenceManager.readonly(conf => {
-            this.hasNewVersion = conf.update_show_new_version
-          })
-        }
-      })
-    }.scrollBar(BarState.Off)
-
+      }.scrollBar(BarState.Off)
+      .layoutWeight(1)
+    }
+    .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
+      if (currentRatio == 0) {
+        this.showAccounts = false
+      }
+      if (currentRatio == 1) {
+        const notice = getUserNotice()
+        this.newReply = parseInt(notice.newmypost)
+        PreferenceManager.readonly(conf => {
+          this.hasNewVersion = conf.update_show_new_version
+        })
+      }
+    })
   }
 }

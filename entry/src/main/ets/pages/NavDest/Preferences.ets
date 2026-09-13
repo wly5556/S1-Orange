@@ -375,8 +375,6 @@ export struct PreferencePage {
                 })
               }.attributeModifier(this.settingRow)
 
-              SettingDivider()
-
               Row() {
                 Column({ space: SettingColumnSpace }) {
                   this.TextPrimary('使用跟手弹窗')
@@ -384,6 +382,8 @@ export struct PreferencePage {
                   Text(FollowHandDialogDesc[this.appState.followHandDialog]).attributeModifier(this.textSecondary)
                 }.SettingColumn()
               }.attributeModifier(this.settingRow)
+
+              SettingDivider()
 
               Row() {
                 Column({ space: SettingColumnSpace }) {
