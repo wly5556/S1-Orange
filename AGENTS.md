@@ -90,6 +90,7 @@ const data = await new request<RespType>(URL.SOME_PATH)   // 第二参 base，�
 ## 全局状态与跨组件通信
 
 - `@Provide`/`@Consume`：`pathStack`（`PropKey.pathStack`）、`appTheme`（`AppThemeColor`）、`appState`（`PreferenceState`）、`sideMenuShow`、`forumInfo` 由 `NavigationPage` 提供，子页面 `@Consume` 即可。
+- ** `@BuilderParam` 传入子组件的 `@Builder`（如 `SwipePageViewer` 的 `contentBuilder`）在子组件作用域内执行，`this` 指向不可靠，不要在其中通过闭包引用父组件的方法/状态（如给子组件传回调）。跨层的数据上报与下发可参照已有模式用 `@Provide`/`@Consume` 数据驱动**
 - `AppStorage` + `@StorageProp`：用于跨 Ability 的值，如 `PropKey.userId`（`'storageUserId'`）、`PropKey.currentColorMode`、`SafeArea.top/bottom/keyboard`。
 - **事件总线** `context.eventHub`：定义在 `common/Events.ets` 的 `Event` 枚举。发送 `context.eventHub.emit(Event.Xxx, payload)`，接收 `context.eventHub.on(Event.Xxx, (payload) => {...})`。新增事件记得加进 `Event` 枚举。
 
@@ -115,3 +116,6 @@ const data = await new request<RespType>(URL.SOME_PATH)   // 第二参 base，�
 - 提交前自检：新增页面是否三处齐全（PageNameEnum / route_map.json / XxxPage.ets）；新增配置是否同时进了 `ApplicationConfig` 与（需要时）`PreferenceState`；`PreferenceManager.readonly` 内严禁修改。
 - 非必要勿新增注释，通常变量名已足够表达代码逻辑。
 - 短事件处理方法如果没有复用需求，不需要抽到成员方法里，代码直接写在handler lambda
+
+## AI助手交互约定
+- **禁止可视化图表**：回答一律用纯文字（必要时用代码块/列表），禁止生成任何 SVG/图表/流程图/可视化 widget。

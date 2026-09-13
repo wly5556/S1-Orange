@@ -18,7 +18,7 @@ import { PropKey, SafeArea } from '../../common/Constants'
 import { Event } from '../../common/Events'
 import { ForumSortMode } from '../../config/v1/default'
 import { setForumGroupNameMap } from '../../common/ForumUtil'
-import { joinInFlight } from '../../common/PageLoad'
+import { PageLoadGuard } from '../../common/PageLoad'
 
 
 @Component
@@ -40,12 +40,15 @@ export struct ForumGroupView {
   @Consume appState: PreferenceState
   @State pullToRefreshEnabled: boolean = true
   @StorageProp(PropKey.userId) @Watch('refreshThreadGroup') uid?: string = undefined
+  loadGuard: PageLoadGuard = new PageLoadGuard()
+  dataControlCounter: number = 0
   @State forumSortMode: ForumSortMode = ForumSortMode.byReplyCount
   @State forumHidden: string[] = []
   @State forumDisplayOrder: string[] = []
 
   pullDownStageChanged() {
     if (this.refreshStage == PullToRefreshStage.doLoading) {
+      this.dataControlCounter += 1
       this.refreshThreadGroup().then(() => this.refreshStage = PullToRefreshStage.unactivated)
     }
   }
@@ -63,9 +66,7 @@ export struct ForumGroupView {
 
   aboutToAppear(): void {
     this.loadForumDisplayPref()
-    if (this.forumGroupName.size == 0) {
-      this.refreshThreadGroup()
-    }
+    this.refreshThreadGroup()
     this.context.eventHub.on(Event.ForumDisplayPrefChanged, (): void => this.loadForumDisplayPref())
   }
 
@@ -110,12 +111,19 @@ export struct ForumGroupView {
   }
 
   refreshThreadGroup(): Promise<void> {
-    return joinInFlight(`forumGroup,${this.uid ?? ''}`,
+    const session = this.loadGuard.begin(`forumGroup,${this.uid ?? ''},${this.dataControlCounter}`)
+    if (session === undefined) {
+      return Promise.resolve()
+    }
+    return session.join(`forumGroup,${this.uid ?? ''}`,
       (): Promise<wrapper<ForumGroup>> =>
         new request<wrapper<ForumGroup>>(URL.FORUM_GROUP)
           .cache((v): void => this.processData(v), this.forumGroupId.length > 0, this.uid === undefined)
           .get())
       .then((v): void => this.processData(v))
+      .catch(() => {
+        // pass 到 loadGuard
+      })
   }
 
   build() {

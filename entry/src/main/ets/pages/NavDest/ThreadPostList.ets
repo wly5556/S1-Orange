@@ -27,7 +27,7 @@ import {
   RecordThreadViewHistory
 } from '../../common/dataStore/HistoryData'
 import { ArrayDataSource, ReloadController } from '../../common/BasicDataSource'
-import { CacheWaitHint, joinInFlight, PageLoadGuard } from '../../common/PageLoad'
+import { CacheWaitHint, PageLoadGuard } from '../../common/PageLoad'
 import { generateS1WebPostLink, openInBrowser, openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import Account from '../../api/model/account'
@@ -145,6 +145,7 @@ export struct ThreadPostList {
   @State imgViewerShow: boolean = false
   @Provide('visiblePage') currentPage: number = 1
   @Provide totalPage: number = 1
+  @Provide @Watch('emptyPagesChanged') emptyPages: Set<number> = new Set
   @State jumpToPage: number = -1
   jumpToPageDone: boolean = false
   @Provide jumpToPost?: string = undefined
@@ -185,8 +186,7 @@ export struct ThreadPostList {
       return // 页面参数只有tid时的初始化情形，等待子页面回传正确的回帖数量
     }
     // 此时认为真正打开了帖子
-    this.totalPage = parseInt(this.pageParam?.replies || '0') > 1 ?
-      Math.ceil(parseInt(this.pageParam?.replies || '0') / POST_PER_PAGE) : 1
+    this.recomputeTotalPage()
     if (this.pageParam.jumpToPage && !this.jumpToPageDone && this.pageParam.jumpToPage <= this.totalPage) {
       let jumpToPage = this.pageParam.jumpToPage!
       if (jumpToPage < 0) {
@@ -202,6 +202,24 @@ export struct ThreadPostList {
       FlushThreadViewHistory(this.pageParam.tid)
     }
     this.updateEntryUnread()
+  }
+
+  recomputeTotalPage() {
+    const replies = parseInt(this.pageParam?.replies || '0')
+    let lastPage = replies > 1 ? Math.ceil(replies / POST_PER_PAGE) : 1
+    this.emptyPages.forEach((page: number) => {
+      if (page > 1 && page - 1 < lastPage) {
+        lastPage = page - 1
+      }
+    })
+    this.totalPage = lastPage
+  }
+
+  emptyPagesChanged() {
+    this.recomputeTotalPage()
+    if (this.currentPage > this.totalPage) {
+      this.jumpToPage = this.totalPage
+    }
   }
 
   updateEntryUnread(): void {
@@ -695,6 +713,7 @@ struct SinglePostPage {
   }
 
   loadingIcon?: SwipePageLoadingIcon
+  @Consume emptyPages: Set<number>
   @State threadAuthorUid: string = ''
   @StorageProp(PropKey.userId) currentUserUid?: string = undefined
   @Consume appTheme: AppThemeColor
@@ -969,6 +988,11 @@ struct SinglePostPage {
     let postArray: PostViewModel[] = []
     const searchItems: PostSearchItem[] = []
     let rawPostList = v.data.list
+    if (rawPostList.length == 0 && this.pageToLoad > 1) {
+      this.loadingFinish()
+      this.emptyPages.add(this.pageToLoad)
+      return
+    }
     this.imgUrl = []
     this.postStringify.clear()
     this.mdRendered.clear()
@@ -1002,6 +1026,7 @@ struct SinglePostPage {
       postArray.push(vm)
     })
     this.refreshInlineAttachmentAid()
+    this.emptyPages.delete(this.pageToLoad)
 
     this.searchItemsByPage.set(this.pageToLoad, searchItems)
 
@@ -1036,7 +1061,6 @@ struct SinglePostPage {
       this.postDataSource.reload(postArray)
     }
     this.loadingFinish()
-    this.loadGuard.markLoading(this.generateDataFetchKey())
     if (lastUpdatePostCount > 0 && postArray.length > lastUpdatePostCount) {
       setTimeout(() => {
         this.scroller.scrollBy(0, this.showBottomLoading * BOTTOM_LOADING_AREA)
@@ -1052,13 +1076,13 @@ struct SinglePostPage {
   }
 
   requestPostData() {
-    if (!this.loadGuard.shouldLoad(this.generateDataFetchKey())) {
+    const session = this.loadGuard.begin(this.generateDataFetchKey())
+    if (session === undefined) {
       return
     }
-    this.loadGuard.markLoading(this.generateDataFetchKey())
     this.loadingBegin()
 
-    joinInFlight(`threadPosts,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+    session.join(`threadPosts,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
       (): Promise<wrapper<PostListV4>> =>
       new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
         .param('tid', this.pageParam.tid)
@@ -1068,14 +1092,13 @@ struct SinglePostPage {
         .get())
       .then((v): void => this.processPostListV4(v))
       .catch((res: RequestError) => {
-        this.loadGuard.markFailed()
         if (res.type == 'Response') {
           if (res.data.statusCode == 404) {
             this.threadNotExist = true
           }
         }
       })
-    joinInFlight(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+    session.join(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
       (): Promise<wrapperApp<ThreadDataApp>> =>
         new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
         .appToken()
@@ -1090,7 +1113,6 @@ struct SinglePostPage {
         }))
       .then((v): void => this.processThreadDataApp(v))
       .catch(() => {
-        this.loadGuard.markFailed()
         this.loadingFinish()
       })
       .finally((): void => this.waitHint.end())
@@ -1109,7 +1131,7 @@ struct SinglePostPage {
 
   aboutToDisappear(): void {
     clearInterval(this.postDatetimeUpdateTimer)
-    this.waitHint.destroy()
+    this.waitHint.end()
     const offset = this.scroller.currentOffset()
     if (offset) {
       this.pageScrollOffset.set(this.pageToLoad, offset.yOffset)

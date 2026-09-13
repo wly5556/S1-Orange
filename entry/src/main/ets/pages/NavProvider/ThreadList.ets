@@ -29,7 +29,7 @@ import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { openInBrowser } from '../../common/WantUitl'
 import { ReloadController } from '../../common/BasicDataSource'
-import { CacheWaitHint, joinInFlight, PageLoadGuard } from '../../common/PageLoad'
+import { CacheWaitHint, PageLoadGuard } from '../../common/PageLoad'
 import { PropKey } from '../../common/Constants'
 import { TabBarSelector } from '../../common/component/TabBarSelector'
 import { LengthUnit } from '@ohos.arkui.node'
@@ -337,7 +337,7 @@ struct ThreadListPage {
   }
 
   aboutToDisappear(): void {
-    this.waitHint.destroy()
+    this.waitHint.end()
   }
 
   generatePageKey() {
@@ -501,11 +501,11 @@ struct ThreadListPage {
   }
 
   requestPageData() {
-    if (!this.loadGuard.shouldLoad(this.generatePageKey())) {
+    const session = this.loadGuard.begin(this.generatePageKey())
+    if (session === undefined) {
       this.loadingIcon?.hide(this.pageToLoad)
       return
     }
-    this.loadGuard.markLoading(this.generatePageKey())
     this.loadingIcon?.show(this.pageToLoad)
     if (this.pageToLoad == 1 && this.recommendPinned.length > 0) {
       this.recommendPinned = []
@@ -513,7 +513,7 @@ struct ThreadListPage {
     this.dataLoading = true
     let requestPageIndex = this.pageToLoad.toString()
     const pageAtRequest = this.pageToLoad
-    joinInFlight(`forumThreads,${this.forumId},${requestPageIndex},${this.threadTypeFilter}`,
+    session.join(`forumThreads,${this.forumId},${requestPageIndex},${this.threadTypeFilter}`,
       (): Promise<wrapper<ThreadList>> =>
       new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
         .param('fid', this.forumId)
@@ -532,7 +532,6 @@ struct ThreadListPage {
         return Promise.resolve(v)
       })
       .catch(() => {
-        this.loadGuard.markFailed()
         this.dataLoading = false
         this.loadingIcon?.hide(this.pageToLoad)
       })

@@ -21,6 +21,9 @@ export function joinInFlight<T>(key: string, issue: () => Promise<T>): Promise<T
   return request
 }
 
+/**
+ * 页面级加载状态守卫，避免重复加载同一 key。
+ */
 export class PageLoadGuard {
   private loadedKey: string = ''
 
@@ -28,18 +31,58 @@ export class PageLoadGuard {
     return key != this.loadedKey
   }
 
-  markLoading(key: string): void {
+  /**
+   * 领取一次加载会话。key 已加载（或正在加载）时返回 undefined，调用方应直接放弃本次加载。
+   * 成功领取后 key 立即被占位，防止并发重入。
+   */
+  begin(key: string): LoadSession | undefined {
+    if (!this.shouldLoad(key)) {
+      return undefined
+    }
+    this.loadedKey = key
+    return new LoadSession(this, key)
+  }
+
+  /** 确认 key 已加载完成（幂等）。仅供 LoadSession 调用。 */
+  confirm(key: string): void {
     this.loadedKey = key
   }
 
-  markFailed(): void {
-    this.loadedKey = ''
+  /** 回滚占位，允许该 key 重试；若占位已被更新的会话顶替则不动。仅供 LoadSession 调用。 */
+  reset(key: string): void {
+    if (this.loadedKey == key) {
+      this.loadedKey = ''
+    }
   }
 }
 
 /**
- * 延迟等待提示：begin() 后 800ms 内未被 end() 时回调 true。
- * begin() / end() / destroy() 都会把等待态回落为 false（幂等），因此提示不会残留。
+ * 一次加载会话：持有发起时捕获的 key，会话内可并发 join 多个请求
+ */
+class LoadSession {
+  private guard: PageLoadGuard
+  private key: string
+
+  constructor(guard: PageLoadGuard, key: string) {
+    this.guard = guard
+    this.key = key
+  }
+
+  join<T>(flightKey: string, issue: () => Promise<T>): Promise<T> {
+    return joinInFlight(flightKey, issue)
+      .then((v): T => {
+        this.guard.confirm(this.key)
+        return v
+      })
+      .catch((e: Error): Promise<T> => {
+        this.guard.reset(this.key)
+        throw e
+      })
+  }
+}
+
+/**
+ * 延迟等待提示：begin() 后 800ms 内未被 end() 时回调 true
  */
 export class CacheWaitHint {
   private onWaitChange: (waiting: boolean) => void
@@ -61,10 +104,6 @@ export class CacheWaitHint {
   end(): void {
     this.clearTimer()
     this.onWaitChange(false)
-  }
-
-  destroy(): void {
-    this.end()
   }
 
   private clearTimer(): void {
