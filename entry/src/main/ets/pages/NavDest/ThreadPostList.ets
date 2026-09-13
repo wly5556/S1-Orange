@@ -16,7 +16,7 @@ import { formatRelativeTime } from '../../common/TimeFormat'
 import { setLongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { PageNameEnum } from '../PageNameEnum'
 import { AppThemeColor } from '../../common/theme/basic/basic'
-import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
+import { ImageViewer, ImageViewerParam, requestImageViewerExit } from '../../common/component/ImageViewer'
 import { openOrJumpTo } from '../SingletonPage'
 import { PageLoadingSpot, SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
 import { Event } from '../../common/Events'
@@ -653,9 +653,11 @@ export struct ThreadPostList {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
-          this.imgViewerShow = false
-        })
+        if (!requestImageViewerExit()) {
+          this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
+            this.imgViewerShow = false
+          })
+        }
       }),
     })
   }

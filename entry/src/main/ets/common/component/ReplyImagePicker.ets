@@ -17,7 +17,7 @@ import { ArrayDataSource } from '../BasicDataSource';
 import { RipImageItem, RipImageUpload } from '../../api/model/ripImage/sda1';
 import { WriteHandler, WriteReplyMode } from '../../pages/NavDest/WriteReply';
 import { TabBarSelector } from './TabBarSelector';
-import { ImageViewer, ImageViewerParam } from './ImageViewer';
+import { ImageViewer, ImageViewerParam, requestImageViewerExit } from './ImageViewer';
 
 const IMG_THUMBNAIL_HEIGHT = 150
 
@@ -368,9 +368,11 @@ export struct ReplyImagePicker {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
-          this.imgViewerShow = false
-        })
+        if (!requestImageViewerExit()) {
+          this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
+            this.imgViewerShow = false
+          })
+        }
       }),
     })
   }

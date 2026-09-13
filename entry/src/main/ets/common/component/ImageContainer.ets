@@ -5,7 +5,7 @@ import { openInBrowser } from '../WantUitl'
 import { common } from '@kit.AbilityKit'
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
-import { ImageViewerTransitionToSize } from './ImageViewer'
+import { ImageViewerTransitionToSize, ImageViewerTransitionToPos } from './ImageViewer'
 import { rcp } from '@kit.RemoteCommunicationKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 
@@ -160,7 +160,11 @@ export struct ImageContainer {
           }
         }).onClick(this.onImgClick ? (e) => {
           this.onImgClick && this.onImgClick()
+          // 记录缩略图尺寸与窗口全局位置(px)，供大图查看器退场时对齐
           ImageViewerTransitionToSize.w = vp2px(parseFloat(e.target.area.width.toString() || '0'))
+          ImageViewerTransitionToSize.h = vp2px(parseFloat(e.target.area.height.toString() || '0'))
+          ImageViewerTransitionToPos.w = vp2px(parseFloat(e.target.area.globalPosition.x?.toString() || '0'))
+          ImageViewerTransitionToPos.h = vp2px(parseFloat(e.target.area.globalPosition.y?.toString() || '0'))
         } : undefined)
           .hitTestBehavior(this.onImgClick ? undefined : HitTestMode.None)
       }

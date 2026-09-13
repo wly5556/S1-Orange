@@ -1,7 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { Attachment } from '../../api/model/postList'
 import { AniSpeed, SpringCurve } from '../../common/Animation'
-import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
+import { ImageViewer, ImageViewerParam, requestImageViewerExit } from '../../common/component/ImageViewer'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { ThreadPostUINodeRender, GeneralNode, UINodeName, UIRootNode } from '../../common/component/ThreadPostContent'
 import { TitleBar } from '../../common/component/TitleBar'
@@ -161,9 +161,11 @@ export struct WriteReplyPreview {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo(SpringCurve, () => {
-          this.imgViewerShow = false
-        })
+        if (!requestImageViewerExit()) {
+          this.getUIContext().animateTo(SpringCurve, () => {
+            this.imgViewerShow = false
+          })
+        }
       }),
     })
   }

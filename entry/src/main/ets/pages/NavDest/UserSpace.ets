@@ -6,7 +6,7 @@ import { AniSpeed, AvatarTransition, HeavyClickEffect, SpringCurve } from '../..
 import { ReloadController } from '../../common/BasicDataSource'
 import { Avatar } from '../../common/component/Avatar'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
-import { ImageViewer } from '../../common/component/ImageViewer'
+import { ImageViewer, requestImageViewerExit } from '../../common/component/ImageViewer'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import {
   parseXML,
@@ -386,9 +386,11 @@ export struct UserSpace {
     }).bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.ALPHA,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo(SpringCurve, () => {
-          this.imgViewerShow = false
-        })
+        if (!requestImageViewerExit()) {
+          this.getUIContext().animateTo(SpringCurve, () => {
+            this.imgViewerShow = false
+          })
+        }
       }),
     })
   }

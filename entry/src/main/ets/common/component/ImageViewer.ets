@@ -55,11 +55,34 @@ function offFrameSync() {
 
 const ImageViewerCacheCount = 1
 
-const EXIT_PINCH_SCALE_THRESHOLD = 0.8 // 松手时缩放小于该值则直接退出大图查看器
+const EXIT_PINCH_SCALE_THRESHOLD = 0.9 // 松手时缩放小于该值则直接退出大图查看器
+
+// 退场时geometryTransition改用无配对id，避免系统退场触发位移转场
+const DETACHED_GEOMETRY_ID_PREFIX = 'imageViewer_detached_'
 
 export let ImageViewerTransitionToSize: RectSize = {
   w: 0,
   h: 0
+}
+
+// 缩略图窗口全局坐标(px)，退场对齐用
+export let ImageViewerTransitionToPos: RectSize = {
+  w: 0,
+  h: 0
+}
+
+let activeExitHandler: (() => void) | null = null
+
+/**
+ * 请求退出当前大图查看器，由其自控退场动画
+ * @returns 是否接管；false时调用方按原逻辑直接关闭
+ */
+export function requestImageViewerExit(): boolean {
+  if (activeExitHandler == null) {
+    return false
+  }
+  activeExitHandler()
+  return true
 }
 
 @Component
@@ -76,12 +99,14 @@ export struct ImageViewer {
   @StorageProp(SafeArea.top) topRectHeight: number = 0
   imgTransform: matrixHelper[] = []
   dismissDragging: boolean = false
+  @State exiting: boolean = false // 退场进行中，geometryTransition保持解绑
   @State imgLoaded: boolean[] = []
   @State imgLoadFailed: boolean[] = []
   @State showButton: boolean = true
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
   @State transitionExitEffect: TransitionEffect | undefined = undefined
   @State bgOpacity: number = 1
+  @State imgOpacity: number = 1 // 退场第一阶段图片本体渐隐
 
   aboutToAppear(): void {
     this.targetSwiperIndex = this.swiperIndex = this.param.startAt
@@ -92,27 +117,73 @@ export struct ImageViewer {
     }
     this.imgCount = this.param.urls.length
     SetStatusBarColor(this.context, themeColorDark)
+    activeExitHandler = (): void => this.beginExit()
+  }
+
+  aboutToDisappear(): void {
+    activeExitHandler = null
   }
 
   showUpChanged() {
     if (this.showUp === false && this.imgCount > 0) {
       SetStatusBarColor(this.context, this.appTheme)
       this.showStatusBar()
-      this.imgTransform[this.swiperIndex].reset()
-      // geometryTransition会将组件左上角对齐，但不会匹配大小
-      // 还需要添加图片缩放退场动画
-      const scale = ImageViewerTransitionToSize.w / this.imgTransform[this.swiperIndex].width
-      // 退场：图片本体逐渐透明，同时缩放到与缩略图匹配的大小
-      this.transitionExitEffect = TransitionEffect.OPACITY
-        .combine(TransitionEffect.scale({
-          centerX: 0,
-          centerY: 0,
-          x: scale,
-          y: scale
-        }))
-        .animation({ duration: AniSpeed.ms300 })
-      this.updateImageTransformMatrix()
+      this.transitionExitEffect = TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 })
     }
+  }
+
+  /**
+   * 两段式退场：打开的那张图先自控动画对齐缩略图（同时渐隐），
+   * 结束后再走系统退场；其它图直接走系统退场整层淡出
+   */
+  beginExit() {
+    if (this.exiting) {
+      return
+    }
+    this.exiting = true
+    const helper = this.imgTransform[this.swiperIndex]
+    const canAlign = this.swiperIndex == this.param.startAt &&
+      helper.width > 0 && ImageViewerTransitionToSize.w > 0 && ImageViewerTransitionToSize.h > 0
+    if (!canAlign) {
+      // 延迟一拍，让geometryTransition解绑先生效
+      setTimeout(() => {
+        this.finishExit()
+      }, 0)
+      return
+    }
+    const targetScale = ImageViewerTransitionToSize.w / helper.width
+    const targetCenterX = ImageViewerTransitionToPos.w + ImageViewerTransitionToSize.w / 2
+    const targetCenterY = ImageViewerTransitionToPos.h + ImageViewerTransitionToSize.h / 2
+    this.getUIContext()
+      .animateTo({
+        duration: AniSpeed.ms200,
+        onFinish: () => {
+          this.finishExit()
+        }
+      }, () => {
+        helper.setExitTarget(targetScale, targetCenterX, targetCenterY)
+        this.updateImageTransformMatrix()
+        this.bgOpacity = 0
+        this.showButton = false
+      })
+    this.getUIContext()
+      .animateTo({
+        duration: AniSpeed.ms200,
+        curve: Curve.EaseIn,
+      }, () => {
+        this.imgOpacity = 0
+      })
+  }
+
+  finishExit() {
+    if (!this.exiting) {
+      return
+    }
+    // 不重置exiting，退场期间geometryTransition维持解绑
+    this.getUIContext()
+      .animateTo(SpringCurve, () => {
+        this.showUp = false
+      })
   }
 
   showStatusBar() {
@@ -212,7 +283,8 @@ export struct ImageViewer {
     Stack() {
       Column() {
 
-      }.width('100%')
+      }
+      .width('100%')
       .height('100%')
       .backgroundColor(Color.Black)
       .opacity(this.bgOpacity)
@@ -240,7 +312,10 @@ export struct ImageViewer {
               }
             })
               .transform(this.imgMatrix[compIndex])
-              .geometryTransition(generateImageViewerTransitionKey(this.param.urls[compIndex], compIndex.toString()))
+              .opacity(this.imgOpacity)
+              .geometryTransition(this.exiting
+                ? DETACHED_GEOMETRY_ID_PREFIX + compIndex
+                : generateImageViewerTransitionKey(this.param.urls[compIndex], compIndex.toString()))
               .transition(this.transitionExitEffect)
           }
           .width('100%')
@@ -298,7 +373,7 @@ export struct ImageViewer {
             this.endDismissDrag()
           }))
           .onGestureJudgeBegin((gestureInfo: GestureInfo, event: BaseGestureEvent) => {
-            if (this.imgLoadFailed[this.swiperIndex]) {
+            if (this.exiting || this.imgLoadFailed[this.swiperIndex]) {
               return GestureJudgeResult.REJECT
             }
             if (gestureInfo.type == GestureControl.GestureType.PAN_GESTURE) {
@@ -336,10 +411,7 @@ export struct ImageViewer {
             .fillColor(Color.White)
         }.StackBlurButton().ultraThinBlur()
         .onClick(e => {
-          this.getUIContext()
-            .animateTo(SpringCurve, () => {
-              this.showUp = false
-            })
+          this.beginExit()
         })
 
         Row() {
@@ -377,10 +449,7 @@ export struct ImageViewer {
   finishScaleGesture(restore: () => void) {
     const helper = this.imgTransform[this.swiperIndex]
     if (helper.scaleRatio < EXIT_PINCH_SCALE_THRESHOLD) {
-      this.getUIContext()
-        .animateTo(SpringCurve, () => {
-          this.showUp = false
-        })
+      this.beginExit()
       return
     }
     animateTo(SpringCurve, () => {
@@ -449,6 +518,13 @@ class matrixHelper {
   reset() {
     this.translate = new TranslateHelper()
     this.scaleRatio = 1
+  }
+
+  /** 退场终态：内容缩放到targetScale，中心平移到缩略图中心(px、窗口坐标) */
+  setExitTarget(targetScale: number, targetCenterX: number, targetCenterY: number) {
+    this.scaleRatio = targetScale
+    this.translate.X = (targetCenterX - imgContainerSize.w / 2) / targetScale
+    this.translate.Y = (targetCenterY - imgContainerSize.h / 2) / targetScale
   }
 
   private limitInScreen() {
@@ -530,11 +606,7 @@ class matrixHelper {
     this.limitInScreen()
   }
 
-  /**
-   * 100%缩放态的拖拽：
-   * 相对起点向下拖拽时按距离缩小缩放，向上拖拽不改变缩放；
-   * 横向与纵向位移均跟手
-   */
+  /** 100%缩放态的拖拽：下拖按距离缩小缩放，上拖不缩放，位移均跟手 */
   updateDismissDrag(offsetX: number, offsetY: number) {
     if (offsetY > 0) {
       // 下滑约容器高度40%时缩放降至80%（退场阈值），拖拽距离与缩放线性对应

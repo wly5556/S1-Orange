@@ -20,7 +20,7 @@ import {
 } from '../../common/component/ThreadPostContent'
 import { openUserSpace, UserSpaceParam } from './UserSpace'
 import { openS1LinkLike } from '../../common/WantUitl'
-import { ImageViewer, ImageViewerParam } from '../../common/component/ImageViewer'
+import { ImageViewer, ImageViewerParam, requestImageViewerExit } from '../../common/component/ImageViewer'
 import { AniSpeed, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { openWriteReply, WriteReplyMode, WriteReplyParam, WriteReplyPopData } from './WriteReply'
@@ -318,9 +318,11 @@ export struct PmDetail {
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
       onWillDismiss: (() => {
-        this.getUIContext().animateTo(SpringCurve, () => {
-          this.imgViewerShow = false
-        })
+        if (!requestImageViewerExit()) {
+          this.getUIContext().animateTo(SpringCurve, () => {
+            this.imgViewerShow = false
+          })
+        }
       }),
     })
   }
