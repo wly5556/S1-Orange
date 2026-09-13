@@ -7,5 +7,6 @@ export enum Event {
   WantWithUri = "EventWantWithUri",
   OpenGotoThreadDialog = "EventOpenGotoThreadDialog",
   NewVersionDismissed = "EventNewVersionDismissed",
-  ForumDisplayPrefChanged = "EventForumDisplayPrefChanged"
+  ForumDisplayPrefChanged = "EventForumDisplayPrefChanged",
+  CustomLoadingIconChanged = "EventCustomLoadingIconChanged"
 }

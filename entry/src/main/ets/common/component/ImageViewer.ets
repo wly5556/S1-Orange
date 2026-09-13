@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { AniSpeed, HeavyClickEffect, SpringCurve } from '../Animation'
 import { ImageContainer, RectSize } from './ImageContainer'
+import { LoadingIcon } from './LoadingIcon'
 import { PageIndexDataSource } from './SwipePageViewer'
 import { AppThemeColor } from '../theme/basic/basic'
 import { themeColorDark } from '../theme/basic/dark'
@@ -213,10 +214,7 @@ export struct ImageViewer {
         LazyForEach(this.dataSource, (pageIndex: number, compIndex: number) => {
           Stack() {
             if (!this.imgLoaded[compIndex] && !this.imgLoadFailed[compIndex]) {
-              LoadingProgress()
-                .width(64)
-                .height(64)
-                .color($r('sys.color.ohos_id_color_emphasize'))
+              LoadingIcon({ iconSize: 64 })
             }
             ImageContainer({
               src: this.param.urls[compIndex],

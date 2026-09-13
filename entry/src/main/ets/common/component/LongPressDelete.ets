@@ -1,5 +1,6 @@
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
 import { SpringCurve } from '../Animation'
+import { LoadingIcon } from './LoadingIcon'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 
 const DELETE_AREA_WIDTH = 70
@@ -32,10 +33,7 @@ export struct LongPressDelete {
 
       Row() {
         if (this.doingDelete) {
-          LoadingProgress()
-            .width(FontSizeEnum[this.appState.fontSize].vp32)
-            .height(FontSizeEnum[this.appState.fontSize].vp32)
-            .color($r('sys.color.ohos_id_color_emphasize'))
+          LoadingIcon({ iconSize: FontSizeEnum[this.appState.fontSize].vp32 })
         } else {
           Button('删除')
             .buttonStyle(ButtonStyleMode.TEXTUAL)

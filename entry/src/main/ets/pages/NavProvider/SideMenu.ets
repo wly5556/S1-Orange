@@ -4,6 +4,7 @@ import { logout, removeAccount, switchAccount } from '../../common/account/Accou
 import { ClickDarkenEffect, HeavyClickEffect, MenuFlyDownAni, MenuFlyUpAni } from '../../common/Animation'
 import { Avatar } from '../../common/component/Avatar'
 import { LongPressDelete } from '../../common/component/LongPressDelete'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { PropKey } from '../../common/Constants'
 import { Event } from '../../common/Events'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -96,11 +97,8 @@ export struct SideMenu {
         .flexGrow(1)
         .flexShrink(1)
       if (uid == this.switchingIntoAccount) {
-        LoadingProgress()
-          .width(32)
-          .height(32)
+        LoadingIcon({ iconSize: 32 })
           .margin({ right: 20 })
-          .color($r('sys.color.ohos_id_color_emphasize'))
           .zIndex(100)
       } else if (uid == this.currUid) {
         Button('登出')

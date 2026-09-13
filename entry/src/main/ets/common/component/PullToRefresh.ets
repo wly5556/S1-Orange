@@ -1,4 +1,5 @@
 import { AniSpeed } from "../Animation"
+import { LoadingIcon } from "./LoadingIcon"
 
 export enum PullToRefreshStage {
   unactivated,
@@ -75,10 +76,7 @@ export struct PullToRefresh {
           .animation({ duration: AniSpeed.ms120 })
           .fillColor(this.panGestureFulfilled() ? $r('sys.color.ohos_id_color_emphasize') :
             '#99000000')
-        LoadingProgress()
-          .width(48)
-          .height(48)
-          .color($r('sys.color.ohos_id_color_emphasize'))
+        LoadingIcon({ iconSize: 48 })
           .opacity(this.stage == PullToRefreshStage.doLoading ? 1 : 0)
           .animation({ duration: AniSpeed.ms120 })
       }

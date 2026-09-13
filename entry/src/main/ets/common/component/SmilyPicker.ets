@@ -4,6 +4,7 @@ import { AniSpeed, ClickDarkenEffect, HeavyClickEffect } from '../Animation';
 import { BasicDataSource } from '../BasicDataSource';
 import { AppThemeColor } from '../theme/basic/basic';
 import { BottomSafeArea } from './BottomSafeArea';
+import { LoadingIcon } from './LoadingIcon';
 import { common } from '@kit.AbilityKit';
 import { readJson, writeJson } from '../dataStore/JsonPersist';
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage';
@@ -134,10 +135,7 @@ export struct SmilyPicker {
     Scroll() {
       Column() {
         if (this.smilyGroup.length == 0) {
-          LoadingProgress()
-            .width(64)
-            .height(64)
-            .color($r('sys.color.ohos_id_color_emphasize'))
+          LoadingIcon({ iconSize: 64 })
             .offset({ top: 100 })
             .zIndex(100)
         }

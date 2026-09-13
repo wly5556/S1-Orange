@@ -1,5 +1,6 @@
 import { BasicDataSource, ReloadController } from '../BasicDataSource';
 import { PullToRefresh, PullToRefreshStage } from './PullToRefresh';
+import { LoadingIcon } from './LoadingIcon';
 
 export class PageIndexDataSource extends BasicDataSource<number> {
   private pageCount: number
@@ -123,10 +124,7 @@ export struct SwipePageViewer {
           })
           if (this.loadingSpot[page] == PageLoadingSpot.center &&
             this.refreshStage != PullToRefreshStage.doLoading) {
-            LoadingProgress()
-              .width(64)
-              .height(64)
-              .color($r('sys.color.ohos_id_color_emphasize'))
+            LoadingIcon({ iconSize: 64 })
           }
         }.width('100%')
         .height('100%')

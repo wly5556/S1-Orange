@@ -2,6 +2,7 @@ import { SegmentButton, SegmentButtonIconTextItem, SegmentButtonItemTuple, Segme
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { TitleBar } from '../../common/component/TitleBar'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
@@ -279,10 +280,7 @@ export struct ForumDisplayPrefPage {
 
           if (this.loading) {
             Column() {
-              LoadingProgress()
-                .width(48)
-                .height(48)
-                .color($r('sys.color.ohos_id_color_emphasize'))
+              LoadingIcon({ iconSize: 48 })
             }
             .width('100%')
             .layoutWeight(1)

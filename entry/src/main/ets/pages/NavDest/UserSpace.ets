@@ -15,6 +15,7 @@ import {
   UIRootNode
 } from '../../common/component/ThreadPostContent'
 import { TitleBar } from '../../common/component/TitleBar'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { PropKey } from '../../common/Constants'
 import { BLOCK_USER_LIST_STATE, BlockUser, UnblockUser } from '../../common/dataStore/BlockUser'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -357,10 +358,7 @@ export struct UserSpace {
                 .transition(TransitionEffect.translate({ y: -45 }).animation(SpringCurve))
               }.transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
             } else {
-              LoadingProgress()
-                .width(64)
-                .height(64)
-                .color($r('sys.color.ohos_id_color_emphasize'))
+              LoadingIcon({ iconSize: 64 })
             }
             BottomSafeArea()
           }.padding({ top: 6, bottom: 6, left: 16, right: 16 })

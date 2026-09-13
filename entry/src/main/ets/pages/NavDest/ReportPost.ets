@@ -5,6 +5,7 @@ import { AniSpeed, AppearDisappearAni } from "../../common/Animation"
 import { openOrJumpTo } from "../SingletonPage"
 import { PageNameEnum } from "../PageNameEnum"
 import { OuterScroller } from "../../common/component/OuterScroller"
+import { LoadingIcon } from "../../common/component/LoadingIcon"
 import { TitleBar } from "../../common/component/TitleBar"
 import { AppThemeColor } from "../../common/theme/basic/basic"
 import { PreferenceState } from "../NavProvider/NavigationPage"
@@ -68,10 +69,7 @@ export struct ReportPost {
 
         Column({ space: 16 }) {
           if (!this.ready) {
-            LoadingProgress()
-              .width(64)
-              .height(64)
-              .color($r('sys.color.ohos_id_color_emphasize'))
+            LoadingIcon({ iconSize: 64 })
               .transition(AppearDisappearAni)
           } else {
             Select(this.reasons.map(v => ({

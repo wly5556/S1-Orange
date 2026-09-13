@@ -4,6 +4,7 @@ import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
 import { LengthUnit, promptAction, KeyboardAvoidMode, window } from '@kit.ArkUI'
 import { TitleBar } from '../../common/component/TitleBar'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import request from '../../api/request'
 import { URL } from '../../api/base'
 import { AniSpeed, ClickDarkenEffect, HeavyClickEffect, SpringCurve } from '../../common/Animation'
@@ -384,10 +385,7 @@ export struct WriteReply {
   @LocalBuilder
   loadingCard() {
     Row() {
-      LoadingProgress()
-        .width(64)
-        .height(64)
-        .color($r('sys.color.font_emphasize'))
+      LoadingIcon({ iconSize: 64, color: $r('sys.color.font_emphasize') })
     }.width('100%')
     .justifyContent(FlexAlign.SpaceAround)
   }
@@ -439,10 +437,7 @@ export struct WriteReply {
         }) {
           Stack() {
             if (this.sendingReply) {
-              LoadingProgress()
-                .width(40)
-                .height(40)
-                .color($r('sys.color.ohos_id_color_emphasize'))
+              LoadingIcon({ iconSize: 40 })
             } else {
               Image($r('app.media.paperplane_right_fill'))
                 .width(28)

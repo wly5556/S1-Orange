@@ -4,6 +4,7 @@ import { common } from '@kit.AbilityKit'
 import { openOrJumpTo } from '../SingletonPage'
 import { PageNameEnum } from '../PageNameEnum'
 import { TitleBar } from '../../common/component/TitleBar'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
@@ -111,10 +112,7 @@ export struct ThreadRedirectPage {
           useRightMenu: false
         })
         Column({ space: 16 }) {
-          LoadingProgress()
-            .width(64)
-            .height(64)
-            .color($r('sys.color.ohos_id_color_emphasize'))
+          LoadingIcon({ iconSize: 64 })
           Text('正在获取目标楼层位置，请稍候')
             .fontSize(FontSizeEnum[this.appState.fontSize].vp15)
             .fontColor(this.appTheme.fontSecondary)

@@ -1,4 +1,5 @@
 import { AniSpeed, AppearDisappearAni } from '../Animation';
+import { LoadingIcon } from '../component/LoadingIcon';
 import { login, LoginResult } from './AccountManager';
 import { common } from '@kit.AbilityKit';
 
@@ -131,10 +132,7 @@ export struct LoginDialog {
       }.visibility(this.waitingLoginResult ? Visibility.Hidden : Visibility.Visible)
 
       if (this.waitingLoginResult) {
-        LoadingProgress()
-          .width(64)
-          .height(64)
-          .color($r('sys.color.ohos_id_color_emphasize'))
+        LoadingIcon({ iconSize: 64 })
           .transition(AppearDisappearAni)
           .offset({ top: 30 })
       }

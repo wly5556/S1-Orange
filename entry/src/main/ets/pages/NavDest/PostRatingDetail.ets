@@ -1,4 +1,5 @@
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { TitleBar } from '../../common/component/TitleBar'
 import { AppThemeColor } from '../../common/theme/basic/basic'
@@ -256,9 +257,7 @@ export struct PostRatingDetail {
               pathStack: this.pathStack
             })
             if (this.ratingListLoading) {
-              LoadingProgress()
-                .width(32)
-                .height(32)
+              LoadingIcon({ iconSize: 32 })
             }
             BottomSafeArea()
           }.constraintSize({

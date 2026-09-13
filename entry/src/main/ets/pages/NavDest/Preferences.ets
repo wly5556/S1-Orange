@@ -47,11 +47,14 @@ import { CopyText } from '../../common/ShareKit'
 import { Event } from '../../common/Events'
 import { waitFor } from '../../common/AwaitUtil'
 import {
-  Recommend,
-  RecommendState,
-  RecommendStatus
+  Recommend, RecommendState, RecommendStatus
 } from '../../common/recommend/RecommendManager'
 import { RecommendPrefDesc } from '../../config/v1/default'
+import {
+  hasCustomLoadingIcon,
+  pickAndSetCustomLoadingIcon,
+  resetCustomLoadingIcon
+} from '../../common/dataStore/CustomLoadingIcon'
 
 export interface PreferenceParam {}
 
@@ -81,12 +84,15 @@ export struct PreferencePage {
   @State recommendTopK: number = defaultApplicationConfig.recommend_top_k
   @State recommendPref: number = defaultApplicationConfig.recommend_pref
   @State recommendStatus?: RecommendStatus = undefined
+  @State customLoadingIconEnabled: boolean = false
+  @State customLoadingIconRotate: boolean = true
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
     getApiCacheState().then(v => this.apiCacheUsage = v)
     this.reloadConfigState()
     this.refreshRecommendStatus()
+    this.customLoadingIconEnabled = hasCustomLoadingIcon()
   }
 
   reloadConfigState() {
@@ -96,6 +102,7 @@ export struct PreferencePage {
       this.postSignature = conf.post_signature
       this.postSignatureDeviceInfo = conf.post_signature_device_info
       this.aniSpeedRatio = conf.ani_speed_ratio
+      this.customLoadingIconRotate = conf.custom_loading_icon_rotate
       this.recommendTopK = Math.min(Math.max(conf.recommend_top_k, 3), 10)
       this.recommendPref = Math.min(Math.max(conf.recommend_pref, 0), 4)
       this.appState.textCopyable = conf.post_copyable
@@ -206,6 +213,22 @@ export struct PreferencePage {
     Recommend.getStatus().then(s => this.recommendStatus = s)
   }
 
+  async selectCustomLoadingIconAction() {
+    try {
+      const selected = await pickAndSetCustomLoadingIcon(this.context)
+      if (selected) {
+        this.customLoadingIconEnabled = true
+        this.getUIContext().getPromptAction().showToast({
+          message: '自定义“加载中”图标已启用'
+        })
+      }
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({
+        message: '设置自定义“加载中”图标失败'
+      })
+    }
+  }
+
   recommendStatusText(): string {
     if (!this.recommendStatus) {
       return ''
@@ -245,7 +268,7 @@ export struct PreferencePage {
         Scroll() {
           Column() {
             SettingGroupHeader({
-              text: '主题色',
+              text: '主题',
               fontSizeIndex: this.appState.fontSize
             })
             Column() {
@@ -302,6 +325,49 @@ export struct PreferencePage {
               Row() {
                 ThemeSelectPanel()
               }.attributeModifier(this.settingRow)
+
+              SettingDivider()
+              Row() {
+                Column({ space: SettingColumnSpace }) {
+                  this.TextPrimary('自定义“加载中”图标')
+                  Text('支持动态图片，建议使用透明背景的图片')
+                    .attributeModifier(this.textSecondary)
+                }.SettingColumn()
+
+                Row({ space: 8 }) {
+                  if (this.customLoadingIconEnabled) {
+                    Button('还原默认')
+                      .buttonStyle(ButtonStyleMode.NORMAL)
+                      .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      .onClick(() => {
+                        resetCustomLoadingIcon()
+                        this.customLoadingIconEnabled = false
+                      })
+                  }
+                  Button('选择')
+                    .buttonStyle(ButtonStyleMode.NORMAL)
+                    .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                    .onClick(() => this.selectCustomLoadingIconAction())
+                }
+              }.attributeModifier(this.settingRow)
+
+              if (this.customLoadingIconEnabled) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('静态图标旋转')
+                    Text('选择静态图片时，让它旋转起来')
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+
+                  Toggle({ type: ToggleType.Switch, isOn: this.customLoadingIconRotate }).onChange(isOn => {
+                    this.customLoadingIconRotate = isOn
+                    PreferenceManager.modify(conf => {
+                      conf.custom_loading_icon_rotate = isOn
+                    })
+                    this.context.eventHub.emit(Event.CustomLoadingIconChanged)
+                  })
+                }.attributeModifier(this.settingRow).transition(OpacityTransition)
+              }
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 
             SettingGroupHeader({
@@ -755,7 +821,8 @@ export struct PreferencePage {
               if (this.appState.recommendEnabled) {
                 Column({ space: SettingColumnSpace }) {
                   Row() {
-                    Text('帖子列表内，会有一批“你可能感兴趣的帖子”自动升到顶部，方便你快速查看有新回复的专楼、或者发现新鲜的内容。\n\n标注成实验性功能，是因为实际体验下来，各方面都很鸡肋')
+                    Text(
+                      '帖子列表内，会有一批“你可能感兴趣的帖子”自动升到顶部，方便你快速查看有新回复的专楼、或者发现新鲜的内容。\n\n标注成实验性功能，是因为实际体验下来，各方面都很鸡肋')
                       .attributeModifier(this.textSecondary)
                       .width('100%')
                   }.attributeModifier(this.settingRow).transition(OpacityTransition)
@@ -775,6 +842,7 @@ export struct PreferencePage {
                       Text(`当前：${this.recommendTopK} 个`).attributeModifier(this.textSecondary)
                     }.SettingColumn()
                   }.attributeModifier(this.settingRow)
+
                   SliderReset({
                     value: this.recommendTopK,
                     min: 3,
@@ -800,6 +868,7 @@ export struct PreferencePage {
                         .attributeModifier(this.textSecondary)
                     }.SettingColumn()
                   }.attributeModifier(this.settingRow)
+
                   Row({ space: 8 }) {
                     Text('新帖子').attributeModifier(this.textSecondary)
                     Slider({

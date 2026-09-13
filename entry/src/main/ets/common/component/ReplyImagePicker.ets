@@ -8,6 +8,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { rcp } from '@kit.RemoteCommunicationKit';
 import { common } from '@kit.AbilityKit';
 import { extractFileName } from '../TextUtil';
+import { LoadingIcon } from './LoadingIcon';
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage';
 import { FontSizeEnum } from '../fontSize/FontSizeEnum';
 import { promptAction } from '@kit.ArkUI';
@@ -256,10 +257,7 @@ export struct ReplyImagePicker {
                       }) {
                         Stack() {
                           if (!this.imgLoaded[image.id]) {
-                            LoadingProgress()
-                              .width(48)
-                              .height(48)
-                              .color($r('sys.color.ohos_id_color_emphasize'))
+                            LoadingIcon({ iconSize: 48 })
                               .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
                           } else {
                             this.imageActionButton($r('app.media.plus'), 45, { right: 10, top: 10 }, () => {
@@ -346,10 +344,7 @@ export struct ReplyImagePicker {
                       Text('当前不可用。请切换其它图床').fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                     }
                   } else {
-                    LoadingProgress()
-                      .width(64)
-                      .height(64)
-                      .color($r('sys.color.ohos_id_color_emphasize'))
+                    LoadingIcon({ iconSize: 64 })
                   }
                 }
               }.width('100%')

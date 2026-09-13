@@ -5,6 +5,7 @@ import wrapper from '../../api/wrapper'
 import { AniSpeed, ClickDarkenEffect, HeavyClickEffect } from '../../common/Animation'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefresh, PullToRefreshStage } from '../../common/component/PullToRefresh'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { TitleBar, TitleBarLeftButtonType } from '../../common/component/TitleBar'
 import { common } from '@kit.AbilityKit'
 import { AppThemeColor } from '../../common/theme/basic/basic'
@@ -202,10 +203,7 @@ export struct ForumGroupView {
             })
           }, (fid: string) => fid)
           if (this.forumGroupId.length == 0) {
-            LoadingProgress()
-              .width(64)
-              .height(64)
-              .color($r('sys.color.ohos_id_color_emphasize'))
+            LoadingIcon({ iconSize: 64 })
               .offset({ top: 200 })
           }
         }.width('100%')

@@ -5,6 +5,7 @@ import wrapper, { wrapperApp } from '../../api/wrapper'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefreshStage } from '../../common/component/PullToRefresh'
 import { TitleBar } from '../../common/component/TitleBar'
+import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { unescapeAll } from '../../common/XmlParser'
 import { RectSize, ImageContainer } from '../../common/component/ImageContainer'
 import { Avatar } from '../../common/component/Avatar'
@@ -1898,10 +1899,7 @@ struct SinglePostPage {
       }
       if (this.showBottomLoading != 0) {
         Row() {
-          LoadingProgress()
-            .width(64)
-            .height(64)
-            .color($r('sys.color.ohos_id_color_emphasize'))
+          LoadingIcon({ iconSize: 64 })
         }
         .alignItems(VerticalAlign.Top)
         .justifyContent(FlexAlign.Center)
