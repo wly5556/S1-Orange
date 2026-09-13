@@ -315,10 +315,13 @@ export struct SideMenu {
             .padding(12)
             .justifyContent(FlexAlign.Center)
           }
-        }
+        }.constraintSize({
+          minHeight: '100%'
+        })
       }.scrollBar(BarState.Off)
       .layoutWeight(1)
     }
+    .height('100%')
     .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
       if (currentRatio == 0) {
         this.showAccounts = false
