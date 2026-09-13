@@ -13,6 +13,7 @@ import { PropKey, SafeArea } from '../common/Constants';
 import { CacheDbInit } from '../common/dataStore/ApiCacheData';
 import { SmilyImageCacheInit } from '../common/dataStore/SmilyCache';
 import { loadUserTags } from '../common/dataStore/UserTag';
+import { flushPostLocationData, loadPostLocationData } from '../common/dataStore/PostLocationData';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -24,6 +25,7 @@ export default class EntryAbility extends UIAbility {
     initAccountManager()
     initJsonStorage(this.context.filesDir)
     loadUserTags()
+    loadPostLocationData()
     AppStorage.setOrCreate(PropKey.currentColorMode, this.context.config.colorMode)
     if (want.uri) {
       this.wantWithUri(want.uri)
@@ -77,6 +79,7 @@ export default class EntryAbility extends UIAbility {
 
   onBackground(): void {
     saveAvatarCacheState()
+    flushPostLocationData()
   }
 
   onForeground(): void {

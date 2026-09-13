@@ -1,6 +1,6 @@
 import { DomainRegex, URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
-import { Attachment, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
+import { Attachment, Post, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefreshStage } from '../../common/component/PullToRefresh'
@@ -70,6 +70,9 @@ import { ThreadPostAttachmentItem } from '../../common/component/ThreadPostAttac
 import { UserCreditText } from '../../common/component/UserCredit'
 import { openFreeCopy } from './FreeCopy'
 import { Recommend } from '../../common/recommend/RecommendManager'
+import { ObsoleteDomain } from '../../api/ObsoleteDomain'
+import { isS1RedirectPostLink, openThreadRedirect, parseS1RedirectPostPid, ThreadRedirectParam } from './ThreadRedirect'
+import { queryPostLocation, reportPostLocation } from '../../common/dataStore/PostLocationData'
 
 export interface PostViewModel {
   node: UIRootNode[]
@@ -848,7 +851,6 @@ struct SinglePostPage {
     }
   }
 
-
   bottomSafeTargetHeight(): number {
     const safeHeight = px2vp(this.bottomRectHeight)
     const cacheHintRowHeight = 8 + Math.ceil(FontSizeEnum[this.appState.fontSize].vp12 * 1.3)
@@ -1058,6 +1060,10 @@ struct SinglePostPage {
     this.emptyPages.delete(this.pageToLoad)
 
     this.searchItemsByPage.set(this.pageToLoad, searchItems)
+    if (this.pageParam.authorid === undefined) {
+      // 只看某作者的视图分页与完整帖分页不一致，不上报其位置
+      reportPostLocation(searchItems.map((item: PostSearchItem) => item.pid), this.pageParam.tid, this.pageToLoad)
+    }
 
     this.updatePostDatetime()
     for (let i = 0; i < rawPostList.length; i++) {
@@ -1135,7 +1141,7 @@ struct SinglePostPage {
       })
     session.join(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
       (): Promise<wrapperApp<ThreadDataApp>> =>
-        new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
         .appToken()
         .cache((v): void => {
           this.processThreadDataApp(v)
@@ -1404,8 +1410,10 @@ struct SinglePostPage {
         fontSizeOverride: this.appState.fontSizeOverride,
         copyOption: this.appState ? CopyOptions.LocalDevice : CopyOptions.None,
         onLinkClick: (href: string): void => {
-          openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
-            this.pageParam.replies, true, this.pageParam.tid)
+          if (!tryOpenLoadedPostLink(href, this.pageParam, this.pathStack)) {
+            openS1LinkLike(href, this.pathStack, this.context, this.pageParam.subject,
+              this.pageParam.replies, true, this.pageParam.tid)
+          }
         },
         onImgClick: (url: string, index: number): void => {
           this.openImageViewer(this.imgUrl, index)
@@ -1847,53 +1855,61 @@ export function openThreadPost(param: ThreadPostParam, pathStack: NavPathStack,
   })
 }
 
-async function resolveS1ThreadRedirectLink(href: string | undefined,
-  succeed: (tid: string, page: number, pid?: string, authorId?: string) => void, failed: () => void) {
-  if (href && DomainRegex.test(href)) {
-    if (href.includes(URL.REDIRECT_TO_POST)) {
-      if (href.includes(URL.DOMAIN_APP)) {
-        href = href.replace(URL.DOMAIN_APP, URL.DOMAIN_WEB)
-      }
-      new request<string>(href, '')
-        .redirectLocation()
-        .get()
-        .then(location => {
-          const regex = /tid=(\d+)&page=(\d+)#pid(\d+)/
-          const match = location.match(regex)
-          if (match && match.length === 4) {
-            succeed(match[1], parseInt(match[2]), match[3])
-            return
-          }
-        })
-        .catch(() => {
-          failed()
-        })
-    } else {
-      const weblink = resolveS1WebLink(href)
-      if (weblink) {
-        succeed(weblink.tid, weblink.page, undefined, weblink.authorId)
-      } else {
-        failed()
-      }
-    }
-  } else {
-    failed()
+function tryOpenLoadedPostLink(href: string, pageParam: ThreadPostParam, pathStack: NavPathStack): boolean {
+  const pid = parseS1RedirectPostPid(ObsoleteDomain.replace(href))
+  if (!pid) {
+    return false
   }
+  const location = queryPostLocation(pid)
+  if (!location) {
+    return false
+  }
+  const sameThread = location.tid == pageParam.tid
+  const param: ThreadPostParam = {
+    tid: location.tid,
+    fid: sameThread ? pageParam.fid : undefined,
+    typeid: sameThread ? pageParam.typeid : undefined,
+    subject: sameThread ? pageParam.subject : undefined,
+    replies: sameThread ? pageParam.replies : undefined,
+    jumpToPage: location.page,
+    jumpToPid: pid,
+    jumpToPidWithHighlight: true
+  }
+  openThreadPost(param, pathStack)
+  return true
 }
 
 export function openThreadPostByLink(href: string,
-  pathStack: NavPathStack, onFailed: () => void, subject = '', replies = '1', sourceTid?: string) {
-  resolveS1ThreadRedirectLink(href, (tid: string, page: number, pid?: string, authorId?: string) => {
-    const sameThread = sourceTid == undefined || sourceTid == tid
-    const param: ThreadPostParam = {
-      tid: tid,
-      jumpToPid: pid,
-      jumpToPage: page,
-      subject: sameThread ? subject : undefined,
-      replies: sameThread ? replies : undefined,
-      jumpToPidWithHighlight: true,
-      authorid: authorId
+  pathStack: NavPathStack, onFailed: () => void, subject = '', replies = '1', sourceTid?: string,
+  fallbackToBrowser = false, failedMessage = '') {
+  href = ObsoleteDomain.replace(href)
+  if (isS1RedirectPostLink(href)) {
+    const param: ThreadRedirectParam = {
+      href: href,
+      subject: subject,
+      replies: replies,
+      sourceTid: sourceTid,
+      fallbackToBrowser: fallbackToBrowser,
+      failedMessage: failedMessage
     }
-    openThreadPost(param, pathStack)
-  }, onFailed)
+    openThreadRedirect(pathStack, param)
+    return
+  }
+  if (DomainRegex.test(href)) {
+    const weblink = resolveS1WebLink(href)
+    if (weblink) {
+      const sameThread = sourceTid == undefined || sourceTid == weblink.tid
+      const param: ThreadPostParam = {
+        tid: weblink.tid,
+        jumpToPage: weblink.page,
+        subject: sameThread ? subject : undefined,
+        replies: sameThread ? replies : undefined,
+        jumpToPidWithHighlight: true,
+        authorid: weblink.authorId
+      }
+      openThreadPost(param, pathStack)
+      return
+    }
+  }
+  onFailed()
 }

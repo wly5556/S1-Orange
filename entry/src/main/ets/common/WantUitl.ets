@@ -35,7 +35,7 @@ export function openS1LinkLike(href: string, pathStack: NavPathStack, context: c
         message: '未能解析链接'
       })
     }
-  }, subject, replies, sourceTid
+  }, subject, replies, sourceTid, fallbackToBrowser
   ))
 }
 
