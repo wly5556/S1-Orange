@@ -55,6 +55,8 @@ function offFrameSync() {
 
 const ImageViewerCacheCount = 1
 
+const EXIT_PINCH_SCALE_THRESHOLD = 0.8 // 松手时缩放小于该值则直接退出大图查看器
+
 export let ImageViewerTransitionToSize: RectSize = {
   w: 0,
   h: 0
@@ -73,11 +75,13 @@ export struct ImageViewer {
   @State imgMatrix: matrix4.Matrix4Transit[] = []
   @StorageProp(SafeArea.top) topRectHeight: number = 0
   imgTransform: matrixHelper[] = []
+  dismissDragging: boolean = false
   @State imgLoaded: boolean[] = []
   @State imgLoadFailed: boolean[] = []
   @State showButton: boolean = true
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
   @State transitionExitEffect: TransitionEffect | undefined = undefined
+  @State bgOpacity: number = 1
 
   aboutToAppear(): void {
     this.targetSwiperIndex = this.swiperIndex = this.param.startAt
@@ -98,12 +102,15 @@ export struct ImageViewer {
       // geometryTransition会将组件左上角对齐，但不会匹配大小
       // 还需要添加图片缩放退场动画
       const scale = ImageViewerTransitionToSize.w / this.imgTransform[this.swiperIndex].width
-      this.transitionExitEffect = TransitionEffect.scale({
-        centerX: 0,
-        centerY: 0,
-        x: scale,
-        y: scale
-      })
+      // 退场：图片本体逐渐透明，同时缩放到与缩略图匹配的大小
+      this.transitionExitEffect = TransitionEffect.OPACITY
+        .combine(TransitionEffect.scale({
+          centerX: 0,
+          centerY: 0,
+          x: scale,
+          y: scale
+        }))
+        .animation({ duration: AniSpeed.ms300 })
       this.updateImageTransformMatrix()
     }
   }
@@ -208,6 +215,7 @@ export struct ImageViewer {
       }.width('100%')
       .height('100%')
       .backgroundColor(Color.Black)
+      .opacity(this.bgOpacity)
       .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
 
       Swiper() {
@@ -251,19 +259,33 @@ export struct ImageViewer {
           }).onActionUpdate(e => {
             this.imgTransform[this.swiperIndex].updatePinch(vp2px(e.pinchCenterX), vp2px(e.pinchCenterY), e.scale)
             this.updateImageTransformMatrix()
+            this.bgOpacity = Math.min(1, Math.max(0, this.imgTransform[this.swiperIndex].scaleRatio))
           }).onActionEnd(e => {
-            this.imgTransform[this.swiperIndex].endPinch()
-            animateTo(SpringCurve, () => {
-              this.updateImageTransformMatrix()
+            this.finishScaleGesture(() => {
+              this.imgTransform[this.swiperIndex].endPinch()
             })
           }))
           .gesture(PanGesture({ distance: 0.1 }).onActionStart(e => {
-          }).onActionStart(e => {
-            this.imgTransform[this.swiperIndex].beginTranslate(e.timestamp)
+            // 100%缩放态进入垂直拖拽模式
+            this.dismissDragging = this.imgTransform[this.swiperIndex].scaleRatio == 1
+            if (!this.dismissDragging) {
+              this.imgTransform[this.swiperIndex].beginTranslate(e.timestamp)
+            }
           }).onActionUpdate(e => {
+            if (this.dismissDragging) {
+              this.imgTransform[this.swiperIndex].updateDismissDrag(vp2px(e.offsetX), vp2px(e.offsetY))
+              this.updateImageTransformMatrix()
+              // 缩放小于100%时，越缩模态背景越透明
+              this.bgOpacity = Math.min(1, Math.max(0, this.imgTransform[this.swiperIndex].scaleRatio))
+              return
+            }
             this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
             this.updateImageTransformMatrix()
           }).onActionEnd(e => {
+            if (this.dismissDragging) {
+              this.endDismissDrag()
+              return
+            }
             this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
             this.imgTransform[this.swiperIndex].beginFling(e.timestamp)
             this.updateImageTransformMatrix()
@@ -272,6 +294,8 @@ export struct ImageViewer {
               this.updateImageTransformMatrix()
               return moved
             })
+          }).onActionCancel(() => {
+            this.endDismissDrag()
           }))
           .onGestureJudgeBegin((gestureInfo: GestureInfo, event: BaseGestureEvent) => {
             if (this.imgLoadFailed[this.swiperIndex]) {
@@ -348,6 +372,32 @@ export struct ImageViewer {
   updateImageTransformMatrix() {
     this.imgMatrix[this.swiperIndex] = this.imgTransform[this.swiperIndex].getMat()
     this.updateButtonVisibility()
+  }
+
+  finishScaleGesture(restore: () => void) {
+    const helper = this.imgTransform[this.swiperIndex]
+    if (helper.scaleRatio < EXIT_PINCH_SCALE_THRESHOLD) {
+      this.getUIContext()
+        .animateTo(SpringCurve, () => {
+          this.showUp = false
+        })
+      return
+    }
+    animateTo(SpringCurve, () => {
+      this.bgOpacity = 1
+      restore()
+      this.updateImageTransformMatrix()
+    })
+  }
+
+  endDismissDrag() {
+    if (!this.dismissDragging) {
+      return
+    }
+    this.dismissDragging = false
+    this.finishScaleGesture(() => {
+      this.imgTransform[this.swiperIndex].reset()
+    })
   }
 
   updateButtonVisibility() {
@@ -478,6 +528,20 @@ class matrixHelper {
   endPinch() {
     this.scaleConstraint()
     this.limitInScreen()
+  }
+
+  /**
+   * 100%缩放态的拖拽：
+   * 相对起点向下拖拽时按距离缩小缩放，向上拖拽不改变缩放；
+   * 横向与纵向位移均跟手
+   */
+  updateDismissDrag(offsetX: number, offsetY: number) {
+    if (offsetY > 0) {
+      // 下滑约容器高度40%时缩放降至80%（退场阈值），拖拽距离与缩放线性对应
+      this.scaleRatio = Math.max(0.1, 1 - offsetY / (imgContainerSize.h * 2))
+    }
+    this.translate.X = offsetX / this.scaleRatio
+    this.translate.Y = offsetY / this.scaleRatio
   }
 
   beginTranslate(nanoTs: number) {
@@ -655,8 +719,12 @@ function StackBlurButton() {
 @Styles
 function ultraThinBlur() {
   .backgroundEffect({
-    brightness: 0.8,
+    brightness: 0.75,
     radius: 12,
+  })
+  .border({
+    width: 1,
+    color: 'rgba(255, 255, 255, 0.2)'
   })
 }
 
