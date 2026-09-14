@@ -184,7 +184,7 @@ struct NavigationPage {
       })
     })
     this.context.eventHub.on(Event.WantWithUri, (uri: string) => {
-      openS1LinkLike(uri, this.pathStack, this.context, '', '1', false)
+      openS1LinkLike(uri, this.pathStack, this.context, '', undefined, false)
     })
   }
 

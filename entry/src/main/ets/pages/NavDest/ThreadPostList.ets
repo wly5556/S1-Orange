@@ -121,7 +121,7 @@ interface LongScreenshotOptionButtonParam {
 
 const PostContentVerticalPadding = 12
 const PostContentHorizontalPadding = 16
-const POST_PER_PAGE = 40
+export const POST_PER_PAGE = 40
 
 function genThreadPostViewKey(pageParam: ThreadPostParam) {
   return `${pageParam.tid},${pageParam.jumpToPid},${pageParam.authorid}`
@@ -1932,8 +1932,16 @@ export function openThreadPost(param: ThreadPostParam, pathStack: NavPathStack,
   })
 }
 
+// 已知目标页但不知道回帖数时，预估一个至少覆盖到目标页的回帖数，
+// 使落地页能立即计算出不小于目标页的总页数并直接跳转，而无需先落在第1页等待接口回填
+export function estimatedRepliesForPage(page: number, replies?: string): string {
+  const known = parseInt(replies ?? '0') || 0
+  const minForPage = (Math.max(page, 1) - 1) * POST_PER_PAGE + 1
+  return String(Math.max(known, minForPage))
+}
+
 export function openThreadPostByLink(href: string,
-  pathStack: NavPathStack, onFailed: () => void, subject = '', replies = '1', sourceTid?: string,
+  pathStack: NavPathStack, onFailed: () => void, subject = '', replies?: string, sourceTid?: string,
   fallbackToBrowser = false, failedMessage = '') {
   href = ObsoleteDomain.replace(href)
   if (isS1RedirectPostLink(href)) {
@@ -1956,7 +1964,7 @@ export function openThreadPostByLink(href: string,
         tid: weblink.tid,
         jumpToPage: weblink.page,
         subject: sameThread ? subject : undefined,
-        replies: sameThread ? replies : undefined,
+        replies: estimatedRepliesForPage(weblink.page, sameThread ? replies : undefined),
         jumpToPidWithHighlight: true,
         authorid: weblink.authorId
       }

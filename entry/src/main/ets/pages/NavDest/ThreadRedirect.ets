@@ -8,7 +8,7 @@ import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
-import { openThreadPost, ThreadPostParam } from './ThreadPostList'
+import { openThreadPost, ThreadPostParam, estimatedRepliesForPage } from './ThreadPostList'
 import { openInBrowser } from '../../common/WantUitl'
 import { queryPostLocation } from '../../common/dataStore/PostLocationData'
 
@@ -58,7 +58,8 @@ export struct ThreadRedirectPage {
       jumpToPid: pid,
       jumpToPage: page,
       subject: sameThread ? this.pageParam.subject : undefined,
-      replies: sameThread ? this.pageParam.replies : undefined,
+      // 非同帖跳转拿不到目标帖回帖数，按已知目标页预估，避免落地后无法跳到目标页
+      replies: estimatedRepliesForPage(page, sameThread ? this.pageParam.replies : undefined),
       jumpToPidWithHighlight: true
     }
     // 无动画打开实际帖子页，同时把自身移出页面栈，使返回键直接回到来源页
@@ -155,7 +156,8 @@ export function openThreadRedirect(pathStack: NavPathStack, param: ThreadRedirec
       jumpToPid: pid,
       jumpToPage: location.page,
       subject: sameThread ? param.subject : undefined,
-      replies: sameThread ? param.replies : undefined,
+      // 非同帖跳转拿不到目标帖回帖数，按已知目标页预估，避免落地后无法跳到目标页
+      replies: estimatedRepliesForPage(location.page, sameThread ? param.replies : undefined),
       jumpToPidWithHighlight: true
     }
     openThreadPost(postParam, pathStack)
