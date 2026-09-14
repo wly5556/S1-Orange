@@ -385,7 +385,7 @@ export struct UserSpace {
       return true
     }).bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
-      transition: TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300, curve: Curve.EaseIn }),
+      transition: TransitionEffect.IDENTITY,
       onWillDismiss: (() => {
         if (!requestImageViewerExit()) {
           this.getUIContext().animateTo(SpringCurve, () => {

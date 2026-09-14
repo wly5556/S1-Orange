@@ -455,6 +455,11 @@ export struct ImageViewer {
       .padding(10)
       .justifyContent(FlexAlign.SpaceBetween)
     }.alignContent(Alignment.Top)
+    .transition(TransitionEffect.asymmetric(
+      // 入场渐显200ms提速；退场整层淡出保持300ms不变
+      TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms200, curve: Curve.EaseIn }),
+      TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300, curve: Curve.EaseIn })
+    ))
   }
 
   updateImageTransformMatrix() {
@@ -473,7 +478,7 @@ export struct ImageViewer {
     this.updateImageTransformMatrix()
     this.imgOpacity = 1
     this.getUIContext()
-      .animateTo({ duration: AniSpeed.ms300, curve: Curve.EaseIn }, () => {
+      .animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseIn }, () => {
         helper.reset()
         this.updateImageTransformMatrix()
       })
