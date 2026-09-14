@@ -337,11 +337,25 @@ export struct PreferencePage {
                     Text('支持动态图片，建议使用透明背景的图片')
                       .attributeModifier(this.textSecondary)
                       .width('100%')
+                    Row({ space: 8 }) {
+                      Blank()
+                      Button('还原默认')
+                        .buttonStyle(ButtonStyleMode.NORMAL)
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                        .onClick(() => {
+                          resetCustomLoadingIcon()
+                          this.customLoadingIconEnabled = false
+                        })
+                      Button('选择另一张')
+                        .buttonStyle(ButtonStyleMode.NORMAL)
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                        .onClick(() => this.selectCustomLoadingIconAction())
+                    }.attributeModifier(this.settingRow)
 
                     Row() {
                       Column({ space: SettingColumnSpace }) {
-                        this.TextPrimary('静态图标旋转')
-                        Text('选择静态图片时，让它旋转起来')
+                        this.TextPrimary('静态图标开启自动旋转')
+                        Text('来制造加载中效果')
                           .attributeModifier(this.textSecondary)
                       }.SettingColumn()
 
@@ -357,7 +371,8 @@ export struct PreferencePage {
                     Row() {
                       Column({ space: SettingColumnSpace }) {
                         this.TextPrimary('缩放顶部加载的图标')
-                        Text(`调整下拉刷新时顶部显示的加载图标大小。\n当前: ${this.customLoadingIconScaleTop.toFixed(2)}x`)
+                        Text(
+                          `调整下拉刷新时顶部显示的加载图标大小。\n当前: ${this.customLoadingIconScaleTop.toFixed(2)}x`)
                           .attributeModifier(this.textSecondary)
                       }.SettingColumn()
                     }.attributeModifier(this.settingRow)
@@ -401,21 +416,6 @@ export struct PreferencePage {
                         this.context.eventHub.emit(Event.CustomLoadingIconChanged)
                       }
                     })
-
-                    Row({ space: 8 }) {
-                      Blank()
-                      Button('还原默认')
-                        .buttonStyle(ButtonStyleMode.NORMAL)
-                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                        .onClick(() => {
-                          resetCustomLoadingIcon()
-                          this.customLoadingIconEnabled = false
-                        })
-                      Button('选择')
-                        .buttonStyle(ButtonStyleMode.NORMAL)
-                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                        .onClick(() => this.selectCustomLoadingIconAction())
-                    }.attributeModifier(this.settingRow)
                   }
                 }
               } else {
