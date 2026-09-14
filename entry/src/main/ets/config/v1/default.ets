@@ -135,6 +135,8 @@ export class ApplicationConfig {
   recommend_top_k: number = 5
   recommend_pref: number = 2
   custom_loading_icon_rotate: boolean = true
+  custom_loading_icon_scale_top: number = 0.85
+  custom_loading_icon_scale_other: number = 1
 }
 
 export const defaultApplicationConfig = new ApplicationConfig()

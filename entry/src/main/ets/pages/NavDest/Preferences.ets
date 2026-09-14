@@ -86,6 +86,8 @@ export struct PreferencePage {
   @State recommendStatus?: RecommendStatus = undefined
   @State customLoadingIconEnabled: boolean = false
   @State customLoadingIconRotate: boolean = true
+  @State customLoadingIconScaleTop: number = defaultApplicationConfig.custom_loading_icon_scale_top
+  @State customLoadingIconScaleOther: number = defaultApplicationConfig.custom_loading_icon_scale_other
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -103,6 +105,8 @@ export struct PreferencePage {
       this.postSignatureDeviceInfo = conf.post_signature_device_info
       this.aniSpeedRatio = conf.ani_speed_ratio
       this.customLoadingIconRotate = conf.custom_loading_icon_rotate
+      this.customLoadingIconScaleTop = conf.custom_loading_icon_scale_top
+      this.customLoadingIconScaleOther = conf.custom_loading_icon_scale_other
       this.recommendTopK = Math.min(Math.max(conf.recommend_top_k, 3), 10)
       this.recommendPref = Math.min(Math.max(conf.recommend_pref, 0), 4)
       this.appState.textCopyable = conf.post_copyable
@@ -327,46 +331,106 @@ export struct PreferencePage {
               }.attributeModifier(this.settingRow)
 
               SettingDivider()
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('自定义“加载中”图标')
-                  Text('支持动态图片，建议使用透明背景的图片')
-                    .attributeModifier(this.textSecondary)
-                }.SettingColumn()
+              if (this.customLoadingIconEnabled) {
+                FoldMenu({ title: '自定义“加载中”图标' }) {
+                  Column() {
+                    Text('支持动态图片，建议使用透明背景的图片')
+                      .attributeModifier(this.textSecondary)
+                      .width('100%')
 
-                Row({ space: 8 }) {
-                  if (this.customLoadingIconEnabled) {
-                    Button('还原默认')
-                      .buttonStyle(ButtonStyleMode.NORMAL)
-                      .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                      .onClick(() => {
-                        resetCustomLoadingIcon()
-                        this.customLoadingIconEnabled = false
+                    Row() {
+                      Column({ space: SettingColumnSpace }) {
+                        this.TextPrimary('静态图标旋转')
+                        Text('选择静态图片时，让它旋转起来')
+                          .attributeModifier(this.textSecondary)
+                      }.SettingColumn()
+
+                      Toggle({ type: ToggleType.Switch, isOn: this.customLoadingIconRotate }).onChange(isOn => {
+                        this.customLoadingIconRotate = isOn
+                        PreferenceManager.modify(conf => {
+                          conf.custom_loading_icon_rotate = isOn
+                        })
+                        this.context.eventHub.emit(Event.CustomLoadingIconChanged)
                       })
+                    }.attributeModifier(this.settingRow)
+
+                    Row() {
+                      Column({ space: SettingColumnSpace }) {
+                        this.TextPrimary('缩放顶部加载的图标')
+                        Text(`调整下拉刷新时顶部显示的加载图标大小。\n当前: ${this.customLoadingIconScaleTop.toFixed(2)}x`)
+                          .attributeModifier(this.textSecondary)
+                      }.SettingColumn()
+                    }.attributeModifier(this.settingRow)
+
+                    SliderReset({
+                      value: this.customLoadingIconScaleTop,
+                      min: 0.5,
+                      max: 2,
+                      step: 0.05,
+                      resetValue: defaultApplicationConfig.custom_loading_icon_scale_top,
+                      onChange: v => {
+                        const ratio = Math.round(v * 100) / 100
+                        PreferenceManager.modify(conf => {
+                          conf.custom_loading_icon_scale_top = ratio
+                        })
+                        this.customLoadingIconScaleTop = ratio
+                        this.context.eventHub.emit(Event.CustomLoadingIconChanged)
+                      }
+                    })
+
+                    Row() {
+                      Column({ space: SettingColumnSpace }) {
+                        this.TextPrimary('缩放其余位置的图标')
+                        Text(`调整其余位置显示的加载图标大小。\n当前: ${this.customLoadingIconScaleOther.toFixed(2)}x`)
+                          .attributeModifier(this.textSecondary)
+                      }.SettingColumn()
+                    }.attributeModifier(this.settingRow)
+
+                    SliderReset({
+                      value: this.customLoadingIconScaleOther,
+                      min: 0.5,
+                      max: 2,
+                      step: 0.05,
+                      resetValue: defaultApplicationConfig.custom_loading_icon_scale_other,
+                      onChange: v => {
+                        const ratio = Math.round(v * 100) / 100
+                        PreferenceManager.modify(conf => {
+                          conf.custom_loading_icon_scale_other = ratio
+                        })
+                        this.customLoadingIconScaleOther = ratio
+                        this.context.eventHub.emit(Event.CustomLoadingIconChanged)
+                      }
+                    })
+
+                    Row({ space: 8 }) {
+                      Blank()
+                      Button('还原默认')
+                        .buttonStyle(ButtonStyleMode.NORMAL)
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                        .onClick(() => {
+                          resetCustomLoadingIcon()
+                          this.customLoadingIconEnabled = false
+                        })
+                      Button('选择')
+                        .buttonStyle(ButtonStyleMode.NORMAL)
+                        .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                        .onClick(() => this.selectCustomLoadingIconAction())
+                    }.attributeModifier(this.settingRow)
                   }
+                }
+              } else {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('自定义“加载中”图标')
+                    Text('支持动态图片，建议使用透明背景的图片')
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+
                   Button('选择')
                     .buttonStyle(ButtonStyleMode.NORMAL)
                     .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                     .onClick(() => this.selectCustomLoadingIconAction())
-                }
-              }.attributeModifier(this.settingRow)
-
-              if (this.customLoadingIconEnabled) {
-                Row() {
-                  Column({ space: SettingColumnSpace }) {
-                    this.TextPrimary('静态图标旋转')
-                    Text('选择静态图片时，让它旋转起来')
-                      .attributeModifier(this.textSecondary)
-                  }.SettingColumn()
-
-                  Toggle({ type: ToggleType.Switch, isOn: this.customLoadingIconRotate }).onChange(isOn => {
-                    this.customLoadingIconRotate = isOn
-                    PreferenceManager.modify(conf => {
-                      conf.custom_loading_icon_rotate = isOn
-                    })
-                    this.context.eventHub.emit(Event.CustomLoadingIconChanged)
-                  })
-                }.attributeModifier(this.settingRow).transition(OpacityTransition)
+                }.attributeModifier(this.settingRow)
               }
             }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
 

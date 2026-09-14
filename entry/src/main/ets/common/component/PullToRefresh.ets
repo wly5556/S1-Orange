@@ -76,7 +76,7 @@ export struct PullToRefresh {
           .animation({ duration: AniSpeed.ms120 })
           .fillColor(this.panGestureFulfilled() ? $r('sys.color.ohos_id_color_emphasize') :
             '#99000000')
-        LoadingIcon({ iconSize: 48 })
+        LoadingIcon({ iconSize: 48, top: true })
           .opacity(this.stage == PullToRefreshStage.doLoading ? 1 : 0)
           .animation({ duration: AniSpeed.ms120 })
       }
