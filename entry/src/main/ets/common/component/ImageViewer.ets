@@ -116,7 +116,6 @@ export struct ImageViewer {
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
   @State transitionExitEffect: TransitionEffect | undefined = undefined
   @State bgOpacity: number = 1
-  @State imgOpacity: number = 0
   enterPending: boolean = false // 入场飞入待执行（等图片尺寸就绪）
 
   aboutToAppear(): void {
@@ -132,9 +131,6 @@ export struct ImageViewer {
     // 入场飞入：仅在点击ImageContainer打开（锚点数据有效）时进行
     this.enterPending = consumeImageViewerTransitionValid() &&
       ImageViewerTransitionToSize.w > 0 && ImageViewerTransitionToSize.h > 0
-    if (!this.enterPending) {
-      this.imgOpacity = 1
-    }
   }
 
   aboutToDisappear(): void {
@@ -179,13 +175,6 @@ export struct ImageViewer {
         this.updateImageTransformMatrix()
         this.bgOpacity = 0
         this.showButton = false
-      })
-    this.getUIContext()
-      .animateTo({
-        duration: AniSpeed.ms200,
-        curve: Curve.EaseIn,
-      }, () => {
-        this.imgOpacity = 0
       })
   }
 
@@ -326,12 +315,10 @@ export struct ImageViewer {
                 this.imgLoadFailed[compIndex] = true
                 if (compIndex == this.param.startAt && this.enterPending) {
                   this.enterPending = false
-                  this.imgOpacity = 1
                 }
               }
             })
               .transform(this.imgMatrix[compIndex])
-              .opacity(this.imgOpacity)
               .transition(this.transitionExitEffect)
           }
           .width('100%')
@@ -456,7 +443,6 @@ export struct ImageViewer {
       .justifyContent(FlexAlign.SpaceBetween)
     }.alignContent(Alignment.Top)
     .transition(TransitionEffect.asymmetric(
-      // 入场渐显200ms提速；退场整层淡出保持300ms不变
       TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms200, curve: Curve.EaseIn }),
       TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300, curve: Curve.EaseIn })
     ))
@@ -476,7 +462,6 @@ export struct ImageViewer {
     const centerY = ImageViewerTransitionToPos.h + ImageViewerTransitionToSize.h / 2
     helper.setExitTarget(targetScale, centerX, centerY)
     this.updateImageTransformMatrix()
-    this.imgOpacity = 1
     this.getUIContext()
       .animateTo(SpringCurve, () => {
         helper.reset()
@@ -644,11 +629,9 @@ class matrixHelper {
     this.limitInScreen()
   }
 
-  /** 100%缩放态的拖拽：下拖按距离缩小缩放，上拖不缩放，位移均跟手 */
+  /** 100%缩放态的拖拽：按距离缩小缩放，位移均跟手 */
   updateDismissDrag(offsetX: number, offsetY: number) {
-    if (offsetY > 0) {
-      this.scaleRatio = Math.max(0.1, 1 - offsetY / 650) // 650vp 彻底消失
-    }
+    this.scaleRatio = Math.max(0.65, 1 - Math.abs(offsetY) / 1000)
     this.translate.X = offsetX / this.scaleRatio
     this.translate.Y = offsetY / this.scaleRatio
   }

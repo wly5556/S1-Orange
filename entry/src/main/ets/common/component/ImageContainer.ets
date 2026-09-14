@@ -159,13 +159,18 @@ export struct ImageContainer {
             }
           }
         }).onClick(this.onImgClick ? (e) => {
-          this.onImgClick && this.onImgClick()
-          // 记录缩略图尺寸与窗口全局坐标(px)，供大图查看器入场/退场对齐
+          // 先记录锚点并标记有效，再打开查看器。
+          // 若先 onImgClick ，会导致查看器读到未标记的 valid=false，冷启动首次入场动画丢失位移。
+          const tw = vp2px(parseFloat(e.target.area.width.toString() || '0'))
+          const th = vp2px(parseFloat(e.target.area.height.toString() || '0'))
+          const px = vp2px(parseFloat(e.target.area.globalPosition.x?.toString() || '0'))
+          const py = vp2px(parseFloat(e.target.area.globalPosition.y?.toString() || '0'))
           markImageViewerTransitionValid()
-          ImageViewerTransitionToSize.w = vp2px(parseFloat(e.target.area.width.toString() || '0'))
-          ImageViewerTransitionToSize.h = vp2px(parseFloat(e.target.area.height.toString() || '0'))
-          ImageViewerTransitionToPos.w = vp2px(parseFloat(e.target.area.globalPosition.x?.toString() || '0'))
-          ImageViewerTransitionToPos.h = vp2px(parseFloat(e.target.area.globalPosition.y?.toString() || '0'))
+          ImageViewerTransitionToSize.w = tw
+          ImageViewerTransitionToSize.h = th
+          ImageViewerTransitionToPos.w = px
+          ImageViewerTransitionToPos.h = py
+          this.onImgClick && this.onImgClick()
         } : undefined)
           .hitTestBehavior(this.onImgClick ? undefined : HitTestMode.None)
       }
