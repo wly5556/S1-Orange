@@ -160,6 +160,7 @@ export struct WriteReplyPreview {
     })
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
+      transition: TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300, curve: Curve.EaseIn }),
       onWillDismiss: (() => {
         if (!requestImageViewerExit()) {
           this.getUIContext().animateTo(SpringCurve, () => {

@@ -10,7 +10,6 @@ import { ImageSmily } from './ImageSmily'
 import { blockKeywordList } from '../dataStore/BlockKeyword'
 import { FontSize, FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { FontSizeIndex, FontSizeOverride } from '../../config/v1/default'
-import { generateImageViewerTransitionKey } from './ImageViewer'
 import { CopyText } from '../ShareKit'
 import { adjustTextColorForDarkMode } from '../Colorjs'
 import { ThreadPostAttachmentItem } from './ThreadPostAttachmentItem'
@@ -773,7 +772,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
             src: node.content,
             lazyLoad: param.lazyLoadImage,
             onImgClick: () => param.onImgClick(node.content, parseInt(node.attribute))
-          }).geometryTransition(generateImageViewerTransitionKey(node.content, node.attribute))
+          })
         } else if (node.name == UINodeName.IEdit) {
           Text(node.content)
             .textAlign(TextAlign.Start)

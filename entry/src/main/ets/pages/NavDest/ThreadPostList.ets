@@ -652,6 +652,7 @@ export struct ThreadPostList {
     })
     .bindContentCover($$this.imgViewerShow, this.ImageViewerBuilder, {
       modalTransition: ModalTransition.NONE,
+      transition: TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300, curve: Curve.EaseIn }),
       onWillDismiss: (() => {
         if (!requestImageViewerExit()) {
           this.getUIContext().animateTo({ duration: AniSpeed.ms300 }, () => {
@@ -675,7 +676,7 @@ export struct ThreadPostList {
         param: this.imgViewer,
         showUp: this.imgViewerShow
       })
-    }.transition(TransitionEffect.opacity(.999).animation({ duration: AniSpeed.ms300 })) // 避免退出时没有转场动画就直接消失
+    }
   }
 }
 
