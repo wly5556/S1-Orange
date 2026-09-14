@@ -152,11 +152,12 @@ export struct ThreadPostList {
   @Provide @Watch('emptyPagesChanged') emptyPages: Set<number> = new Set
   @State jumpToPage: number = -1
   jumpToPageDone: boolean = false
-  @Provide jumpToPost?: string = undefined
+  @Provide @Watch('onJumpToPostConsumed') jumpToPost?: string = undefined
   @Provide allowPullDownRefresh: boolean = true
   @Provide allowPullUpRefresh: boolean = false
   @Provide pageScrollOffset: Map<number, number> = new Map
   @Provide searchItemsByPage: Map<number, PostSearchItem[]> = new Map
+  outerScroller: Scroller = new Scroller()
   @State replyButtonExpand: boolean = false
   @Provide longScreenshotMode: boolean = false
   @Provide @Watch('selectedPostsChanged') selectedPostsForShot: Map<string, LongScreenshotPost> = new Map
@@ -184,6 +185,19 @@ export struct ThreadPostList {
     autoCancel: true,
     alignment: DialogAlignment.Center
   })
+
+  // 跳转已定位的收尾：目标楼层若为本页最后一层，把外层滚动器一并拉到底
+  onJumpToPostConsumed() {
+    const target = this.pageParam.jumpToPid ?? ''
+    if (this.jumpToPost != '' || target.length == 0 || target == '0') {
+      return
+    }
+    this.searchItemsByPage.forEach((items: PostSearchItem[]) => {
+      if (items.length > 0 && items[items.length - 1].pid == target) {
+        this.outerScroller.scrollEdge(Edge.Bottom)
+      }
+    })
+  }
 
   onPageParamUpdate() {
     if (this.pageParam.replies == undefined) {
@@ -342,6 +356,7 @@ export struct ThreadPostList {
     NavDestination() {
       Stack() {
         OuterScroller({
+          scroller: this.outerScroller,
           onEnterAndLeaveTop: atTop => this.allowPullDownRefresh = atTop,
           onEnterAndLeaveBottom: atBottom => this.allowPullUpRefresh = atBottom
         }) {

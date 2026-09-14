@@ -8,6 +8,7 @@ import wrapper, { wrapperApp } from './wrapper';
 import { getCache, putCache } from '../common/dataStore/ApiCacheData';
 import { PreferenceManager } from '../config/UserConfig';
 import { accountInvalid } from '../common/account/AccountManager';
+import { PropKey } from '../common/Constants';
 
 const waitQueue: Queue<VoidCallback> = new Queue
 
@@ -440,11 +441,24 @@ export function clearAppToken() {
   userAppToken = undefined
 }
 
-let userNotice: Notice
-clearUserNotice()
+function emptyNotice(): Notice {
+  return {
+    newpush: '0',
+    newpm: '0',
+    newprompt: '0',
+    newmypost: '0'
+  }
+}
+
+let userNotice: Notice = emptyNotice()
+
+function syncNoticeToStorage() {
+  AppStorage.setOrCreate<number>(PropKey.noticeNewReply, parseInt(userNotice.newmypost) || 0)
+}
 
 export function setUserNotice(notice: Notice) {
   userNotice = notice
+  syncNoticeToStorage()
 }
 
 export function getUserNotice() {
@@ -452,10 +466,6 @@ export function getUserNotice() {
 }
 
 export function clearUserNotice() {
-  userNotice = {
-    newpush: '0',
-    newpm: '0',
-    newprompt: '0',
-    newmypost: '0'
-  }
+  userNotice = emptyNotice()
+  syncNoticeToStorage()
 }

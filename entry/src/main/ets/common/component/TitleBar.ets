@@ -3,6 +3,7 @@ import { AppThemeColor } from '../theme/basic/basic'
 import { CopyText } from '../ShareKit'
 import { HeavyClickEffect } from '../Animation'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
+import { PropKey } from '../Constants'
 
 export enum TitleBarLeftButtonType {
   BACK,
@@ -27,6 +28,7 @@ export struct TitleBar {
   @State private showRightMenu: boolean = false
   @Prop menu?: MenuElement[] = undefined
   @State transparent: boolean = false
+  @StorageProp(PropKey.noticeNewReply) noticeNewReply: number = 0
 
   @Builder
   blankBuilder() {
@@ -50,7 +52,18 @@ export struct TitleBar {
   build() {
     Row() {
       if (this.leftButtonType == TitleBarLeftButtonType.SIDEBAR) {
-        this.titleBarButton($r('app.media.open_sidebar'), () => this.clickLeftButton())
+        Badge({
+          value: '',
+          style: {
+            badgeSize: this.noticeNewReply > 0 ? 10 : 0
+          },
+          position: {
+            x: 32,
+            y: 10
+          }
+        }) {
+          this.titleBarButton($r('app.media.open_sidebar'), () => this.clickLeftButton())
+        }
       } else {
         this.titleBarButton($r('app.media.arrow_left'), () => this.clickLeftButton())
       }

@@ -1,5 +1,4 @@
 import { common, ConfigurationConstant } from '@kit.AbilityKit'
-import { getUserNotice } from '../../api/request'
 import { logout, removeAccount, switchAccount } from '../../common/account/AccountManager'
 import { ClickDarkenEffect, HeavyClickEffect, MenuFlyDownAni, MenuFlyUpAni } from '../../common/Animation'
 import { Avatar } from '../../common/component/Avatar'
@@ -36,7 +35,8 @@ export struct SideMenu {
   @State showAccounts: boolean = false
   @State clickEffectModifier: AttributeModifier<CommonAttribute> = new ClickDarkenEffect()
   @State switchingIntoAccount: string = ''
-  @State newReply: number = 0
+  // 未读提醒数，与汉堡包红点同源（notice.newmypost），0 时 Badge 自动隐藏
+  @StorageProp(PropKey.noticeNewReply) newReply: number = 0
   @State hasNewVersion: boolean = false
   @StorageProp(PropKey.currentColorMode) currentColorMode: number =
     ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
@@ -327,8 +327,6 @@ export struct SideMenu {
         this.showAccounts = false
       }
       if (currentRatio == 1) {
-        const notice = getUserNotice()
-        this.newReply = parseInt(notice.newmypost)
         PreferenceManager.readonly(conf => {
           this.hasNewVersion = conf.update_show_new_version
         })
