@@ -116,7 +116,7 @@ export struct ImageViewer {
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
   @State transitionExitEffect: TransitionEffect | undefined = undefined
   @State bgOpacity: number = 1
-  @State imgOpacity: number = 0 // 入场时等首帧尺寸就绪后随矩阵一并显示；退场第一阶段渐隐
+  @State imgOpacity: number = 0
   enterPending: boolean = false // 入场飞入待执行（等图片尺寸就绪）
 
   aboutToAppear(): void {
@@ -647,8 +647,7 @@ class matrixHelper {
   /** 100%缩放态的拖拽：下拖按距离缩小缩放，上拖不缩放，位移均跟手 */
   updateDismissDrag(offsetX: number, offsetY: number) {
     if (offsetY > 0) {
-      // 下滑约容器高度40%时缩放降至80%（退场阈值），拖拽距离与缩放线性对应
-      this.scaleRatio = Math.max(0.1, 1 - offsetY / (imgContainerSize.h * 2))
+      this.scaleRatio = Math.max(0.1, 1 - offsetY / 800) // 800vp 彻底消失
     }
     this.translate.X = offsetX / this.scaleRatio
     this.translate.Y = offsetY / this.scaleRatio
