@@ -194,7 +194,9 @@ export struct ThreadPostList {
     }
     this.searchItemsByPage.forEach((items: PostSearchItem[]) => {
       if (items.length > 0 && items[items.length - 1].pid == target) {
-        this.outerScroller.scrollEdge(Edge.Bottom)
+        setTimeout(() => {
+          this.outerScroller.scrollEdge(Edge.Bottom)
+        }, 100)  // 等待图片和评分的layout完成
       }
     })
   }

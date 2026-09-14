@@ -478,7 +478,7 @@ export struct ImageViewer {
     this.updateImageTransformMatrix()
     this.imgOpacity = 1
     this.getUIContext()
-      .animateTo({ duration: AniSpeed.ms200, curve: Curve.EaseIn }, () => {
+      .animateTo(SpringCurve, () => {
         helper.reset()
         this.updateImageTransformMatrix()
       })
@@ -647,7 +647,7 @@ class matrixHelper {
   /** 100%缩放态的拖拽：下拖按距离缩小缩放，上拖不缩放，位移均跟手 */
   updateDismissDrag(offsetX: number, offsetY: number) {
     if (offsetY > 0) {
-      this.scaleRatio = Math.max(0.1, 1 - offsetY / 800) // 800vp 彻底消失
+      this.scaleRatio = Math.max(0.1, 1 - offsetY / 650) // 650vp 彻底消失
     }
     this.translate.X = offsetX / this.scaleRatio
     this.translate.Y = offsetY / this.scaleRatio
