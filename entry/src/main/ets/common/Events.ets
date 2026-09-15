@@ -8,5 +8,7 @@ export enum Event {
   OpenGotoThreadDialog = "EventOpenGotoThreadDialog",
   NewVersionDismissed = "EventNewVersionDismissed",
   ForumDisplayPrefChanged = "EventForumDisplayPrefChanged",
-  CustomLoadingIconChanged = "EventCustomLoadingIconChanged"
+  CustomLoadingIconChanged = "EventCustomLoadingIconChanged",
+  ShowSystemBars = "EventShowSystemBars",
+  HideSystemBars = "EventHideSystemBars"
 }

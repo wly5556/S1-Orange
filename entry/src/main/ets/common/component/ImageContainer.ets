@@ -5,7 +5,7 @@ import { openInBrowser } from '../WantUitl'
 import { common } from '@kit.AbilityKit'
 import { PreferenceState } from '../../pages/NavProvider/NavigationPage'
 import { FontSizeEnum } from '../fontSize/FontSizeEnum'
-import { ImageViewerTransitionToSize, ImageViewerTransitionToPos, markImageViewerTransitionValid } from './ImageViewer'
+import { markImageViewerTransitionFromClick } from './ImageViewer'
 import { rcp } from '@kit.RemoteCommunicationKit'
 import { BusinessError } from '@kit.BasicServicesKit'
 
@@ -161,15 +161,7 @@ export struct ImageContainer {
         }).onClick(this.onImgClick ? (e) => {
           // 先记录锚点并标记有效，再打开查看器。
           // 若先 onImgClick ，会导致查看器读到未标记的 valid=false，冷启动首次入场动画丢失位移。
-          const tw = vp2px(parseFloat(e.target.area.width.toString() || '0'))
-          const th = vp2px(parseFloat(e.target.area.height.toString() || '0'))
-          const px = vp2px(parseFloat(e.target.area.globalPosition.x?.toString() || '0'))
-          const py = vp2px(parseFloat(e.target.area.globalPosition.y?.toString() || '0'))
-          markImageViewerTransitionValid()
-          ImageViewerTransitionToSize.w = tw
-          ImageViewerTransitionToSize.h = th
-          ImageViewerTransitionToPos.w = px
-          ImageViewerTransitionToPos.h = py
+          markImageViewerTransitionFromClick(e)
           this.onImgClick && this.onImgClick()
         } : undefined)
           .hitTestBehavior(this.onImgClick ? undefined : HitTestMode.None)

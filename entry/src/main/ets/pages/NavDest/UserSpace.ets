@@ -6,7 +6,11 @@ import { AniSpeed, AvatarTransition, HeavyClickEffect, SpringCurve } from '../..
 import { ReloadController } from '../../common/BasicDataSource'
 import { Avatar } from '../../common/component/Avatar'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
-import { ImageViewer, requestImageViewerExit } from '../../common/component/ImageViewer'
+import {
+  ImageViewer,
+  requestImageViewerExit,
+  markImageViewerTransitionFromClick
+} from '../../common/component/ImageViewer'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import {
   parseXML,
@@ -69,7 +73,8 @@ export struct UserSpace {
     avatarTransitionIndex: ''
   }
   @State userSpace: UserSpaceVM = new UserSpaceVM()
-  @State imgViewerShow: boolean = false
+  @State @Watch('onImgViewerShowChange') imgViewerShow: boolean = false
+  @State avatarSquare: boolean = false
   @State actionMenu: MenuElement[] = []
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
   @StorageProp(PropKey.userId) @Watch('buildActionMenu') currUid?: string = undefined
@@ -164,6 +169,12 @@ export struct UserSpace {
     })
   }
 
+  onImgViewerShowChange() {
+    if (!this.imgViewerShow) {
+      this.avatarSquare = false
+    }
+  }
+
   build() {
     NavDestination() {
       OuterScroller() {
@@ -183,14 +194,25 @@ export struct UserSpace {
                   Avatar({
                     uid: this.pageParam.uid,
                     avatarSize: 120,
+                    square: this.avatarSquare,
                     transitionIndex: this.pageParam.avatarTransitionIndex,
                     avatarLoaded: src => this.avatarSrc = src,
                     reloadCtrl: this.avatarReload
                   }).onClick(e => {
-                    if (this.avatarSrc) {
-                      this.imgViewerShow = true
-                    }
-                  })
+                        if (this.avatarSrc) {
+                          this.avatarSquare = true
+                          this.getUIContext().animateTo({
+                            duration: AniSpeed.ms120, onFinish: () => {
+                              markImageViewerTransitionFromClick(e)
+                              this.getUIContext().animateTo(SpringCurve, () => {
+                                this.imgViewerShow = true
+                              })
+                            }
+                          }, () => {
+                            this.avatarSquare = true
+                          })
+                        }
+                      })
                 }.justifyContent(FlexAlign.Center)
                 .width('100%')
                 .height(180)
@@ -361,7 +383,13 @@ export struct UserSpace {
               LoadingIcon({ iconSize: 64 })
             }
             BottomSafeArea()
-          }.padding({ top: 6, bottom: 6, left: 16, right: 16 })
+          }
+          .padding({
+            top: 6,
+            bottom: 6,
+            left: 16,
+            right: 16
+          })
           .backgroundColor(this.appTheme.backgroundSecondary)
           .constraintSize({
             minHeight: '100%'

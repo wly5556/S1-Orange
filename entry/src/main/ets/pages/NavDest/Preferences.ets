@@ -828,9 +828,8 @@ export struct PreferencePage {
                   { value: '仅崩溃' } as SelectOption,
                   { value: '完整日志' } as SelectOption
                 ])
-                  .value('仅崩溃')
-                  .selected(this.crashLogModeSelected)
-                  .onSelect(index => this.crashLogModeSelected = index)
+                  .value(this.crashLogModeSelected == 0 ? '仅崩溃' : '完整日志')
+                  .selected($$this.crashLogModeSelected)
                   .layoutWeight(1)
                 Button('复制')
                   .buttonStyle(ButtonStyleMode.NORMAL)

@@ -6,7 +6,7 @@ import { PreferenceManager } from '../../config/UserConfig'
 import { readJson, writeJson } from '../dataStore/JsonPersist'
 import { ReloadController } from '../BasicDataSource'
 import { waitFor } from '../AwaitUtil'
-import { AniSpeed } from '../Animation'
+import { AniSpeed, SpringCurve } from '../Animation'
 
 let cacheMap: Map<string, CacheInfo> = new Map()
 const expiredUid: string[] = []
@@ -79,6 +79,7 @@ export struct Avatar {
   @State hideDefaultAvatar: boolean = false
   @Prop @Watch('uidChanged') uid: string = ''
   avatarSize: number = 40
+  @Prop square: boolean = false
   transitionIndex: string = ''
   reloadCtrl: ReloadController = new ReloadController()
   cacheInfo?: CacheInfo
@@ -86,7 +87,9 @@ export struct Avatar {
   }
 
   aboutToAppear(): void {
-    this.reloadCtrl.reload = (): void => { this.load(true) }
+    this.reloadCtrl.reload = (): void => {
+      this.load(true)
+    }
     this.load()
   }
 
@@ -136,9 +139,6 @@ export struct Avatar {
           loadSrc: this.imageSrc,
           objectFit: ImageFit.Cover,
           priority: taskpool.Priority.LOW,
-          border: {
-            radius: this.avatarSize / 2
-          },
           onLoadListener: {
             onLoadSuccess: () => {
               this.hideDefaultAvatar = true
@@ -162,15 +162,18 @@ export struct Avatar {
         Image($r("app.media.avatar_base"))
           .height(this.avatarSize)
           .width(this.avatarSize)
-          .borderRadius(this.avatarSize / 2)
           .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
           .draggable(false)
       }
-    }.onVisibleAreaChange([0.02, 1], () => {
+    }
+    .onVisibleAreaChange([0.02, 1], () => {
       if (this.imageSrc.length == 0) {
         this.imageSrc = this.avatarUrl
       }
     })
+    .borderRadius(this.square ? 4 : this.avatarSize / 2)
+    .animation(SpringCurve)
+    .clip(true)
     .geometryTransition(this.transitionIndex ? 'avatar_component' + this.uid + this.transitionIndex : undefined,
       { follow: true })
   }

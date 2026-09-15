@@ -14,6 +14,7 @@ import { CacheDbInit } from '../common/dataStore/ApiCacheData';
 import { SmilyImageCacheInit } from '../common/dataStore/SmilyCache';
 import { loadUserTags } from '../common/dataStore/UserTag';
 import { flushPostLocationData, loadPostLocationData } from '../common/dataStore/PostLocationData';
+import { ShowSystemBars, HideSystemBars } from '../common/theme/SetStatusBarColor';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -43,6 +44,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
+    this.context.eventHub.on(Event.ShowSystemBars, (): void => ShowSystemBars(this.context))
+    this.context.eventHub.on(Event.HideSystemBars, (): void => HideSystemBars(this.context))
     windowStage.loadContent('pages/NavProvider/NavigationPage', (err) => {
       if (err.code) {
         hilog.error(0x0000, 'testTag', 'Failed to load the content. Cause: %{public}s', JSON.stringify(err) ?? '');
@@ -69,7 +72,13 @@ export default class EntryAbility extends UIAbility {
 
         windowClass.on('avoidAreaChange', (data) => {
           if (data.type === window.AvoidAreaType.TYPE_SYSTEM) {
-            AppStorage.setOrCreate(SafeArea.top, data.area.topRect.height)
+            // 应用主动隐藏状态栏期间冻结顶部安全区，避免下层页面与查看器按钮布局跳动
+            if (data.area.topRect.height > 0) {
+              AppStorage.setOrCreate(PropKey.statusBarHiddenByApp, false)
+              AppStorage.setOrCreate(SafeArea.top, data.area.topRect.height)
+            } else if (AppStorage.get<boolean>(PropKey.statusBarHiddenByApp) != true) {
+              AppStorage.setOrCreate(SafeArea.top, data.area.topRect.height)
+            }
           } else if (data.type == window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR) {
             AppStorage.setOrCreate(SafeArea.bottom, data.area.bottomRect.height)
           } else if (data.type == window.AvoidAreaType.TYPE_KEYBOARD) {

@@ -5,7 +5,7 @@ import { LoadingIcon } from './LoadingIcon'
 import { PageIndexDataSource } from './SwipePageViewer'
 import { AppThemeColor } from '../theme/basic/basic'
 import { themeColorDark } from '../theme/basic/dark'
-import { curves, matrix4, window } from '@kit.ArkUI'
+import { curves, matrix4 } from '@kit.ArkUI'
 import { SetStatusBarColor } from '../theme/SetStatusBarColor'
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import { ImageKnife } from '@ohos/imageknife'
@@ -16,6 +16,7 @@ import { CopyHyperLink, ShareImage } from '../ShareKit'
 import { displaySync } from '@kit.ArkGraphics2D'
 import { openInBrowser } from '../WantUitl'
 import { SafeArea } from '../Constants'
+import { Event } from '../Events'
 
 export interface ImageViewerParam {
   urls: string[],
@@ -71,8 +72,22 @@ export let ImageViewerTransitionToPos: RectSize = {
 // 最近一次点击缩略图时记录的数据是否有效（区别于头像等未记录尺寸的入口）
 let viewerTransitionValid = false
 
-export function markImageViewerTransitionValid() {
+/** 记录缩略图锚点（尺寸与窗口坐标均为px）并标记入场对齐有效 */
+export function markImageViewerTransition(w: number, h: number, x: number, y: number) {
   viewerTransitionValid = true
+  ImageViewerTransitionToSize.w = w
+  ImageViewerTransitionToSize.h = h
+  ImageViewerTransitionToPos.w = x
+  ImageViewerTransitionToPos.h = y
+}
+
+/** 从点击事件目标区域提取锚点（vp转px）并标记有效 */
+export function markImageViewerTransitionFromClick(e: ClickEvent) {
+  markImageViewerTransition(
+    vp2px(parseFloat(e.target.area.width.toString() || '0')),
+    vp2px(parseFloat(e.target.area.height.toString() || '0')),
+    vp2px(parseFloat(e.target.area.globalPosition.x?.toString() || '0')),
+    vp2px(parseFloat(e.target.area.globalPosition.y?.toString() || '0')))
 }
 
 export function consumeImageViewerTransitionValid(): boolean {
@@ -114,8 +129,8 @@ export struct ImageViewer {
   @State imgLoadFailed: boolean[] = []
   @State showButton: boolean = true
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
-  @State transitionExitEffect: TransitionEffect | undefined = undefined
   @State bgOpacity: number = 1
+  @State imgOpacity: number = 1 // 非对齐退场时图片层淡出
   enterPending: boolean = false // 入场飞入待执行（等图片尺寸就绪）
 
   aboutToAppear(): void {
@@ -135,19 +150,20 @@ export struct ImageViewer {
 
   aboutToDisappear(): void {
     activeExitHandler = null
+    this.showStatusBar()
   }
 
   showUpChanged() {
     if (this.showUp === false && this.imgCount > 0) {
       SetStatusBarColor(this.context, this.appTheme)
       this.showStatusBar()
-      this.transitionExitEffect = TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 })
     }
   }
 
   /**
-   * 两段式退场：打开的那张图先自控动画对齐缩略图（同时渐隐），
-   * 结束后再走系统退场；其它图直接走系统退场整层淡出
+   * 退场动画全部自控（bindContentCover 为 IDENTITY，关闭时无系统转场）：
+   * 入场那张图对齐缩略图（图片本体不淡出），
+   * 其余图片居中缩至0.65并淡出；动画结束后关闭。图片未就绪则直接关闭
    */
   beginExit() {
     if (this.exiting) {
@@ -157,13 +173,21 @@ export struct ImageViewer {
     const helper = this.imgTransform[this.swiperIndex]
     const canAlign = this.swiperIndex == this.param.startAt &&
       helper.width > 0 && ImageViewerTransitionToSize.w > 0 && ImageViewerTransitionToSize.h > 0
-    if (!canAlign) {
-      this.finishExit()
+    if (canAlign) {
+      this.playExit(ImageViewerTransitionToSize.w / helper.width,
+        ImageViewerTransitionToPos.w + ImageViewerTransitionToSize.w / 2,
+        ImageViewerTransitionToPos.h + ImageViewerTransitionToSize.h / 2,
+        false)
       return
     }
-    const targetScale = ImageViewerTransitionToSize.w / helper.width
-    const targetCenterX = ImageViewerTransitionToPos.w + ImageViewerTransitionToSize.w / 2
-    const targetCenterY = ImageViewerTransitionToPos.h + ImageViewerTransitionToSize.h / 2
+    if (helper.width > 0) {
+      this.playExit(0.65, imgContainerSize.w / 2, imgContainerSize.h / 2, true)
+      return
+    }
+    this.finishExit()
+  }
+
+  playExit(targetScale: number, targetCenterX: number, targetCenterY: number, fadeImage: boolean) {
     this.getUIContext()
       .animateTo({
         duration: AniSpeed.ms200,
@@ -171,8 +195,11 @@ export struct ImageViewer {
           this.finishExit()
         }
       }, () => {
-        helper.setExitTarget(targetScale, targetCenterX, targetCenterY)
+        this.imgTransform[this.swiperIndex].setExitTarget(targetScale, targetCenterX, targetCenterY)
         this.updateImageTransformMatrix()
+        if (fadeImage) {
+          this.imgOpacity = 0
+        }
         this.bgOpacity = 0
         this.showButton = false
       })
@@ -189,23 +216,11 @@ export struct ImageViewer {
   }
 
   showStatusBar() {
-    window.getLastWindow(this.context).then(w => {
-      if (canIUse('SystemCapability.Window.SessionManager')) {
-        w.setSpecificSystemBarEnabled('status', true, true)
-        w.setSpecificSystemBarEnabled('navigation', true, true)
-        w.setSpecificSystemBarEnabled('navigationIndicator', true, true)
-      }
-    })
+    this.context.eventHub.emit(Event.ShowSystemBars)
   }
 
   hideStatusBar() {
-    window.getLastWindow(this.context).then(w => {
-      if (canIUse('SystemCapability.Window.SessionManager')) {
-        w.setSpecificSystemBarEnabled('status', false, true)
-        w.setSpecificSystemBarEnabled('navigation', false, true)
-        w.setSpecificSystemBarEnabled('navigationIndicator', false, true)
-      }
-    })
+    this.context.eventHub.emit(Event.HideSystemBars)
   }
 
   @Builder
@@ -319,7 +334,6 @@ export struct ImageViewer {
               }
             })
               .transform(this.imgMatrix[compIndex])
-              .transition(this.transitionExitEffect)
           }
           .width('100%')
           .height('100%')
@@ -392,6 +406,7 @@ export struct ImageViewer {
       }
       .indicator(false)
       .loop(false)
+      .opacity(this.imgOpacity)
       .width('100%')
       .height('100%')
       .cachedCount(ImageViewerCacheCount)
@@ -453,7 +468,6 @@ export struct ImageViewer {
     this.updateButtonVisibility()
   }
 
-  /** 入场飞入：首帧把图片放到缩略图位置，EaseIn动画回中——靠近原位的较长一段保持透明以掩盖对位误差 */
   startEnterFly() {
     this.enterPending = false
     const helper = this.imgTransform[this.param.startAt]
@@ -493,19 +507,19 @@ export struct ImageViewer {
   }
 
   updateButtonVisibility() {
+    if (this.exiting) {
+      return
+    }
     if (this.imgTransform[this.targetSwiperIndex].scaleRatio == 1 && this.showButton == false) {
+      this.showStatusBar()
       animateTo(SpringCurve, () => {
         this.showButton = true
-        this.showStatusBar()
       })
     }
     if (this.imgTransform[this.targetSwiperIndex].scaleRatio > 1 && this.showButton == true) {
+      this.hideStatusBar()
       animateTo({
-        curve: curves.springMotion(0.35), onFinish: () => {
-          if (this.showButton === false) {
-            this.hideStatusBar()
-          }
-        }
+        curve: curves.springMotion(0.35)
       }, () => {
         this.showButton = false
       })
@@ -631,9 +645,13 @@ class matrixHelper {
 
   /** 100%缩放态的拖拽：按距离缩小缩放，位移均跟手 */
   updateDismissDrag(offsetX: number, offsetY: number) {
-    this.scaleRatio = Math.max(0.65, 1 - Math.abs(offsetY) / 1000)
-    this.translate.X = offsetX / this.scaleRatio
-    this.translate.Y = offsetY / this.scaleRatio
+    const absY = Math.abs(offsetY);
+    // 指数非线性：近距离scale衰减极慢，超过阈值后快速下滑
+    const factor = absY / 1200;
+    const scaleRaw = 1 - Math.pow(factor, 2.2); // 指数 >1，越大越晚开始衰减
+    this.scaleRatio = Math.max(0.8, scaleRaw);
+    this.translate.X = offsetX / this.scaleRatio;
+    this.translate.Y = offsetY / this.scaleRatio;
   }
 
   beginTranslate(nanoTs: number) {
