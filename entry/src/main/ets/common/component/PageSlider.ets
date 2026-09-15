@@ -17,7 +17,6 @@ export struct PageSlider {
   clickable: boolean = true
   doJump: (page: number) => void = () => {
   }
-  // 跟手弹窗（PopoverDialog）与固定弹窗（CustomDialogController）两条路径共用同一份内容与目标组件
   @State followHandShow: boolean = false
   @State followHandPopover: PopoverOptions = {
     builder: () => {
@@ -48,7 +47,7 @@ export struct PageSlider {
         targetBuilder: () => {
           this.buildTarget()
         }
-      })
+      }).enabled(this.clickable && this.totalPage > 1)
     } else {
       this.buildTarget()
     }
