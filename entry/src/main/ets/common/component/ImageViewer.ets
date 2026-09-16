@@ -110,6 +110,233 @@ export function requestImageViewerExit(): boolean {
   return true
 }
 
+const SHORT_DRAG_DISTANCE_CLAMP = 8 // vp
+const LONG_DRAG_DISTANCE_CLAMP = 60 // vp
+const MIN_FLING_DRAG_VP = 2 // 位移小于该值的手势不产生惯性（多为在惯性滚动中轻点刹车）
+const MIN_FRICTION = 1 // 越小滑得越远越久
+const MAX_FRICTION = 7
+const STOP_FLING_VEL = vp2px(3e-8) // px / ns
+const SIGNAL_BUFFER_SIZE = 64
+const MAX_PREDICTION_LEAD_NS = 20_000_000 // 未来帧预测的提前量上限
+const FULL_PREDICTION_NS = 10_000_000 // 采样间隔在该时长内按全额速度外推，直接决定急停后的过冲峰值
+const STALE_EXTRAPOLATE_NS = 26_000_000 // 采样停更超过该时长后完全收回外推
+const SMOOTH_TAU_NS = 36_000_000 // 输出一阶低通时间常数，越大越黏、跟随滞后约等于 v*τ
+const VELOCITY_FIT_WINDOW_NS = 40_000_000 // 速度拟合的时间窗口
+const MIN_VELOCITY_FIT_SPAN_NS = 8_000_000 // 视作有效拟合所需的最小时间跨度，过小会把采样噪声放大成高速
+const INPUT_PAUSE_THRESHOLD_NS = 60_000_000 // 相邻采样间隔超过该值视为中途停顿
+const FRAME_INTERVAL_ALPHA = 0.3 // 帧间隔估计的平滑系数
+const APPLY_POS_EPSILON_PX = 0.05 // 相邻帧位移差小于该值时不触发重绘
+const APPLY_SCALE_EPSILON = 1e-4
+
+class SignalSample {
+  ts: number = 0
+  x: number = 0
+  y: number = 0
+  scale: number = 1
+
+  set(ts: number, x: number, y: number, scale: number) {
+    this.ts = ts
+    this.x = x
+    this.y = y
+    this.scale = scale
+  }
+}
+
+class SignalValue {
+  x: number = 0
+  y: number = 0
+  scale: number = 1
+}
+
+/**
+ * pan 与 pinch 互斥，共用同一条采样时间线：手势回调只负责塞采样，
+ * 位移/缩放的实际求解全部推迟到帧回调里按时间插值（并做未来帧预测）后统一施加，
+ * 拖拽末速度也由同一套速度估计给出，惯性滚动因此可以直接接续而不产生断层
+ */
+class GestureSignal {
+  private samples: SignalSample[] = []
+  private writeIndex: number = 0
+  private size: number = 0
+  private vx: number = 0 // px / ns
+  private vy: number = 0 // px / ns
+  private vs: number = 0 // 1 / ns
+  private pauseX: number = 0 // 中途停顿点（手势位移空间，px）
+  private pauseY: number = 0
+  private clockOffset: number = 0 // 帧时钟与手势事件时钟的固定偏差
+  private clockAligned: boolean = false
+
+  constructor() {
+    for (let i = 0; i < SIGNAL_BUFFER_SIZE; i++) {
+      this.samples.push(new SignalSample())
+    }
+  }
+
+  clear() {
+    this.writeIndex = 0
+    this.size = 0
+    this.vx = 0
+    this.vy = 0
+    this.vs = 0
+    this.pauseX = 0
+    this.pauseY = 0
+    this.clockAligned = false
+  }
+
+  count(): number {
+    return this.size
+  }
+
+  /** i 为 0 时取最旧采样，为 count()-1 时取最新采样 */
+  at(i: number): SignalSample {
+    return this.samples[(this.writeIndex - this.size + i + SIGNAL_BUFFER_SIZE) % SIGNAL_BUFFER_SIZE]
+  }
+
+  push(ts: number, x: number, y: number, scale: number) {
+    const prevTs = this.size > 0 ? this.at(this.size - 1).ts : 0
+    const sampleTs = ts > prevTs ? ts : prevTs // 时间戳保持单调，防止时钟抖动打乱插值区间
+    if (this.size > 0 && sampleTs - prevTs > INPUT_PAUSE_THRESHOLD_NS) {
+      this.pauseX = x
+      this.pauseY = y
+    }
+    this.samples[this.writeIndex].set(sampleTs, x, y, scale)
+    this.writeIndex = (this.writeIndex + 1) % SIGNAL_BUFFER_SIZE
+    if (this.size < SIGNAL_BUFFER_SIZE) {
+      this.size++
+    }
+  }
+
+  velocityX(): number {
+    return this.vx
+  }
+
+  velocityY(): number {
+    return this.vy
+  }
+
+  /** 最近一次停顿点到最新采样的位移（px） */
+  pauseDistance(): number {
+    if (this.size == 0) {
+      return 0
+    }
+    const last = this.at(this.size - 1)
+    return Math.hypot(last.x - this.pauseX, last.y - this.pauseY)
+  }
+
+  /**
+   * 帧时钟与手势事件时钟未必同源，首帧用最新采样对两者做一次对齐，
+   * 对齐后的帧时间加 lead 即为本次消费的时刻
+   */
+  consumeTime(frameTs: number, leadNs: number): number {
+    if (!this.clockAligned) {
+      this.clockOffset = frameTs - this.at(this.size - 1).ts
+      this.clockAligned = true
+    }
+    return frameTs - this.clockOffset + leadNs
+  }
+
+  /** 窗口内采样做最小二乘线性拟合，兼作速度平滑与去抖 */
+  updateVelocity() {
+    const n = this.size
+    if (n < 2) {
+      this.vx = 0
+      this.vy = 0
+      this.vs = 0
+      return
+    }
+    const lastTs = this.at(n - 1).ts
+    const windowStart = lastTs - VELOCITY_FIT_WINDOW_NS
+    let start = n - 1
+    while (start > 0 && this.at(start - 1).ts >= windowStart) {
+      start--
+    }
+    if (start == n - 1) {
+      start = n - 2
+    }
+    const span = lastTs - this.at(start).ts
+    if (span < MIN_VELOCITY_FIT_SPAN_NS) {
+      this.vx = 0
+      this.vy = 0
+      this.vs = 0
+      return
+    }
+    let st = 0
+    let sx = 0
+    let sy = 0
+    let ss = 0
+    let stt = 0
+    let stx = 0
+    let sty = 0
+    let sts = 0
+    for (let i = start; i < n; i++) {
+      const s = this.at(i)
+      const t = (s.ts - lastTs) / span // 归一化到[-1,0]，避免大数相减损失精度
+      st += t
+      sx += s.x
+      sy += s.y
+      ss += s.scale
+      stt += t * t
+      stx += t * s.x
+      sty += t * s.y
+      sts += t * s.scale
+    }
+    const cnt = n - start
+    const denom = cnt * stt - st * st
+    if (denom < 1e-6) {
+      this.vx = 0
+      this.vy = 0
+      this.vs = 0
+      return
+    }
+    this.vx = (cnt * stx - st * sx) / denom / span
+    this.vy = (cnt * sty - st * sy) / denom / span
+    this.vs = (cnt * sts - st * ss) / denom / span
+  }
+
+  /**
+   * 求 t（手势时钟）时刻的信号值：区间内线性插值；越过最新采样后按拟合速度外推，
+   * 外推量随采样停更（手指悬停时就是完全没有新采样的）逐步收回，避免残留预测偏移
+   */
+  evaluate(t: number, out: SignalValue) {
+    const n = this.size
+    if (n == 0) {
+      return
+    }
+    const last = this.at(n - 1)
+    if (t >= last.ts) {
+      const dt = t - last.ts
+      let extrapolate = 0
+      if (dt <= FULL_PREDICTION_NS) {
+        extrapolate = dt
+      } else if (dt < STALE_EXTRAPOLATE_NS) {
+        extrapolate = dt * (STALE_EXTRAPOLATE_NS - dt) / (STALE_EXTRAPOLATE_NS - FULL_PREDICTION_NS)
+      }
+      out.x = last.x + this.vx * extrapolate
+      out.y = last.y + this.vy * extrapolate
+      out.scale = last.scale + this.vs * extrapolate
+      return
+    }
+    for (let i = n - 1; i > 0; i--) {
+      const b = this.at(i)
+      if (t >= b.ts) {
+        continue
+      }
+      const a = this.at(i - 1)
+      if (t >= a.ts) {
+        const span = b.ts - a.ts
+        const k = span > 0 ? (t - a.ts) / span : 1
+        out.x = a.x + (b.x - a.x) * k
+        out.y = a.y + (b.y - a.y) * k
+        out.scale = a.scale + (b.scale - a.scale) * k
+        return
+      }
+    }
+    const first = this.at(0)
+    out.x = first.x
+    out.y = first.y
+    out.scale = first.scale
+  }
+}
+
 @Component
 export struct ImageViewer {
   context = getContext(this) as common.UIAbilityContext
@@ -133,6 +360,24 @@ export struct ImageViewer {
   @State imgOpacity: number = 1 // 非对齐退场时图片层淡出
   enterPending: boolean = false // 入场飞入待执行（等图片尺寸就绪）
 
+  signal: GestureSignal = new GestureSignal()
+  signalValue: SignalValue = new SignalValue()
+  panning: boolean = false
+  pinching: boolean = false
+  flinging: boolean = false
+  loopRunning: boolean = false
+  lastFrameTs: number = 0
+  frameIntervalNs: number = 0
+  panBaseX: number = 0
+  panBaseY: number = 0
+  flingVx: number = 0
+  flingVy: number = 0
+  flingFriction: number = MAX_FRICTION
+  smoothX: number = 0 // 施加到变换上的输出值（一阶低通的当前状态）
+  smoothY: number = 0
+  smoothScale: number = 1
+  hasApplied: boolean = false
+
   aboutToAppear(): void {
     this.targetSwiperIndex = this.swiperIndex = this.param.startAt
     this.dataSource.setPageCount(this.param.urls.length)
@@ -150,6 +395,7 @@ export struct ImageViewer {
 
   aboutToDisappear(): void {
     activeExitHandler = null
+    this.haltGesture()
     this.showStatusBar()
   }
 
@@ -170,6 +416,7 @@ export struct ImageViewer {
       return
     }
     this.exiting = true
+    this.haltGesture()
     const helper = this.imgTransform[this.swiperIndex]
     const canAlign = this.swiperIndex == this.param.startAt &&
       helper.width > 0 && ImageViewerTransitionToSize.w > 0 && ImageViewerTransitionToSize.h > 0
@@ -338,7 +585,8 @@ export struct ImageViewer {
           .width('100%')
           .height('100%')
           .onTouch(e => {
-            offFrameSync()
+            // 触摸即接管：惯性滚动让位给即将到来的手势，位置不再变化
+            this.flinging = false
           })
           .gesture(TapGesture({ count: 2, distanceThreshold: 1 }).onAction(e => {
             this.imgTransform[this.swiperIndex].onTap(vp2px(e.fingerList[0].localX), vp2px(e.fingerList[0].localY))
@@ -347,47 +595,56 @@ export struct ImageViewer {
             })
           }))
           .gesture(PinchGesture({ distance: 0.1 }).onActionStart(e => {
+            this.pinching = true
+            this.hasApplied = false
+            this.signal.clear()
             this.imgTransform[this.swiperIndex].beginPinch()
+            this.startFrameLoop()
           }).onActionUpdate(e => {
-            this.imgTransform[this.swiperIndex].updatePinch(vp2px(e.pinchCenterX), vp2px(e.pinchCenterY), e.scale)
-            this.updateImageTransformMatrix()
-            this.bgOpacity = Math.min(1, Math.max(0, this.imgTransform[this.swiperIndex].scaleRatio))
+            const centerX = vp2px(e.pinchCenterX)
+            const centerY = vp2px(e.pinchCenterY)
+            if (e.scale > 0 && centerX > 0 && centerY > 0) {
+              this.signal.push(e.timestamp, centerX, centerY, e.scale)
+            }
           }).onActionEnd(e => {
+            this.pinching = false
+            this.finishScaleGesture(() => {
+              this.imgTransform[this.swiperIndex].endPinch()
+            })
+          }).onActionCancel(() => {
+            this.pinching = false
             this.finishScaleGesture(() => {
               this.imgTransform[this.swiperIndex].endPinch()
             })
           }))
           .gesture(PanGesture({ distance: 0.1 }).onActionStart(e => {
             // 100%缩放态进入垂直拖拽模式
-            this.dismissDragging = this.imgTransform[this.swiperIndex].scaleRatio == 1
-            if (!this.dismissDragging) {
-              this.imgTransform[this.swiperIndex].beginTranslate(e.timestamp)
-            }
+            const helper = this.imgTransform[this.swiperIndex]
+            this.dismissDragging = helper.scaleRatio == 1
+            this.panning = true
+            this.hasApplied = false
+            this.panBaseX = helper.X
+            this.panBaseY = helper.Y
+            this.signal.clear()
+            this.startFrameLoop()
           }).onActionUpdate(e => {
-            if (this.dismissDragging) {
-              this.imgTransform[this.swiperIndex].updateDismissDrag(vp2px(e.offsetX), vp2px(e.offsetY))
-              this.updateImageTransformMatrix()
-              // 缩放小于100%时，越缩模态背景越透明
-              this.bgOpacity = Math.min(1, Math.max(0, this.imgTransform[this.swiperIndex].scaleRatio))
-              return
-            }
-            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
-            this.updateImageTransformMatrix()
+            this.signal.push(e.timestamp, vp2px(e.offsetX), vp2px(e.offsetY), 1)
           }).onActionEnd(e => {
             if (this.dismissDragging) {
+              this.panning = false
               this.endDismissDrag()
               return
             }
-            this.imgTransform[this.swiperIndex].updateTranslate(vp2px(e.offsetX), vp2px(e.offsetY), e.timestamp)
-            this.imgTransform[this.swiperIndex].beginFling(e.timestamp)
-            this.updateImageTransformMatrix()
-            useFrameSync(ts => {
-              const moved = this.imgTransform[this.swiperIndex].fling(ts) || false
-              this.updateImageTransformMatrix()
-              return moved
-            })
+            this.signal.push(e.timestamp, vp2px(e.offsetX), vp2px(e.offsetY), 1)
+            this.panning = false
+            this.beginFling()
           }).onActionCancel(() => {
-            this.endDismissDrag()
+            if (this.dismissDragging) {
+              this.panning = false
+              this.endDismissDrag()
+              return
+            }
+            this.panning = false
           }))
           .onGestureJudgeBegin((gestureInfo: GestureInfo, event: BaseGestureEvent) => {
             if (this.exiting || this.imgLoadFailed[this.swiperIndex]) {
@@ -468,6 +725,128 @@ export struct ImageViewer {
     this.updateButtonVisibility()
   }
 
+  startFrameLoop() {
+    if (this.loopRunning) {
+      return
+    }
+    this.loopRunning = true
+    this.lastFrameTs = 0
+    useFrameSync(ts => this.frameTick(ts))
+  }
+
+  /** 手势进行中或惯性滚动中逐帧驱动，两者共用同一条循环 */
+  haltGesture() {
+    this.panning = false
+    this.pinching = false
+    this.flinging = false
+    if (this.loopRunning) {
+      this.loopRunning = false
+      offFrameSync()
+    }
+  }
+
+  frameTick(ts: number): boolean {
+    const dtNs = this.lastFrameTs > 0 ? ts - this.lastFrameTs : 0
+    this.lastFrameTs = ts
+    if (dtNs > 0 && dtNs < 100_000_000) {
+      this.frameIntervalNs = this.frameIntervalNs > 0
+        ? this.frameIntervalNs + (dtNs - this.frameIntervalNs) * FRAME_INTERVAL_ALPHA
+        : dtNs
+    }
+    const helper = this.imgTransform[this.swiperIndex]
+    if (this.panning || this.pinching) {
+      this.consumeGestureFrame(helper, ts)
+      return true
+    }
+    if (this.flinging && this.stepFling(helper, dtNs)) {
+      this.updateImageTransformMatrix()
+      return true
+    }
+    this.flinging = false
+    this.loopRunning = false
+    return false
+  }
+
+  /**
+   * 消费采样：消费时刻 = 对齐后的帧时间 + 一帧提前量（补偿输入/上屏延迟），
+   * 采样稀疏时按拟合速度外推，采样密集时线性插值；
+   * 结果再经一级帧率无关的一阶低通后才施加，用来抹掉外推尖峰（急停过冲）与采样抖动
+   */
+  consumeGestureFrame(helper: matrixHelper, ts: number) {
+    if (this.signal.count() == 0) {
+      return
+    }
+    this.signal.updateVelocity()
+    const lead = Math.min(this.frameIntervalNs, MAX_PREDICTION_LEAD_NS)
+    this.signal.evaluate(this.signal.consumeTime(ts, lead), this.signalValue)
+    const v = this.signalValue
+    if (!this.hasApplied) { // 手势起始帧直接落位，避免从上一手势的旧值平滑过去
+      this.hasApplied = true
+      this.smoothX = v.x
+      this.smoothY = v.y
+      this.smoothScale = v.scale
+    } else {
+      const alpha = 1 - Math.exp(-this.frameIntervalNs / SMOOTH_TAU_NS)
+      const dx = (v.x - this.smoothX) * alpha
+      const dy = (v.y - this.smoothY) * alpha
+      const ds = (v.scale - this.smoothScale) * alpha
+      if (Math.abs(dx) < APPLY_POS_EPSILON_PX && Math.abs(dy) < APPLY_POS_EPSILON_PX &&
+        Math.abs(ds) < APPLY_SCALE_EPSILON) {
+        return // 本帧平滑增量可忽略，省掉一次重绘
+      }
+      this.smoothX += dx
+      this.smoothY += dy
+      this.smoothScale += ds
+    }
+    if (this.pinching) {
+      helper.applyPinch(this.smoothScale, this.smoothX, this.smoothY)
+    } else if (this.dismissDragging) {
+      helper.applyDismissDrag(this.smoothX, this.smoothY)
+    } else {
+      helper.applyPan(this.panBaseX, this.panBaseY, this.smoothX, this.smoothY)
+    }
+    if (this.pinching || this.dismissDragging) {
+      this.bgOpacity = Math.min(1, Math.max(0, helper.scaleRatio))
+    }
+    this.updateImageTransformMatrix()
+  }
+
+  /** 直接沿用拖拽末速度（位移速度换算到图片平移空间），惯性滚动与拖拽无缝衔接 */
+  beginFling() {
+    const helper = this.imgTransform[this.swiperIndex]
+    const dragVp = px2vp(this.signal.pauseDistance())
+    if (dragVp < MIN_FLING_DRAG_VP) {
+      // 极短手势（多用于在惯性滚动中反手轻点刹车）的位移与采样噪声同量级，
+      // 拟合出的速度方向和大小都不可信，直接不产生惯性：把原有的惯性刹住即可
+      this.flinging = false
+      return
+    }
+    this.signal.updateVelocity()
+    this.flingVx = this.signal.velocityX() / helper.scaleRatio
+    this.flingVy = this.signal.velocityY() / helper.scaleRatio
+    const t = Math.min(1, Math.max(0,
+      (dragVp - SHORT_DRAG_DISTANCE_CLAMP) / (LONG_DRAG_DISTANCE_CLAMP - SHORT_DRAG_DISTANCE_CLAMP)))
+    // 距离越短摩擦越大
+    this.flingFriction = MAX_FRICTION + t * (MIN_FRICTION - MAX_FRICTION)
+    this.flinging = true
+  }
+
+  /** 常摩擦力的指数衰减，按帧积分（每帧位移为精确解），便于随时被新输入接管 */
+  stepFling(helper: matrixHelper, dtNs: number): boolean {
+    if (dtNs <= 0) {
+      return true
+    }
+    if (Math.hypot(this.flingVx, this.flingVy) < STOP_FLING_VEL) {
+      return false
+    }
+    const decay = Math.exp(-this.flingFriction * dtNs / 1e9)
+    const displacementFactor = (1 - decay) / this.flingFriction
+    helper.moveBy(this.flingVx * 1e9 * displacementFactor, this.flingVy * 1e9 * displacementFactor)
+    this.flingVx *= decay
+    this.flingVy *= decay
+    return true
+  }
+
   startEnterFly() {
     this.enterPending = false
     const helper = this.imgTransform[this.param.startAt]
@@ -531,12 +910,16 @@ export struct ImageViewer {
  * 注意确保传入的一切尺寸单位为px
  */
 class matrixHelper {
-  private translate = new TranslateHelper()
+  X: number = 0
+  Y: number = 0
   scaleRatio: number = 1
-  transitionExitScale: number = 1
   width: number = 0
   height: number = 0
   private fitScale: number = 1
+  private pinchBaseScale: number = 1
+  private pinchImgX: number = 0 // 捏合起始时，捏合中心下方的图像坐标
+  private pinchImgY: number = 0
+  private pinchAnchorValid: boolean = false
 
   setImageSize(width: number, height: number) {
     this.width = width
@@ -553,20 +936,21 @@ class matrixHelper {
   }
 
   reset() {
-    this.translate = new TranslateHelper()
+    this.X = 0
+    this.Y = 0
     this.scaleRatio = 1
   }
 
   /** 退场终态：内容缩放到targetScale，中心平移到缩略图中心(px、窗口坐标) */
   setExitTarget(targetScale: number, targetCenterX: number, targetCenterY: number) {
     this.scaleRatio = targetScale
-    this.translate.X = (targetCenterX - imgContainerSize.w / 2) / targetScale
-    this.translate.Y = (targetCenterY - imgContainerSize.h / 2) / targetScale
+    this.X = (targetCenterX - imgContainerSize.w / 2) / targetScale
+    this.Y = (targetCenterY - imgContainerSize.h / 2) / targetScale
   }
 
   private limitInScreen() {
-    const centerX = imgContainerSize.w / 2 + this.translate.X * this.scaleRatio
-    const centerY = imgContainerSize.h / 2 + this.translate.Y * this.scaleRatio
+    const centerX = imgContainerSize.w / 2 + this.X * this.scaleRatio
+    const centerY = imgContainerSize.h / 2 + this.Y * this.scaleRatio
     const scaledW = this.width * this.scaleRatio
     const scaledH = this.height * this.scaleRatio
     const leftTopX = centerX - scaledW / 2
@@ -574,23 +958,23 @@ class matrixHelper {
     if (scaledW > imgContainerSize.w) {
       const maxX = 0
       const minX = imgContainerSize.w - scaledW
-      this.translate.X += (Math.min(Math.max(leftTopX, minX), maxX) - leftTopX) / this.scaleRatio
+      this.X += (Math.min(Math.max(leftTopX, minX), maxX) - leftTopX) / this.scaleRatio
     } else {
-      this.translate.X = 0
+      this.X = 0
     }
     if (scaledH > imgContainerSize.h) {
       const maxY = 0
       const minY = imgContainerSize.h - scaledH
-      this.translate.Y += (Math.min(Math.max(leftTopY, minY), maxY) - leftTopY) / this.scaleRatio
+      this.Y += (Math.min(Math.max(leftTopY, minY), maxY) - leftTopY) / this.scaleRatio
     } else {
-      this.translate.Y = 0
+      this.Y = 0
     }
   }
 
   getMat(): matrix4.Matrix4Transit {
     return matrix4.identity().translate({
-      x: this.translate.X,
-      y: this.translate.Y
+      x: this.X,
+      y: this.Y
     }).scale({
       x: this.scaleRatio,
       y: this.scaleRatio,
@@ -600,14 +984,12 @@ class matrixHelper {
   }
 
   scale(newScale: number, scaleCenterX: number, scaleCenterY: number) { // scaleCenter.XY的数值相对于容器左上角，需要转换到缩放变换中心
-    const centerX = imgContainerSize.w / 2 + this.translate.X * this.scaleRatio
-    const centerY = imgContainerSize.h / 2 + this.translate.Y * this.scaleRatio
+    const centerX = imgContainerSize.w / 2 + this.X * this.scaleRatio
+    const centerY = imgContainerSize.h / 2 + this.Y * this.scaleRatio
     const dx = centerX - scaleCenterX
     const dy = centerY - scaleCenterY
-    this.translate.X =
-      (dx * (newScale - this.scaleRatio) / this.scaleRatio + this.translate.X * this.scaleRatio) / newScale
-    this.translate.Y =
-      (dy * (newScale - this.scaleRatio) / this.scaleRatio + this.translate.Y * this.scaleRatio) / newScale
+    this.X = (dx * (newScale - this.scaleRatio) / this.scaleRatio + this.X * this.scaleRatio) / newScale
+    this.Y = (dy * (newScale - this.scaleRatio) / this.scaleRatio + this.Y * this.scaleRatio) / newScale
     this.scaleRatio = newScale
   }
 
@@ -628,14 +1010,26 @@ class matrixHelper {
     this.scaleRatio = Math.min(Math.max(this.scaleRatio, 1), this.fitScale * 6)
   }
 
-  initialScale: number = 0
-
+  /** 捏合开始：锚点推迟到首个采样到达时记录，那时捏合中心一定有效 */
   beginPinch() {
-    this.initialScale = this.scaleRatio
+    this.pinchAnchorValid = false
   }
 
-  updatePinch(pinchX: number, pinchY: number, scale: number) {
-    this.scale(scale * this.initialScale, pinchX, pinchY)
+  /**
+   * relativeScale为捏合手势的累计缩放比，center为当前捏合中心（px、容器坐标）；
+   * 首次调用记录锚点，此后每次都是相对锚点的闭式解，不累积误差
+   */
+  applyPinch(relativeScale: number, centerX: number, centerY: number) {
+    if (!this.pinchAnchorValid) {
+      this.pinchBaseScale = this.scaleRatio
+      this.pinchImgX = (centerX - imgContainerSize.w / 2) / this.scaleRatio - this.X
+      this.pinchImgY = (centerY - imgContainerSize.h / 2) / this.scaleRatio - this.Y
+      this.pinchAnchorValid = true
+    }
+    const newScale = Math.max(this.pinchBaseScale * relativeScale, 1e-3)
+    this.scaleRatio = newScale
+    this.X = (centerX - imgContainerSize.w / 2) / newScale - this.pinchImgX
+    this.Y = (centerY - imgContainerSize.h / 2) / newScale - this.pinchImgY
   }
 
   endPinch() {
@@ -644,33 +1038,27 @@ class matrixHelper {
   }
 
   /** 100%缩放态的拖拽：按距离缩小缩放，位移均跟手 */
-  updateDismissDrag(offsetX: number, offsetY: number) {
+  applyDismissDrag(offsetX: number, offsetY: number) {
     const absY = Math.abs(offsetY);
     // 指数非线性：近距离scale衰减极慢，超过阈值后快速下滑
     const factor = absY / 1200;
     const scaleRaw = 1 - Math.pow(factor, 2.2); // 指数 >1，越大越晚开始衰减
     this.scaleRatio = Math.max(0.8, scaleRaw);
-    this.translate.X = offsetX / this.scaleRatio;
-    this.translate.Y = offsetY / this.scaleRatio;
+    this.X = offsetX / this.scaleRatio;
+    this.Y = offsetY / this.scaleRatio;
   }
 
-  beginTranslate(nanoTs: number) {
-    this.translate.reset(nanoTs)
-  }
-
-  updateTranslate(offsetX: number, offsetY: number, nanoTs: number) {
-    this.translate.updatePos(offsetX / this.scaleRatio, offsetY / this.scaleRatio, nanoTs)
+  /** 拖拽位移始终相对手势起点的基准值求解，限位不会累积成漂移 */
+  applyPan(baseX: number, baseY: number, offsetX: number, offsetY: number) {
+    this.X = baseX + offsetX / this.scaleRatio
+    this.Y = baseY + offsetY / this.scaleRatio
     this.limitInScreen()
   }
 
-  beginFling(nanoTs: number) {
-    this.translate.beginFling(nanoTs)
-  }
-
-  fling(ts: number) {
-    const moved = this.translate.fling(ts)
+  moveBy(dx: number, dy: number) {
+    this.X += dx
+    this.Y += dy
     this.limitInScreen()
-    return moved
   }
 
   /**
@@ -679,7 +1067,7 @@ class matrixHelper {
    * @returns true，当图片的滑动手势需要优先响应（而不是swiper的左右切换）
    */
   selfScrollFirst(directionX: boolean) {
-    const centerX = imgContainerSize.w / 2 + this.translate.X * this.scaleRatio
+    const centerX = imgContainerSize.w / 2 + this.X * this.scaleRatio
     const width = this.width * this.scaleRatio
     const leftTopX = centerX - width / 2
     if (width > imgContainerSize.w) {
@@ -693,128 +1081,6 @@ class matrixHelper {
       return true
     }
     return false
-  }
-}
-
-
-const SHORT_DRAG_DISTANCE_CLAMP = 5 // vp
-const LONG_DRAG_DISTANCE_CLAMP = 60 // vp
-
-const MIN_FRICTION = 0.1
-const MAX_FRICTION = 5
-
-const STOP_FLING_VEL = vp2px(3e-8) // vp / ns
-
-const INPUT_PAUSE_THRESHOLD_NS = 60_000_000
-const VELOCITY_HALF_LIFE_NS = 10_000_000
-const VELOCITY_TAU_MS = VELOCITY_HALF_LIFE_NS / Math.LN2
-
-/**
- * 辅助处理惯性滚动
- */
-class TranslateHelper {
-  X: number = 0
-  Y: number = 0
-  private startX: number = 0 // 完整拖拽的起止点
-  private startY: number = 0
-  private lastTime: number = 0
-  private velocityX: number = 0 // px / ns
-  private velocityY: number = 0 // px / ns
-  private pauseX: number = 0 // 拖拽过程中的停顿位置
-  private pauseY: number = 0
-
-  reset(lastTime: number) {
-    this.startX = this.pauseX = this.X
-    this.startY = this.pauseY = this.Y
-    this.lastTime = lastTime
-    this.velocityX = 0
-    this.velocityY = 0
-    this.flingTs = 0
-  }
-
-  updatePos(dx: number, dy: number, nanoTs: number) {
-    const deltaTimeNs = nanoTs - this.lastTime
-
-    if (deltaTimeNs <= 0) {
-      this.lastTime = nanoTs
-      this.X = dx + this.startX
-      this.Y = dy + this.startY
-      return
-    }
-
-    const newX = dx + this.startX
-    const newY = dy + this.startY
-    const instVelX = (newX - this.X) / deltaTimeNs
-    const instVelY = (newY - this.Y) / deltaTimeNs
-
-    // 发生停顿，将速度重置为0，记录停顿点
-    if (deltaTimeNs > INPUT_PAUSE_THRESHOLD_NS) {
-      this.velocityX = 0
-      this.velocityY = 0
-      this.pauseX = newX
-      this.pauseY = newY
-    }
-
-    const alpha = 1 - Math.exp(-deltaTimeNs / VELOCITY_TAU_MS)
-
-    this.velocityX = alpha * instVelX + (1 - alpha) * this.velocityX
-    this.velocityY = alpha * instVelY + (1 - alpha) * this.velocityY
-
-    this.X = newX
-    this.Y = newY
-    this.lastTime = nanoTs
-  }
-
-  private flingInitialVelX: number = 0
-  private flingInitialVelY: number = 0
-  private flingTs: number = 0
-  private flingFriction: number = MAX_FRICTION
-
-  calculateFling() {
-    const dragDistance = Math.hypot(px2vp(this.X - this.pauseX), px2vp(this.Y - this.pauseY))
-    const t = Math.min(1, Math.max(0,
-      (dragDistance - SHORT_DRAG_DISTANCE_CLAMP) /
-        (LONG_DRAG_DISTANCE_CLAMP - SHORT_DRAG_DISTANCE_CLAMP)
-    )) // t -> [0,1]，和拖动距离成正比
-    // 距离越短摩擦越大
-    this.flingFriction = MAX_FRICTION + t * (MIN_FRICTION - MAX_FRICTION)
-
-    this.flingInitialVelX = this.velocityX
-    this.flingInitialVelY = this.velocityY
-  }
-
-  beginFling(nanoTs: number) {
-    this.calculateFling()
-    this.reset(nanoTs)
-  }
-
-  fling(nanoTs: number) {
-    if (this.flingTs === 0) {
-      this.flingTs = nanoTs
-      return true
-    }
-    const elapsedTime = (nanoTs - this.flingTs) / 1e9 // s
-    if (elapsedTime <= 0) {
-      return true
-    }
-    const decayFactor = Math.exp(-this.flingFriction * elapsedTime);
-
-    const currentVelX = this.flingInitialVelX * decayFactor
-    const currentVelY = this.flingInitialVelY * decayFactor
-
-    // px / ns
-    if (Math.hypot(currentVelX, currentVelY) < STOP_FLING_VEL) {
-      return false
-    }
-
-    const displacementFactor = (1 - decayFactor) / this.flingFriction
-    const dx = this.flingInitialVelX * 1e9 * displacementFactor
-    const dy = this.flingInitialVelY * 1e9 * displacementFactor
-
-    this.X = this.startX + dx
-    this.Y = this.startY + dy
-
-    return true
   }
 }
 
