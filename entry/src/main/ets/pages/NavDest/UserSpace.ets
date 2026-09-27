@@ -338,45 +338,31 @@ export struct UserSpace {
                   }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
                 }
                 Row() {
-                  GridRow({ gutter: 1, columns: 12 }) {
+                  Column() {
                     ForEach(this.userSpace.dates, (item: dateInfoVM) => {
-                      GridCol({
-                        span: {
-                          xs: 12,
-                          md: 6,
-                        }
-                      }) {
-                        Column({ space: 4 }) {
-                          Text(item.title)
-                            .fontColor(this.appTheme.fontEmphasize)
-                            .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                          Text(item.date).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                        }.padding(4).width('100%').alignItems(HorizontalAlign.Start)
-                      }
+                      Column({ space: 4 }) {
+                        Text(item.title)
+                          .fontColor(this.appTheme.fontEmphasize)
+                          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                        Text(item.date).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      }.padding(4).width('100%').alignItems(HorizontalAlign.Start)
                     })
-                  }
-                }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
-                .transition(TransitionEffect.translate({ y: -35 }).animation(SpringCurve))
+                  }.flexGrow(1).flexBasis(1).alignItems(HorizontalAlign.Start)
 
-                Row() {
-                  GridRow({ gutter: 1, columns: 12 }) {
+                  Column() {
                     ForEach(this.userSpace.extcredits, (item: ExtCreditVM) => {
-                      GridCol({
-                        span: {
-                          xs: 12,
-                          md: 6,
-                        }
-                      }) {
-                        Column({ space: 4 }) {
-                          Text(item.title)
-                            .fontColor(this.appTheme.fontEmphasize)
-                            .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                          Text(item.count + ' ' + item.unit).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
-                        }.padding(4).width('100%').alignItems(HorizontalAlign.Start)
-                      }
+                      Column({ space: 4 }) {
+                        Text(item.title)
+                          .fontColor(this.appTheme.fontEmphasize)
+                          .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
+                        Text(item.count + ' ' + item.unit).fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+                      }.padding(4).width('100%').alignItems(HorizontalAlign.End)
                     })
-                  }
-                }.attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
+                  }.flexGrow(1).flexBasis(1).alignItems(HorizontalAlign.End)
+                }
+                .justifyContent(FlexAlign.SpaceBetween)
+                .alignItems(VerticalAlign.Top)
+                .attributeModifier(new RoundPanel(this.appTheme.backgroundPrimary))
                 .transition(TransitionEffect.translate({ y: -45 }).animation(SpringCurve))
               }.transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms300 }))
             } else {
