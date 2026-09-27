@@ -1186,7 +1186,7 @@ struct SinglePostPage {
     }
     this.loadingBegin()
 
-    session.join(`threadPosts,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+    session.join(
       (): Promise<wrapper<PostListV4>> =>
       new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
         .param('tid', this.pageParam.tid)
@@ -1202,7 +1202,7 @@ struct SinglePostPage {
           }
         }
       })
-    session.join(`threadApp,${this.pageParam.tid},${this.pageToLoad},${this.pageParam.authorid || ''}`,
+    session.join(
       (): Promise<wrapperApp<ThreadDataApp>> =>
       new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
         .appToken()

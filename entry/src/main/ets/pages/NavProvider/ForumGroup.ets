@@ -116,7 +116,7 @@ export struct ForumGroupView {
     if (session === undefined) {
       return Promise.resolve()
     }
-    return session.join(`forumGroup,${this.uid ?? ''}`,
+    return session.join(
       (): Promise<wrapper<ForumGroup>> =>
         new request<wrapper<ForumGroup>>(URL.FORUM_GROUP)
           .cache((v): void => this.processData(v), this.forumGroupId.length > 0, this.uid === undefined)

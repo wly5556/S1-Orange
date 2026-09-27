@@ -79,13 +79,14 @@ const data = await new request<RespType>(URL.SOME_PATH)   // 第二参 base，�
   .param('key', 'value')        // query 参数
   .toText() | .toJSON() | .ensureJSON()   // 响应处理
   .formHash() | .appToken()     // 注入鉴权
-  .cache(cb, updateCacheOnly?, fromCacheOnly?)  // 本地缓存
+  .cache(cb, updateCacheOnly?, fromCacheOnly?)  // 本地缓存；同时自动启用网络在途去重
   .get() | .post(content)       // 发起请求
 ```
 
 - `URL` 枚举（`api/base.ets`）列出所有接口路径与域名（`WEB_BASE` / `BASE` mobile api / `APP_BASE` app api）。
 - 新增接口：在 `URL` 加路径常量，按返回类型选用 `.toJSON()` / `.toText()`；mobile api（`URL.BASE`）响应若含 `Variables.notice` 会自动更新全局通知。
 - 会话数上限 16，框架内有用队列做重试，无需自行处理。
+- 去重与缓存：`.cache()` 表示「可缓存的读请求」，其本地缓存每次调用都先行回调、网络调用自动在途去重（key 为 base+路径+参数/请求体+登录态），使用侧无需关心两者关系。页面级「同一状态只加载一次」由 `common/PageLoad.ets` 的 `PageLoadGuard` 独立负责。
 
 ## 全局状态与跨组件通信
 

@@ -513,18 +513,18 @@ struct ThreadListPage {
     this.dataLoading = true
     let requestPageIndex = this.pageToLoad.toString()
     const pageAtRequest = this.pageToLoad
-    session.join(`forumThreads,${this.forumId},${requestPageIndex},${this.threadTypeFilter}`,
+    session.join(
       (): Promise<wrapper<ThreadList>> =>
-      new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
-        .param('fid', this.forumId)
-        .param('page', requestPageIndex)
-        .param('typeid', this.threadTypeFilter)
-        .param('tpp', THREAD_PER_PAGE.toString())
-        .cache((v): void => {
-          this.waitHint.begin()
-          this.processThreadList(v)
-        }, this.threadList.length > 0)
-        .get())
+        new request<wrapper<ThreadList>>(URL.FORUM_THREAD_LIST)
+          .param('fid', this.forumId)
+          .param('page', requestPageIndex)
+          .param('typeid', this.threadTypeFilter)
+          .param('tpp', THREAD_PER_PAGE.toString())
+          .cache((v): void => {
+            this.waitHint.begin()
+            this.processThreadList(v)
+          }, this.threadList.length > 0)
+          .get())
       .then((v): Promise<wrapper<ThreadList>> => {
         if (this.pageToLoad == pageAtRequest) {
           return this.processThreadList(v)
