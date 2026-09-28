@@ -25,6 +25,8 @@ import { AniSpeed, HeavyClickEffect, SpringCurve } from '../../common/Animation'
 import { formatRelativeTime } from '../../common/TimeFormat'
 import { openWriteReply, WriteReplyMode, WriteReplyParam, WriteReplyPopData } from './WriteReply'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { PostColorMode } from '../../config/v1/default'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey } from '../../common/Constants'
 
@@ -264,7 +266,9 @@ export struct PmDetail {
                             },
                             getAttachInfo: (aid: string) => undefined,
                             lazyLoadImage: true,
-                            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+                            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
+                            contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
+                            ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
                           })
                         })
                       }

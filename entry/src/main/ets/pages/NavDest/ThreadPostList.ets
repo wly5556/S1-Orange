@@ -55,7 +55,8 @@ import {
 import { BLOCK_USER_LIST_STATE, BlockUser, UnblockUser } from '../../common/dataStore/BlockUser'
 import { ThreadDataApp } from '../../api/model/app/thread'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
-import { HiddenPostDisplay } from '../../config/v1/default'
+import { HiddenPostDisplay, PostColorMode } from '../../config/v1/default'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PreferenceManager } from '../../config/UserConfig'
 import { LengthUnit, promptAction } from '@kit.ArkUI'
 import { PropKey, SafeArea } from '../../common/Constants'
@@ -1503,11 +1504,14 @@ struct SinglePostPage {
         },
         getAttachInfo: (aid: string): Attachment | undefined => this.getAttachInfo(pid, aid),
         lazyLoadImage: true,
-        adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+        adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
+        contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
+        ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
       })
     },
       (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize +
-        this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark)
+        this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark +
+        this.appState.textColorLight + this.appState.textColorDark + this.appState.postColorMode)
   }
 
   @LocalBuilder

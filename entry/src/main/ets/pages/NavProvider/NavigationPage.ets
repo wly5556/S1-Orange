@@ -29,6 +29,7 @@ import {
   FontSizeIndex,
   FontSizeOverride,
   HiddenPostDisplay,
+  PostColorMode,
   UpdateCheckInterval
 } from '../../config/v1/default'
 import { PropKey, SafeArea } from '../../common/Constants'
@@ -62,6 +63,9 @@ export interface PreferenceState {
   fontSize: number
   fontSizeOverride: FontSizeOverride
   darkModeContentColorAdjust: boolean
+  textColorLight: string
+  textColorDark: string
+  postColorMode: PostColorMode
   hiddenPostDisplay: HiddenPostDisplay
   splitMode: boolean
   followHandDialog: FollowHandDialogMode
@@ -87,6 +91,9 @@ struct NavigationPage {
     fontSize: defaultApplicationConfig.font_size,
     fontSizeOverride: defaultApplicationConfig.font_size_override,
     darkModeContentColorAdjust: defaultApplicationConfig.dark_mode_content_color_adjust,
+    textColorLight: defaultApplicationConfig.text_color_light,
+    textColorDark: defaultApplicationConfig.text_color_dark,
+    postColorMode: defaultApplicationConfig.post_color_mode,
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
     splitMode: defaultApplicationConfig.split_mode,
     followHandDialog: defaultApplicationConfig.follow_hand_dialog,
@@ -95,7 +102,7 @@ struct NavigationPage {
     updateCheckInterval: defaultApplicationConfig.update_check_interval,
     recommendEnabled: defaultApplicationConfig.recommend_enabled
   }
-  appThemeWhenLightMode: AppThemeColor = new ThemeColorLight()
+  @Provide appThemeWhenLightMode: AppThemeColor = new ThemeColorLight()
   @Provide @Watch('updateStatesBarColor') appTheme: AppThemeColor = new ThemeColorLight()
   @StorageProp(PropKey.currentColorMode) @Watch('onColorModeChange') currentMode: number =
     ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
@@ -135,6 +142,9 @@ struct NavigationPage {
       this.appState.fontSize = conf.font_size
       this.appState.fontSizeOverride = conf.font_size_override
       this.appState.darkModeContentColorAdjust = conf.dark_mode_content_color_adjust
+      this.appState.textColorLight = conf.text_color_light
+      this.appState.textColorDark = conf.text_color_dark
+      this.appState.postColorMode = conf.post_color_mode
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
       this.appState.followHandDialog = conf.follow_hand_dialog

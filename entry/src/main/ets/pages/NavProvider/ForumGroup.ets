@@ -15,6 +15,7 @@ import { openInBrowser } from '../../common/WantUitl'
 import { PreferenceManager } from '../../config/UserConfig'
 import { PreferenceState } from './NavigationPage'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { Event } from '../../common/Events'
 import { ForumSortMode } from '../../config/v1/default'
@@ -178,6 +179,7 @@ export struct ForumGroupView {
               Text(this.forumGroupName.get(fid))
                 .margin({ right: 16 })
                 .fontSize(FontSizeEnum[this.appState.fontSize].vp18)
+                .fontColor(contentTextColor(this.appState, this.appTheme.isDark))
               if (this.forumGroupTodayPost.get(fid) != '0') {
                 Text(this.forumGroupTodayPost.get(fid)).fontColor(this.appTheme.fontEmphasize)
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp18)

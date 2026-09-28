@@ -9,6 +9,7 @@ import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
 import { openThreadPost, ThreadPostParam } from './ThreadPostList'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey } from '../../common/Constants'
 import { LengthUnit } from '@kit.ArkUI'
@@ -117,6 +118,7 @@ export struct ViewHistory {
                   Text(item.title)
                     .textAlign(TextAlign.Start)
                     .width('100%')
+                    .fontColor(contentTextColor(this.appState, this.appTheme.isDark))
                     .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
                     .lineSpacing({
                       value: this.appState.contentLineSpace,

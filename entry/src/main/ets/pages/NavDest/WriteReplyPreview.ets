@@ -6,6 +6,8 @@ import { OuterScroller } from '../../common/component/OuterScroller'
 import { ThreadPostUINodeRender, GeneralNode, UINodeName, UIRootNode } from '../../common/component/ThreadPostContent'
 import { TitleBar } from '../../common/component/TitleBar'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { PostColorMode } from '../../config/v1/default'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { bbCodeParser } from '../../common/ThreadPostContentSerializer'
 import { openS1LinkLike } from '../../common/WantUitl'
 import { AppThemeColor } from '../../common/theme/basic/basic'
@@ -126,10 +128,13 @@ export struct WriteReplyPreview {
                   },
                   getAttachInfo: (aid: string): Attachment | undefined => undefined,
                   lazyLoadImage: true,
-                  adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+                  adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
+                  contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
+                  ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
                 })
               }, (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize +
-                this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark)
+                this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark +
+                this.appState.textColorLight + this.appState.textColorDark + this.appState.postColorMode)
             }
           }
           .width('100%')

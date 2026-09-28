@@ -31,6 +31,7 @@ import {
 import { PostSignature } from '../../common/PostSignature'
 import { AnimationSetUp, AniSpeed, OpacityTransition } from '../../common/Animation'
 import { FoldMenu } from '../../common/component/FoldMenu'
+import { TextColorPanel } from '../../common/component/preference/TextColorPref'
 import BuildProfile from 'BuildProfile'
 import { LengthUnit } from '@ohos.arkui.node'
 import { clearSmilyImageCache } from '../../common/dataStore/SmilyCache'
@@ -116,6 +117,9 @@ export struct PreferencePage {
       this.appState.fontSize = conf.font_size
       this.appState.fontSizeOverride = conf.font_size_override
       this.appState.darkModeContentColorAdjust = conf.dark_mode_content_color_adjust
+      this.appState.textColorLight = conf.text_color_light
+      this.appState.textColorDark = conf.text_color_dark
+      this.appState.postColorMode = conf.post_color_mode
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
       this.appState.followHandDialog = conf.follow_hand_dialog
@@ -439,6 +443,13 @@ export struct PreferencePage {
               fontSizeIndex: this.appState.fontSize
             })
             Column() {
+              FoldMenu({
+                title: '文字颜色',
+                subtitle: '系统默认的文字颜色带有一定透明度，可以在此处调整、加深文字颜色，获得更舒服的阅读体验'
+              }) {
+                TextColorPanel()
+              }
+
               FoldMenu({
                 title: '字体大小'
               }) {

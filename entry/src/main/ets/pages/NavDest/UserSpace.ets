@@ -23,6 +23,8 @@ import { LoadingIcon } from '../../common/component/LoadingIcon'
 import { PropKey } from '../../common/Constants'
 import { BLOCK_USER_LIST_STATE, BlockUser, UnblockUser } from '../../common/dataStore/BlockUser'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { PostColorMode } from '../../config/v1/default'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { openS1LinkLike } from '../../common/WantUitl'
 import { PreferenceState } from '../NavProvider/NavigationPage'
@@ -331,7 +333,9 @@ export struct UserSpace {
                           },
                           getAttachInfo: (aid: string) => undefined,
                           lazyLoadImage: true,
-                          adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+                          adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
+                          contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
+                          ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
                         })
                       })
                     }.padding(4)

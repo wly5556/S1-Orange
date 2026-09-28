@@ -14,6 +14,7 @@ import wrapper from '../../api/wrapper'
 import Account from '../../api/model/account'
 import { unescapeXml } from '../../common/XmlParser'
 import { buildFontColorPicker } from '../../common/component/FontColorPicker'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import {
   DraftDbSetUser,
   DraftItem,
@@ -566,6 +567,7 @@ export struct WriteReply {
               placeholder: '写点内容吧...',
             })
               .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+              .fontColor(contentTextColor(this.appState, this.appTheme.isDark))
               .customKeyboard(this.showTools ? this.blankKeyboard() : undefined)
               .onClick(e => {
                 if (this.showTools) {

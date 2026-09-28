@@ -174,6 +174,8 @@ interface ThreadPostUINodeRenderParam {
   lineSpace: number
   lazyLoadImage: boolean
   adjustColorForDarkMode: boolean
+  contentTextColor: ResourceColor
+  ignorePostColor: boolean
 }
 
 
@@ -742,7 +744,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
       ForEach(param.uiRoot.block,
         (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
           FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize,
-          param.adjustColorForDarkMode),
+          param.adjustColorForDarkMode, param.contentTextColor, param.ignorePostColor),
         (node: GeneralNode, index: number) => index.toString())
     }.width('100%')
     .copyOption(param.copyOption)
@@ -822,7 +824,7 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
         ForEach(param.uiRoot.block,
           (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
             FontSizeEnum[param.fontSize], param.fontSizeOverride, param.appTheme.fontEmphasize,
-            param.adjustColorForDarkMode),
+            param.adjustColorForDarkMode, param.contentTextColor, param.ignorePostColor),
           (node: GeneralNode, index: number) => index.toString())
       }
       .width('100%')
@@ -897,7 +899,9 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         onImgClick: param.onImgClick,
         getAttachInfo: param.getAttachInfo,
         lazyLoadImage: param.lazyLoadImage,
-        adjustColorForDarkMode: param.adjustColorForDarkMode
+        adjustColorForDarkMode: param.adjustColorForDarkMode,
+        contentTextColor: param.contentTextColor,
+        ignorePostColor: param.ignorePostColor
       })
     })
   }
@@ -906,19 +910,20 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
 @Builder
 function TextContentBuilder(node: GeneralNode, index: number, onLinkClick: (href: string) => void, fontSize: FontSize,
   fontSizeOverride: FontSizeOverride, fontEmphasizeColor: ResourceColor = $r('sys.color.font_emphasize'),
-  adjustColorForDarkMode: boolean = false) {
+  adjustColorForDarkMode: boolean = false, contentTextColor: ResourceColor = $r('sys.color.font_primary'),
+  ignorePostColor: boolean = false) {
   if (node.name == UINodeName.Text) {
     if (node.styleControl.href) {
       Span(node.content)
         .attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor,
-          adjustColorForDarkMode))
+          adjustColorForDarkMode, contentTextColor, ignorePostColor))
         .onClick(() => {
           onLinkClick(node.styleControl.href!)
         })
     } else {
       Span(node.content)
         .attributeModifier(new applyTextStyle(node.styleControl, fontSize, fontSizeOverride, fontEmphasizeColor,
-          adjustColorForDarkMode))
+          adjustColorForDarkMode, contentTextColor, ignorePostColor))
     }
   } else if (node.name == UINodeName.ImgSmily) {
     ImageSmily({
@@ -936,14 +941,19 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
   fontSizeOverride: FontSizeOverride
   emphasizeColor: ResourceColor
   adjustColorForDarkMode: boolean
+  contentTextColor: ResourceColor
+  ignorePostColor: boolean
 
   constructor(style: TextStyleControl, fontSize: FontSize, fontSizeUniform: FontSizeOverride,
-    fontEmphasizeColor: ResourceColor, adjustColorForDarkMode: boolean = false) {
+    fontEmphasizeColor: ResourceColor, adjustColorForDarkMode: boolean = false,
+    contentTextColor: ResourceColor = $r('sys.color.font_primary'), ignorePostColor: boolean = false) {
     this.style = style
     this.fontSize = fontSize
     this.fontSizeOverride = fontSizeUniform
     this.emphasizeColor = fontEmphasizeColor
     this.adjustColorForDarkMode = adjustColorForDarkMode
+    this.contentTextColor = contentTextColor
+    this.ignorePostColor = ignorePostColor
   }
 
   private resolveBackgroundColor(): ResourceColor | undefined {
@@ -952,6 +962,10 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
 
   private resolveTextColor(): ResourceColor | undefined {
     if (this.style.color != undefined) {
+      // 帖文指定的颜色（字符串色值）在“不变色”时统一换成用户设置的文字颜色
+      if (this.ignorePostColor && typeof this.style.color == 'string') {
+        return this.contentTextColor
+      }
       if (this.adjustColorForDarkMode && typeof this.style.color == 'string' &&
         this.style.backgroundColor == undefined) {
         return adjustTextColorForDarkMode(this.style.color)
@@ -961,7 +975,7 @@ export class applyTextStyle implements AttributeModifier<SpanAttribute> {
     if (this.style.href) {
       return this.emphasizeColor
     }
-    return undefined
+    return this.contentTextColor
   }
 
   applyNormalAttribute(instance: SpanAttribute): void {

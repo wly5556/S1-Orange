@@ -6,6 +6,8 @@ import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { PropKey } from '../../common/Constants'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
+import { PostColorMode } from '../../config/v1/default'
+import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { formatAbsoluteTime } from '../../common/TimeFormat'
 import { getLongScreenshotThreadInfo, LongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { avatarPath } from '../../common/component/Avatar'
@@ -289,7 +291,9 @@ export struct LongScreenshotPage {
             },
             getAttachInfo: (aid: string) => item.post.attachments?.[aid],
             lazyLoadImage: false,
-            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust
+            adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
+            contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
+            ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
           })
         }, (uiRoot: UIRootNode, index: number) => index.toString())
       }

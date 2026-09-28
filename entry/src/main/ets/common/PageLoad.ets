@@ -1,7 +1,3 @@
-/**
- * 页面级加载状态守卫：同一个页面状态 key 只加载一次。
- * 网络请求在途去重由请求层负责（request.cache()），本模块与其无关。
- */
 export class PageLoadGuard {
   private loadedKey: string = ''
 
@@ -10,8 +6,8 @@ export class PageLoadGuard {
   }
 
   /**
-   * 领取一次加载会话。key 已加载（或正在加载）时返回 undefined，调用方应直接放弃本次加载。
-   * 成功领取后 key 立即被占位，防止并发重入。
+   * 申请一次 Load。key 已被申请时返回 undefined，调用方应直接放弃本次加载
+   * 成功申请后 key 立即被占位，防止并发
    */
   begin(key: string): LoadSession | undefined {
     if (!this.shouldLoad(key)) {
@@ -21,12 +17,10 @@ export class PageLoadGuard {
     return new LoadSession(this, key)
   }
 
-  /** 确认 key 已加载完成（幂等）。仅供 LoadSession 调用。 */
   confirm(key: string): void {
     this.loadedKey = key
   }
 
-  /** 回滚占位，允许该 key 重试；若占位已被更新的会话顶替则不动。仅供 LoadSession 调用。 */
   reset(key: string): void {
     if (this.loadedKey == key) {
       this.loadedKey = ''
@@ -34,9 +28,6 @@ export class PageLoadGuard {
   }
 }
 
-/**
- * 一次加载会话：持有发起时捕获的 key，负责在加载成功/失败后更新 guard 占位。
- */
 class LoadSession {
   private guard: PageLoadGuard
   private key: string
@@ -59,9 +50,6 @@ class LoadSession {
   }
 }
 
-/**
- * 延迟等待提示：begin() 后 800ms 内未被 end() 时回调 true
- */
 export class CacheWaitHint {
   private onWaitChange: (waiting: boolean) => void
   private timer?: number

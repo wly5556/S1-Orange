@@ -69,6 +69,17 @@ export enum FollowHandDialogMode {
   always = 2
 }
 
+/**
+ * 当帖文指定了文本颜色时的处理方式
+ */
+export enum PostColorMode {
+  showPostColor = 0,
+  ignorePostColor = 1
+}
+
+export const DEFAULT_TEXT_COLOR_LIGHT = '#CE000000'
+export const DEFAULT_TEXT_COLOR_DARK = '#BDFDFDFD'
+
 export const FollowHandDialogDesc: string[] = []
 FollowHandDialogDesc[FollowHandDialogMode.never] = '弹窗位置总是固定，符合肌肉记忆'
 FollowHandDialogDesc[FollowHandDialogMode.splitOnly] = '双栏模式下，部分弹窗会在更接近操作位置的地方出现'
@@ -108,6 +119,9 @@ export class ApplicationConfig {
   font_size: number = 16
   font_size_override: FontSizeOverride = FontSizeOverride.none
   dark_mode_content_color_adjust: boolean = true
+  text_color_light: string = DEFAULT_TEXT_COLOR_LIGHT
+  text_color_dark: string = DEFAULT_TEXT_COLOR_DARK
+  post_color_mode: PostColorMode = PostColorMode.showPostColor
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
   split_mode: boolean = true
