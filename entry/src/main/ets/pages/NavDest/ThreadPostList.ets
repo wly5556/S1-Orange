@@ -1263,7 +1263,7 @@ struct SinglePostPage {
     Menu() {
       MenuItem({
         content: this.blockList.has(post.uid) ? '取消屏蔽' : '屏蔽'
-      }).onClick(() => {
+      }).contentFont({ weight: FontWeight.Normal }).onClick(() => {
         if (this.blockList.has(post.uid)) {
           UnblockUser(post.uid)
         } else {
@@ -1272,7 +1272,7 @@ struct SinglePostPage {
       })
       MenuItem({
         content: '编辑标签'
-      }).onClick(() => {
+      }).contentFont({ weight: FontWeight.Normal }).onClick(() => {
         this.tagDialogPost = post
         if (followHandDialogActive(this.appState)) {
           this.userTagPopupUid = post.uid
