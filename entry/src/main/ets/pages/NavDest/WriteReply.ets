@@ -837,7 +837,7 @@ export struct WriteReply {
   SheetContent() {
     if (this.sheetMode === WriteReplySheetMode.FONT_COLOR) {
       buildFontColorPicker((colorValue) => {
-        this.wrapText(`[color=${colorValue}]`, '[color]')
+        this.wrapText(`[color=${colorValue}]`, '[/color]')
       })
     } else if (this.sheetMode === WriteReplySheetMode.MARKDOWN_IMPORT) {
       this.MarkdownImportSheet()
