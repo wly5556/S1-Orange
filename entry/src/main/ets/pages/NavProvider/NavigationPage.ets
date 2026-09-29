@@ -30,6 +30,7 @@ import {
   FontSizeOverride,
   HiddenPostDisplay,
   PostColorMode,
+  PostImageWaterfall,
   UpdateCheckInterval
 } from '../../config/v1/default'
 import { PropKey, SafeArea } from '../../common/Constants'
@@ -66,6 +67,8 @@ export interface PreferenceState {
   textColorLight: string
   textColorDark: string
   postColorMode: PostColorMode
+  postImageWaterfall: PostImageWaterfall
+  postImageWaterfallMinCount: number
   hiddenPostDisplay: HiddenPostDisplay
   splitMode: boolean
   followHandDialog: FollowHandDialogMode
@@ -94,6 +97,8 @@ struct NavigationPage {
     textColorLight: defaultApplicationConfig.text_color_light,
     textColorDark: defaultApplicationConfig.text_color_dark,
     postColorMode: defaultApplicationConfig.post_color_mode,
+    postImageWaterfall: defaultApplicationConfig.post_image_waterfall,
+    postImageWaterfallMinCount: defaultApplicationConfig.post_image_waterfall_min_count,
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
     splitMode: defaultApplicationConfig.split_mode,
     followHandDialog: defaultApplicationConfig.follow_hand_dialog,
@@ -145,6 +150,8 @@ struct NavigationPage {
       this.appState.textColorLight = conf.text_color_light
       this.appState.textColorDark = conf.text_color_dark
       this.appState.postColorMode = conf.post_color_mode
+      this.appState.postImageWaterfall = conf.post_image_waterfall
+      this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
       this.appState.followHandDialog = conf.follow_hand_dialog

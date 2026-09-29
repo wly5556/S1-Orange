@@ -47,15 +47,17 @@ import {
   WriteReplyPopData
 } from './WriteReply'
 import {
+  groupPostNodes,
   parseXML,
   PostContentParser,
+  PostRenderItem,
   ThreadPostUINodeRender,
   UIRootNode
 } from '../../common/component/ThreadPostContent'
 import { BLOCK_USER_LIST_STATE, BlockUser, UnblockUser } from '../../common/dataStore/BlockUser'
 import { ThreadDataApp } from '../../api/model/app/thread'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
-import { HiddenPostDisplay, PostColorMode } from '../../config/v1/default'
+import { HiddenPostDisplay, PostColorMode, WaterfallColumnCount } from '../../config/v1/default'
 import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PreferenceManager } from '../../config/UserConfig'
 import { LengthUnit, promptAction } from '@kit.ArkUI'
@@ -1480,9 +1482,11 @@ struct SinglePostPage {
 
   @LocalBuilder
   buildPostContent(nodes: UIRootNode[], pid: string) {
-    ForEach(nodes, (uiRoot: UIRootNode) => {
+    ForEach(groupPostNodes(nodes, WaterfallColumnCount[this.appState.postImageWaterfall],
+      this.appState.postImageWaterfallMinCount), (renderItem: PostRenderItem) => {
       ThreadPostUINodeRender({
-        uiRoot: uiRoot,
+        uiRoot: renderItem.root!,
+        imageRun: renderItem.images,
         appTheme: this.appTheme,
         fontSize: this.appState.fontSize,
         lineSpace: this.appState.contentLineSpace,
@@ -1497,14 +1501,16 @@ struct SinglePostPage {
         },
         getAttachInfo: (aid: string): Attachment | undefined => this.getAttachInfo(pid, aid),
         lazyLoadImage: true,
+        imageWaterfallColumns: WaterfallColumnCount[this.appState.postImageWaterfall],
         adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
         contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
         ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
       })
     },
-      (uiRoot: UIRootNode, index: number) => index.toString() + this.appState.fontSize +
+      (renderItem: PostRenderItem, index: number) => index.toString() + this.appState.fontSize +
         this.appState.fontSizeOverride + this.appState.darkModeContentColorAdjust + this.appTheme.isDark +
-        this.appState.textColorLight + this.appState.textColorDark + this.appState.postColorMode)
+        this.appState.textColorLight + this.appState.textColorDark + this.appState.postColorMode +
+        this.appState.postImageWaterfall + this.appState.postImageWaterfallMinCount)
   }
 
   @LocalBuilder

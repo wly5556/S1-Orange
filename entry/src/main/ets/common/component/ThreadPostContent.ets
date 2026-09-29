@@ -6,6 +6,7 @@ import { URL } from '../../api/base'
 import { mapColors } from '../HTMLColorMap'
 import { LengthUnit } from '@kit.ArkUI'
 import { ImageContainer } from './ImageContainer'
+import { GridImage, PostImageGrid } from './PostImageGrid'
 import { ImageSmily } from './ImageSmily'
 import { blockKeywordList } from '../dataStore/BlockKeyword'
 import { FontSize, FontSizeEnum } from '../fontSize/FontSizeEnum'
@@ -173,6 +174,8 @@ interface ThreadPostUINodeRenderParam {
   getAttachInfo: (aid: string) => Attachment | undefined
   lineSpace: number
   lazyLoadImage: boolean
+  imageWaterfallColumns: number
+  imageRun?: GridImage[]
   adjustColorForDarkMode: boolean
   contentTextColor: ResourceColor
   ignorePostColor: boolean
@@ -737,9 +740,95 @@ export function optimizeSpans(roots: UIRootNode[]): SpanStats {
 }
 
 
+export class PostRenderItem {
+  root?: UIRootNode = undefined
+  images?: GridImage[] = undefined
+}
+
+function isImageOnlyBlock(node: UIRootNode): boolean {
+  if (node.type != UINodeName.Div || node.block.length == 0) {
+    return false
+  }
+  for (const blockNode of node.block) {
+    if (blockNode.name != UINodeName.Img || !blockNode.content) {
+      return false
+    }
+  }
+  return true
+}
+
+function isBlankBlock(node: UIRootNode): boolean {
+  if (node.type != UINodeName.Text || node.block.length == 0) {
+    return false
+  }
+  for (const blockNode of node.block) {
+    if (blockNode.name == UINodeName.Br) {
+      continue
+    }
+    if (blockNode.name == UINodeName.Text && blockNode.content.trim().length == 0) {
+      continue
+    }
+    return false
+  }
+  return true
+}
+
+/**
+ * 帖子里的图片通常被 <br /> 分隔，解析后每张图各占一个 Div 块，块之间夹着只含换行/空白的 Text 块。
+ * 因此在节点列表层面把「连续的图片块 + 空白分隔块」聚合成一个图片段交给瀑布流；数量不足 minCount 时保持原样。
+ */
+export function groupPostNodes(nodes: UIRootNode[], columns: number, minCount: number): PostRenderItem[] {
+  const items: PostRenderItem[] = []
+  let index = 0
+  while (index < nodes.length) {
+    const images: GridImage[] = []
+    let lastImageBlock = index - 1
+    if (columns > 1 && isImageOnlyBlock(nodes[index])) {
+      let cursor = index
+      while (cursor < nodes.length) {
+        const node = nodes[cursor]
+        if (isImageOnlyBlock(node)) {
+          for (const blockNode of node.block) {
+            const image: GridImage = {
+              url: blockNode.content,
+              index: parseInt(blockNode.attribute)
+            }
+            images.push(image)
+          }
+          lastImageBlock = cursor
+          cursor++
+        } else if (isBlankBlock(node)) {
+          cursor++
+        } else {
+          break
+        }
+      }
+    }
+    if (images.length >= minCount) {
+      const item = new PostRenderItem()
+      item.images = images
+      items.push(item)
+      index = lastImageBlock + 1
+    } else {
+      const item = new PostRenderItem()
+      item.root = nodes[index]
+      items.push(item)
+      index++
+    }
+  }
+  return items
+}
+
 @Builder
 export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
-  if (param.uiRoot.type == UINodeName.Text) {
+  if (param.imageRun !== undefined) {
+    PostImageGrid({
+      images: param.imageRun!,
+      columns: param.imageWaterfallColumns,
+      lazyLoad: param.lazyLoadImage,
+      onImgClick: param.onImgClick
+    })
+  } else if (param.uiRoot.type == UINodeName.Text) {
     Text() {
       ForEach(param.uiRoot.block,
         (node: GeneralNode, index: number) => TextContentBuilder(node, index, param.onLinkClick,
@@ -899,6 +988,7 @@ function NestedNodesBuilder(node: GeneralNode, param: ThreadPostUINodeRenderPara
         onImgClick: param.onImgClick,
         getAttachInfo: param.getAttachInfo,
         lazyLoadImage: param.lazyLoadImage,
+        imageWaterfallColumns: param.imageWaterfallColumns,
         adjustColorForDarkMode: param.adjustColorForDarkMode,
         contentTextColor: param.contentTextColor,
         ignorePostColor: param.ignorePostColor

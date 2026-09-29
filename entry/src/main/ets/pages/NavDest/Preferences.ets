@@ -19,6 +19,7 @@ import { openOrJumpTo } from '../SingletonPage'
 import { PageNameEnum } from '../PageNameEnum'
 import { defaultApplicationConfig, FollowHandDialogDesc, FontSizeIndex } from '../../config/v1/default'
 import { HiddenPostDisplayModeDesc, HiddenPostPref } from '../../common/component/preference/HiddenPostPref'
+import { PostImageWaterfallDesc, PostImageWaterfallPref } from '../../common/component/preference/PostImageWaterfallPref'
 import { FollowHandDialogPref } from '../../common/component/preference/FollowHandDialogPref'
 import { openSplitModeShortcut } from './SplitModeShortcut'
 import { PropKey } from '../../common/Constants'
@@ -89,6 +90,7 @@ export struct PreferencePage {
   @State customLoadingIconRotate: boolean = true
   @State customLoadingIconScaleTop: number = defaultApplicationConfig.custom_loading_icon_scale_top
   @State customLoadingIconScaleOther: number = defaultApplicationConfig.custom_loading_icon_scale_other
+  @State postImageWaterfallMinCount: number = defaultApplicationConfig.post_image_waterfall_min_count
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -120,6 +122,9 @@ export struct PreferencePage {
       this.appState.textColorLight = conf.text_color_light
       this.appState.textColorDark = conf.text_color_dark
       this.appState.postColorMode = conf.post_color_mode
+      this.appState.postImageWaterfall = conf.post_image_waterfall
+      this.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
+      this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitMode = conf.split_mode
       this.appState.followHandDialog = conf.follow_hand_dialog
@@ -531,6 +536,46 @@ export struct PreferencePage {
                     Text(FollowHandDialogDesc[this.appState.followHandDialog]).attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
+
+                SettingDivider()
+              }
+
+              FoldMenu({
+                title: '瀑布流看图',
+                subtitle: '帖子内图片以多列瀑布流呈现'
+              }) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('图片以瀑布流展示')
+                    PostImageWaterfallPref()
+                    Text(PostImageWaterfallDesc[this.appState.postImageWaterfall])
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('使用瀑布流的最小图片数量')
+                    Text(`小于这个数量的，使用单列模式展示\n当前：${this.postImageWaterfallMinCount} 张`)
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+
+                SliderReset({
+                  value: this.postImageWaterfallMinCount,
+                  min: 1,
+                  max: 6,
+                  step: 1,
+                  resetValue: defaultApplicationConfig.post_image_waterfall_min_count,
+                  onChange: v => {
+                    const count = Math.round(v)
+                    PreferenceManager.modify(conf => {
+                      conf.post_image_waterfall_min_count = count
+                    })
+                    this.postImageWaterfallMinCount = count
+                    this.appState.postImageWaterfallMinCount = count
+                  }
+                })
 
                 SettingDivider()
               }

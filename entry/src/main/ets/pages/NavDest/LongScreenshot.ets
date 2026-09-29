@@ -6,14 +6,14 @@ import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { PropKey } from '../../common/Constants'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
-import { PostColorMode } from '../../config/v1/default'
+import { PostColorMode, WaterfallColumnCount } from '../../config/v1/default'
 import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { formatAbsoluteTime } from '../../common/TimeFormat'
 import { getLongScreenshotThreadInfo, LongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { avatarPath } from '../../common/component/Avatar'
 import { ImageKnifeComponent } from '@ohos/imageknife'
 import {
-  ThreadPostUINodeRender, UIRootNode
+  groupPostNodes, PostRenderItem, ThreadPostUINodeRender
 } from '../../common/component/ThreadPostContent'
 import { LongScreenshotPollForShot, LongScreenshotPost } from './ThreadPostList'
 import { PostRatingPanel, ThreadRatingInfo } from '../../common/component/PostRating'
@@ -277,9 +277,11 @@ export struct LongScreenshotPage {
       .margin({ bottom: 10 })
 
       Column() {
-        ForEach(item.post.node, (uiRoot: UIRootNode, index: number) => {
+        ForEach(groupPostNodes(item.post.node, WaterfallColumnCount[this.appState.postImageWaterfall],
+          this.appState.postImageWaterfallMinCount), (renderItem: PostRenderItem) => {
           ThreadPostUINodeRender({
-            uiRoot: uiRoot,
+            uiRoot: renderItem.root!,
+            imageRun: renderItem.images,
             appTheme: this.appTheme,
             fontSize: this.appState.fontSize,
             lineSpace: this.appState.contentLineSpace,
@@ -291,11 +293,12 @@ export struct LongScreenshotPage {
             },
             getAttachInfo: (aid: string) => item.post.attachments?.[aid],
             lazyLoadImage: false,
+            imageWaterfallColumns: WaterfallColumnCount[this.appState.postImageWaterfall],
             adjustColorForDarkMode: this.appTheme.isDark && this.appState.darkModeContentColorAdjust,
             contentTextColor: contentTextColor(this.appState, this.appTheme.isDark),
             ignorePostColor: this.appState.postColorMode == PostColorMode.ignorePostColor
           })
-        }, (uiRoot: UIRootNode, index: number) => index.toString())
+        }, (renderItem: PostRenderItem, index: number) => index.toString())
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
