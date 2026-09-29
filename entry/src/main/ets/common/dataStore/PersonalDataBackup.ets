@@ -171,6 +171,7 @@ function normalizeBlockKeywordList(data: BlockKeywordInfo[] | undefined): BlockK
 
 function normalizePersonalDataBundle(bundle: PersonalDataBundle): PersonalDataBundle {
   const uidList = collectConfigUids(bundle.config)
+  migrateLegacySplitMode(bundle.config)
   const histories: Record<string, ViewHistoryItem[]> = {}
   const drafts: Record<string, DraftItem[]> = {}
   const blockKeywords: Record<string, BlockKeywordInfo[]> = {}
@@ -189,6 +190,17 @@ function normalizePersonalDataBundle(bundle: PersonalDataBundle): PersonalDataBu
     histories: histories,
     drafts: drafts,
     blockKeywords: blockKeywords
+  }
+}
+
+/**
+ * 旧备份中双栏模式为单个 split_mode，新版本拆分为横竖屏两项，导入时按旧值补齐
+ */
+function migrateLegacySplitMode(config: ApplicationConfig) {
+  if (Reflect.has(config, 'split_mode') && !Reflect.has(config, 'split_mode_portrait')) {
+    const legacy = Reflect.get(config, 'split_mode') as boolean
+    Reflect.set(config, 'split_mode_portrait', legacy)
+    Reflect.set(config, 'split_mode_landscape', legacy)
   }
 }
 

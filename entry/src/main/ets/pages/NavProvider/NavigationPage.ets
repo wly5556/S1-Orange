@@ -35,6 +35,7 @@ import {
 } from '../../config/v1/default'
 import { PropKey, SafeArea } from '../../common/Constants'
 import { openSplitModeShortcut } from '../NavDest/SplitModeShortcut'
+import { splitDisplayActive } from '../../common/SplitModeHelper'
 import { PageNameEnum } from '../PageNameEnum'
 import { GotoThreadDialog } from '../../common/component/GotoThreadDialog'
 import { openUserGuide } from '../NavDest/UserGuide'
@@ -70,7 +71,9 @@ export interface PreferenceState {
   postImageWaterfall: PostImageWaterfall
   postImageWaterfallMinCount: number
   hiddenPostDisplay: HiddenPostDisplay
-  splitMode: boolean
+  splitModePortrait: boolean
+  splitModeLandscape: boolean
+  splitModeTempOff: boolean
   followHandDialog: FollowHandDialogMode
   threadItemGap: number
   contentLineSpace: number
@@ -100,7 +103,9 @@ struct NavigationPage {
     postImageWaterfall: defaultApplicationConfig.post_image_waterfall,
     postImageWaterfallMinCount: defaultApplicationConfig.post_image_waterfall_min_count,
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
-    splitMode: defaultApplicationConfig.split_mode,
+    splitModePortrait: defaultApplicationConfig.split_mode_portrait,
+    splitModeLandscape: defaultApplicationConfig.split_mode_landscape,
+    splitModeTempOff: false,
     followHandDialog: defaultApplicationConfig.follow_hand_dialog,
     threadItemGap: defaultApplicationConfig.thread_item_gap,
     contentLineSpace: defaultApplicationConfig.content_line_space,
@@ -111,6 +116,7 @@ struct NavigationPage {
   @Provide @Watch('updateStatesBarColor') appTheme: AppThemeColor = new ThemeColorLight()
   @StorageProp(PropKey.currentColorMode) @Watch('onColorModeChange') currentMode: number =
     ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
+  @StorageProp(PropKey.windowIsLandscape) windowIsLandscape: boolean = false
   @StorageProp(SafeArea.top) topRectHeight: number = 0
   loginDialog: CustomDialogController = new CustomDialogController({
     autoCancel: false,
@@ -137,6 +143,12 @@ struct NavigationPage {
     }
   }
 
+  /** 当前朝向的双栏开关是否开启（宽度是否达到分栏阈值由 NavigationMode.Auto 负责） */
+  splitModeEnabled(): boolean {
+    return !this.appState.splitModeTempOff
+      && (this.windowIsLandscape ? this.appState.splitModeLandscape : this.appState.splitModePortrait)
+  }
+
   aboutToAppear(): void {
     PreferenceManager.readonly(conf => {
       this.appThemeWhenLightMode = themeFromIndex(conf.theme, conf.custom_theme_colours)
@@ -153,7 +165,8 @@ struct NavigationPage {
       this.appState.postImageWaterfall = conf.post_image_waterfall
       this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
-      this.appState.splitMode = conf.split_mode
+      this.appState.splitModePortrait = conf.split_mode_portrait
+      this.appState.splitModeLandscape = conf.split_mode_landscape
       this.appState.followHandDialog = conf.follow_hand_dialog
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
@@ -228,7 +241,7 @@ struct NavigationPage {
         .hideBackButton(true)
         .navBarWidthRange(['35%', '50%'])
         .navBarWidth(400)
-        .mode(this.appState.splitMode ? NavigationMode.Auto : NavigationMode.Stack)
+        .mode(this.splitModeEnabled() ? NavigationMode.Auto : NavigationMode.Stack)
       }
       .offset({ top: 0 })
       .height('100%')
@@ -281,7 +294,8 @@ struct NavigationPage {
   }
 
   onBackPress(): boolean | void {
-    if (this.pathStack.size() > 0 && !(this.appState.splitMode
+    if (this.pathStack.size() > 0 && !(splitDisplayActive(this.appState.splitModePortrait,
+      this.appState.splitModeLandscape, this.appState.splitModeTempOff)
       && this.pathStack.size() == 1
       && this.pathStack.getAllPathName()[0] == PageNameEnum.SplitModeShortcut)) { // 分栏时有1个垫底的页面
       this.pathStack.pop()

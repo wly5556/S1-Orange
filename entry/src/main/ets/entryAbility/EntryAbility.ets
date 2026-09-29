@@ -1,6 +1,7 @@
 import { AbilityConstant, Configuration, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
+import { isLandscapeOrientation } from '../common/SplitModeHelper';
 import { HistoryDbInit } from '../common/dataStore/HistoryData';
 import { saveAvatarCacheState } from '../common/component/Avatar';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -52,10 +53,12 @@ export default class EntryAbility extends UIAbility {
         return;
       }
       let windowClass: window.Window = windowStage.getMainWindowSync()
-      // 记录窗口宽度，供“双栏时启用跟手弹窗”等运行时判定使用
+      // 记录窗口宽度与设备朝向，供双栏显示、跟手弹窗等运行时判定使用
       AppStorage.setOrCreate(PropKey.windowWidth, windowClass.getWindowProperties().windowRect.width)
+      AppStorage.setOrCreate(PropKey.windowIsLandscape, isLandscapeOrientation())
       windowClass.on('windowSizeChange', (size: window.Size) => {
         AppStorage.setOrCreate(PropKey.windowWidth, size.width)
+        AppStorage.setOrCreate(PropKey.windowIsLandscape, isLandscapeOrientation())
       })
       let isLayoutFullScreen = true
       windowClass.setWindowLayoutFullScreen(isLayoutFullScreen).then(() => {

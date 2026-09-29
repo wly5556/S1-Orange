@@ -22,6 +22,7 @@ import { HiddenPostDisplayModeDesc, HiddenPostPref } from '../../common/componen
 import { PostImageWaterfallDesc, PostImageWaterfallPref } from '../../common/component/preference/PostImageWaterfallPref'
 import { FollowHandDialogPref } from '../../common/component/preference/FollowHandDialogPref'
 import { openSplitModeShortcut } from './SplitModeShortcut'
+import { splitDisplayActive } from '../../common/SplitModeHelper'
 import { PropKey } from '../../common/Constants'
 import {
   ApiCacheState,
@@ -126,7 +127,8 @@ export struct PreferencePage {
       this.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
-      this.appState.splitMode = conf.split_mode
+      this.appState.splitModePortrait = conf.split_mode_portrait
+      this.appState.splitModeLandscape = conf.split_mode_landscape
       this.appState.followHandDialog = conf.follow_hand_dialog
       this.appState.threadItemGap = conf.thread_item_gap
       this.appState.contentLineSpace = conf.content_line_space
@@ -514,19 +516,46 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('使用双栏界面')
-                    Text('开启后，在宽屏设备上浏览时，将使用左右两侧分栏显示的界面。中心分界线可拖动，以调整界面宽度')
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    Row() {
+                      Row({ space: SettingColumnSpace }) {
+                        this.TextPrimary('竖屏时')
+                        Toggle({ type: ToggleType.Switch, isOn: this.appState.splitModePortrait }).onChange(isOn => {
+                          PreferenceManager.modify(conf => {
+                            conf.split_mode_portrait = isOn
+                            this.appState.splitModePortrait = isOn
+                            this.appState.splitModeTempOff = false
+                          })
+                          if (isOn && splitDisplayActive(this.appState.splitModePortrait,
+                            this.appState.splitModeLandscape, this.appState.splitModeTempOff)) {
+                            openSplitModeShortcut(this.pathStack)
+                          }
+                        })
+                      }.layoutWeight(1)
+
+                      Row({ space: SettingColumnSpace }) {
+                        this.TextPrimary('横屏时')
+                        Toggle({ type: ToggleType.Switch, isOn: this.appState.splitModeLandscape }).onChange(isOn => {
+                          PreferenceManager.modify(conf => {
+                            conf.split_mode_landscape = isOn
+                            this.appState.splitModeLandscape = isOn
+                            this.appState.splitModeTempOff = false
+                          })
+                          if (isOn && splitDisplayActive(this.appState.splitModePortrait,
+                            this.appState.splitModeLandscape, this.appState.splitModeTempOff)) {
+                            openSplitModeShortcut(this.pathStack)
+                          }
+                        })
+                      }.layoutWeight(1)
+                    }.width('100%')
+
+                    Text('开启后，窗口宽度足够宽时将使用左右分栏界面，可分别设置竖屏与横屏下的行为。中心分界线可拖动，以调整界面宽度')
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
-
-                  Toggle({ type: ToggleType.Switch, isOn: this.appState.splitMode }).onChange(isOn => {
-                    PreferenceManager.modify(conf => {
-                      conf.split_mode = isOn
-                      this.appState.splitMode = isOn
-                      if (isOn) {
-                        openSplitModeShortcut(this.pathStack)
-                      }
-                    })
-                  })
                 }.attributeModifier(this.settingRow)
 
                 Row() {

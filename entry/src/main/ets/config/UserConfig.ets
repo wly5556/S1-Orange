@@ -25,7 +25,7 @@ export class PreferencesWrapper implements ProxyHandler<ApplicationConfig> {
     const pref = await preferences.getPreferences(context, { name: 'UserPreference' })
     this.preferences = pref
     let currentVersion = await this.preferences.get('version', '')
-    const targetVersion = '3'
+    const targetVersion = '4'
     if (currentVersion === '') {
       await this.preferences.put('version', targetVersion)
       await this.preferences.flush()
@@ -61,6 +61,19 @@ export class PreferencesWrapper implements ProxyHandler<ApplicationConfig> {
           await this.preferences.put('font_size', this.config.font_size)
           await this.preferences.flush()
           currentVersion = '3'
+        }
+        if (currentVersion === '3') {
+          // 2026/9/29 双栏模式由单个开关拆分为横竖屏两项，旧值同时写入两项
+          const legacySplit = Reflect.get(this.config, 'split_mode') as preferences.ValueType
+          if (typeof legacySplit == 'boolean') {
+            this.config.split_mode_portrait = legacySplit
+            this.config.split_mode_landscape = legacySplit
+            await this.preferences.put('split_mode_portrait', legacySplit)
+            await this.preferences.put('split_mode_landscape', legacySplit)
+            await this.preferences.delete('split_mode')
+            await this.preferences.flush()
+          }
+          currentVersion = '4'
         }
       }
     }

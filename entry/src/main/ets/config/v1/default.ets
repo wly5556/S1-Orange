@@ -118,7 +118,7 @@ export const RecommendPrefDesc: string[] = [
 ]
 
 export class ApplicationConfig {
-  version = '3'
+  version = '4'
   account_list: Record<string, UserAccount> = {}
   user_name: string = ''
   user_uid: string = ''
@@ -142,7 +142,8 @@ export class ApplicationConfig {
   post_image_waterfall_min_count: number = 2
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
-  split_mode: boolean = true
+  split_mode_portrait: boolean = true
+  split_mode_landscape: boolean = true
   follow_hand_dialog: FollowHandDialogMode = FollowHandDialogMode.splitOnly
   first_run: boolean = true
   post_signature: boolean = false

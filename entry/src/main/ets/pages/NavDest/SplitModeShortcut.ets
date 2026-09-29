@@ -1,7 +1,6 @@
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { AppThemeColor } from '../../common/theme/basic/basic'
-import { PreferenceManager } from '../../config/UserConfig'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
@@ -29,13 +28,10 @@ export struct SplitModeShortcut {
   build() {
     NavDestination() {
       Column({ space: 8 }) {
-        this.shortcut($r('app.media.share'), '关闭分栏模式', () => {
-          PreferenceManager.modify(conf => {
-            conf.split_mode = false
-            this.appState.splitMode = false
-            promptAction.showToast({
-              message: '需要时，可前往设置页开启分栏模式'
-            })
+        this.shortcut($r('app.media.share'), '暂时关闭分栏模式', () => {
+          this.appState.splitModeTempOff = true
+          promptAction.showToast({
+            message: '已关闭分栏模式，如需永久关闭，请调整设置页内的选项'
           })
         })
         Blank().height(12)
