@@ -8,6 +8,7 @@ import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { markImageViewerTransitionFromClick } from './ImageViewer'
 import { rcp } from '@kit.RemoteCommunicationKit'
 import { BusinessError } from '@kit.BasicServicesKit'
+import { queryImageSize, reportImageSize } from '../dataStore/ImageSizeData'
 
 export interface RectSize {
   w: number,
@@ -36,6 +37,9 @@ export struct ImageContainer {
   @Prop imgHeight: number | string = 100 * FontSizeEnum[this.appState.fontSize].ratio
   @Prop imgWidth: number | string = '100%'
   lazyLoad: boolean = true
+  // 由父级限定宽度并按列宽铺满（瀑布流单元），此时显示尺寸随列宽变化，不能套用缓存的显示尺寸
+  fitCellWidth: boolean = false
+  lastAreaWidth: number = -1
   afterResize: (imgDisplaySize: RectSize) => void = () => {
   }
   onFailed: () => void = () => {
@@ -48,6 +52,25 @@ export struct ImageContainer {
         this.imageUrl = this.src
       }
     }
+    if (!this.usedByImageViewer) {
+      const cached = queryImageSize(this.src)
+      if (cached) {
+        this.imgSize = { w: cached.w, h: cached.h }
+      }
+    }
+  }
+
+  // 非瀑布流/非查看器：首次测量到父级可用宽度时就按缓存尺寸定好占位大小，避免加载后宽高跳变
+  resizeOnAreaChange(width: number): void {
+    if (width <= 0 || this.usedByImageViewer || this.fitCellWidth || this.imgSize === undefined) {
+      return
+    }
+    const pxWidth = vp2px(width)
+    if (Math.abs(pxWidth - this.lastAreaWidth) < 1) {
+      return
+    }
+    this.lastAreaWidth = pxWidth
+    this.resize(pxWidth)
   }
 
   /**
@@ -84,6 +107,11 @@ export struct ImageContainer {
     this.imgWidth = px2vp(resizeTo.w)
   }
 
+  // 已知尺寸时占位灰块铺满按比例算出的尺寸，避免加载前后宽高跳变
+  private fillByKnownSize(): boolean {
+    return this.fitCellWidth || this.imgSize !== undefined
+  }
+
   build() {
     Column() {
       if ((!this.loadComplete && !this.usedByImageViewer) || this.loadFailed) {
@@ -105,11 +133,11 @@ export struct ImageContainer {
         })
         .alignItems(HorizontalAlign.Center)
         .justifyContent(FlexAlign.Center)
-        .width(100 * FontSizeEnum[this.appState.fontSize].ratio)
-        .height(90 * FontSizeEnum[this.appState.fontSize].ratio)
+        .width(this.fillByKnownSize() ? '100%' : 100 * FontSizeEnum[this.appState.fontSize].ratio)
+        .height(this.fillByKnownSize() ? '100%' : 90 * FontSizeEnum[this.appState.fontSize].ratio)
         .margin({
-          top: 5,
-          bottom: 5
+          top: this.fillByKnownSize() ? 0 : 5,
+          bottom: this.fillByKnownSize() ? 0 : 5
         })
         .backgroundColor(this.loadFailed ? (this.usedByImageViewer ? '#ffdbdbdb' : '#5F808080') : '#7F808080')
         .borderRadius(5)
@@ -157,8 +185,11 @@ export struct ImageContainer {
                   w: imageSize.width,
                   h: imageSize.height
                 }
-                if (imageSize.width * imageSize.height >= 4_194_304 && this.usedByImageViewer === false) {
-                  this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
+                if (this.usedByImageViewer === false) {
+                  reportImageSize(this.src, imageSize.width, imageSize.height)
+                  if (imageSize.width * imageSize.height >= 4_194_304) {
+                    this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
+                  }
                 }
                 this.resize(imageSize.componentWidth)
               }
@@ -174,6 +205,9 @@ export struct ImageContainer {
       }
     }.height(this.imgHeight)
     .width(this.loadFailed ? (this.usedByImageViewer ? 'auto' : '100%') : this.imgWidth)
+    .onAreaChange((oldValue, newValue) => {
+      this.resizeOnAreaChange(newValue.width as number)
+    })
     .onVisibleAreaChange([0.01, 1], () => {
       if (this.imageUrl != this.src) {
         this.imageUrl = this.src

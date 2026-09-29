@@ -78,6 +78,7 @@ export struct PostImageGrid {
             src: image.url,
             lazyLoad: this.lazyLoad,
             fitWidth: this.cellWidth(),
+            fitCellWidth: true,
             afterResize: (size: RectSize) => {
               const height = px2vp(size.h)
               if (Math.abs(this.cellHeights[index] - height) < 0.5) {
