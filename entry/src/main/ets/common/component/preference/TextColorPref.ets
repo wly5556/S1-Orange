@@ -279,8 +279,6 @@ export struct TextColorPanel {
         }.width('100%')
       }
 
-      Divider()
-
       Column({ space: 8 }) {
         Text('当帖文指定了文本颜色')
           .fontSize(FontSizeEnum[this.appState.fontSize].vp16)

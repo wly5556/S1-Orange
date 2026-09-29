@@ -448,10 +448,28 @@ export struct PreferencePage {
                 subtitle: '系统默认的文字颜色带有一定透明度，可以在此处调整、加深文字颜色，获得更舒服的阅读体验'
               }) {
                 TextColorPanel()
+
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('深色模式下，调整带颜色帖文的色彩')
+                    Text('来获得跟浅色模式下接近的阅读体验，例如白底白字变为黑底黑字。仅对没有设置背景颜色的文字有效')
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+
+                  Toggle({ type: ToggleType.Switch, isOn: this.appState.darkModeContentColorAdjust }).onChange(isOn => {
+                    PreferenceManager.modify(conf => {
+                      conf.dark_mode_content_color_adjust = isOn
+                      this.appState.darkModeContentColorAdjust = isOn
+                    })
+                  })
+                }.attributeModifier(this.settingRow)
+
+                SettingDivider()
               }
 
               FoldMenu({
-                title: '字体大小'
+                title: '字体大小',
+                subtitle: '阅读时的字体尺寸、是否跟随贴文样式进行字体缩放'
               }) {
                 Column() {
                   Text(`当前：${this.appState.fontSize}单位`).attributeModifier(this.textSecondary)
@@ -470,65 +488,58 @@ export struct PreferencePage {
                     }
                   })
                 }.alignItems(HorizontalAlign.Start)
+
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('当帖文指定了字体大小')
+                    ContentFontSizeOverridePref()
+                    Text(FontOverrideModeDesc[this.appState.fontSizeOverride]).attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+
+                }.attributeModifier(this.settingRow)
+
+
+                SettingDivider()
+              }
+
+              FoldMenu({
+                title: '宽屏体验',
+                subtitle: '双栏模式、跟手弹窗'
+              }) {
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('使用双栏界面')
+                    Text('开启后，在宽屏设备上浏览时，将使用左右两侧分栏显示的界面。中心分界线可拖动，以调整界面宽度')
+                      .attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+
+                  Toggle({ type: ToggleType.Switch, isOn: this.appState.splitMode }).onChange(isOn => {
+                    PreferenceManager.modify(conf => {
+                      conf.split_mode = isOn
+                      this.appState.splitMode = isOn
+                      if (isOn) {
+                        openSplitModeShortcut(this.pathStack)
+                      }
+                    })
+                  })
+                }.attributeModifier(this.settingRow)
+
+                Row() {
+                  Column({ space: SettingColumnSpace }) {
+                    this.TextPrimary('使用跟手弹窗')
+                    FollowHandDialogPref()
+                    Text(FollowHandDialogDesc[this.appState.followHandDialog]).attributeModifier(this.textSecondary)
+                  }.SettingColumn()
+                }.attributeModifier(this.settingRow)
+
+                SettingDivider()
               }
 
               Row() {
                 Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('当帖文指定了字体大小')
-                  ContentFontSizeOverridePref()
-                  Text(FontOverrideModeDesc[this.appState.fontSizeOverride]).attributeModifier(this.textSecondary)
-                }.SettingColumn()
-
-              }.attributeModifier(this.settingRow)
-
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('深色模式下，调整带颜色帖文的色彩')
-                  Text('来获得跟浅色模式下接近的阅读体验，例如白底白字变为黑底黑字。仅对没有设置背景颜色的文字有效')
+                  this.TextPrimary('帖子可长按复制')
+                  Text('调整在帖子正文上长按的行为。关闭后，仍然可通过楼层菜单的“自由复制”功能，进入专用复制页面来选取、复制')
                     .attributeModifier(this.textSecondary)
-                }.SettingColumn()
-
-                Toggle({ type: ToggleType.Switch, isOn: this.appState.darkModeContentColorAdjust }).onChange(isOn => {
-                  PreferenceManager.modify(conf => {
-                    conf.dark_mode_content_color_adjust = isOn
-                    this.appState.darkModeContentColorAdjust = isOn
-                  })
-                })
-              }.attributeModifier(this.settingRow)
-
-              SettingDivider()
-
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('宽屏时使用双栏界面')
-                  Text('开启后，在宽屏设备上浏览时，将使用左右两侧分栏显示的界面。中心分界线可拖动，以调整界面宽度')
-                    .attributeModifier(this.textSecondary)
-                }.SettingColumn()
-
-                Toggle({ type: ToggleType.Switch, isOn: this.appState.splitMode }).onChange(isOn => {
-                  PreferenceManager.modify(conf => {
-                    conf.split_mode = isOn
-                    this.appState.splitMode = isOn
-                    if (isOn) {
-                      openSplitModeShortcut(this.pathStack)
-                    }
-                  })
-                })
-              }.attributeModifier(this.settingRow)
-
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('使用跟手弹窗')
-                  FollowHandDialogPref()
-                  Text(FollowHandDialogDesc[this.appState.followHandDialog]).attributeModifier(this.textSecondary)
-                }.SettingColumn()
-              }.attributeModifier(this.settingRow)
-
-              SettingDivider()
-
-              Row() {
-                Column({ space: SettingColumnSpace }) {
-                  this.TextPrimary('帖子可复制')
                 }.SettingColumn()
 
                 Toggle({ type: ToggleType.Switch, isOn: this.appState.textCopyable }).onChange(isOn => {
