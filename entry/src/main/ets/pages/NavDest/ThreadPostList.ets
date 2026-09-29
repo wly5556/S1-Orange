@@ -788,7 +788,7 @@ struct SinglePostPage {
     visiblepoll: SpecialPollResultVisible.VISIBLE,
     allowvote: SpecialPollAllowVote.ALLOW
   }
-  @Provide postRatingInfo: Map<string, ThreadRatingInfo | undefined> = new Map
+  @State ratingPids: Set<string> = new Set
   @State postAttachment: Map<string, Record<string, Attachment>> = new Map
   consumedAttachmentAid: Set<string> = new Set
   @Consume contentVisible: boolean
@@ -1057,9 +1057,7 @@ struct SinglePostPage {
     setLongScreenshotThreadInfo(this.pageParam.tid,
       !isNaN(threadDateline) && threadDateline > 0 ? threadDateline * 1000 : 0,
       !isNaN(threadReplies) && threadReplies > 0 ? threadReplies : 0)
-    const postRating = new Map<string, ThreadRatingInfo | undefined>()
-    Object.keys(v.Variables.comments).forEach(pid => postRating.set(pid, undefined))
-    this.postRatingInfo = postRating
+    this.ratingPids = new Set(Object.keys(v.Variables.comments))
     if (this.pageToLoad == 1) {
       if (v.Variables.special_poll) {
         const pollData = v.Variables.special_poll
@@ -1443,13 +1441,8 @@ struct SinglePostPage {
 
   async makePostForShot(post: PostViewModel, compIndex: number): Promise<LongScreenshotPost> {
     let ratingInfo: ThreadRatingInfo | undefined = undefined
-    if (this.postRatingInfo.has(post.pid)) {
-      ratingInfo = this.postRatingInfo.get(post.pid)
-      if (ratingInfo === undefined) {
-        const ratingInfoData = await requestRating(post.pid, this.pageParam.tid)
-        this.postRatingInfo.set(post.pid, ratingInfoData)
-        ratingInfo = ratingInfoData
-      }
+    if (this.ratingPids.has(post.pid)) {
+      ratingInfo = await requestRating(post.pid, this.pageParam.tid)
     }
     return {
       post: {
@@ -1745,7 +1738,7 @@ struct SinglePostPage {
           }, (attach: Attachment) => attach.aid)
         }
 
-        if (this.postRatingInfo.has(post.pid)) {
+        if (this.ratingPids.has(post.pid)) {
           Divider().margin({ top: 20 })
           PostRating({
             pid: post.pid,

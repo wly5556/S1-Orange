@@ -221,7 +221,7 @@ export default class request<T> {
   private fromCacheOnly = false
 
   /**
-   * 从本地文件中提前获取响应。仅支持json。不会立即查找缓存，而是直到get()或post()被调用时再查找。
+   * 从本地文件中提前获取响应。不会立即查找缓存，而是直到get()或post()被调用时再查找。
    * 使用本方法的请求视为可缓存的读请求：其网络调用会自动在途去重。
    * @param callback 回调，data与从get()或post()方法获得的响应类型一致
    * @param updateCacheOnly 仅更新缓存， callback不会被调用
@@ -249,7 +249,11 @@ export default class request<T> {
         this.updateCookie()
         if (resp.statusCode == 200) {
           if (this.respToText) {
-            fulfill(resp.toString() as T)
+            const text = resp.toString()
+            if (this.cacheKey) {
+              putCache(this.cacheKey, text as Object)
+            }
+            fulfill(text as T)
           } else if (resp.headers['content-type']?.includes('application/json') || this.respToJSON) {
             let data: T
             if (this.processDirtyJson) {

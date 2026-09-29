@@ -22,7 +22,6 @@ export struct PostRating {
   @State userCount: number = 0
   @Consume appTheme: AppThemeColor
   @Consume appState: PreferenceState
-  @Consume postRatingInfo: Map<string, ThreadRatingInfo | undefined>
   compTransitionId = 'PostRating'
 
   aboutToAppear(): void {
@@ -30,17 +29,12 @@ export struct PostRating {
   }
 
   async reload(force = false) {
-    const ratingItem = this.postRatingInfo.get(this.pid)
-    let rating: ThreadRatingInfo
-    if (ratingItem == undefined || force) {
-      rating = await requestRating(this.pid, this.tid)
-      this.postRatingInfo.set(this.pid, rating)
-    } else {
-      rating = ratingItem
+    const apply = (rating: ThreadRatingInfo): void => {
+      this.rating = rating.rating
+      this.totalRating = rating.totalRating
+      this.userCount = rating.userCount
     }
-    this.rating = rating.rating
-    this.totalRating = rating.totalRating
-    this.userCount = rating.userCount
+    apply(await requestRating(this.pid, this.tid, force, apply))
   }
 
   build() {
@@ -187,13 +181,7 @@ export interface ThreadRatingInfo {
   userCount: number
 }
 
-export async function requestRating(pid: string, tid: string) {
-  const htmlStr = await new request<string>(URL.RATING_GET, URL.WEB_BASE)
-    .param('pid', pid)
-    .param('tid', tid)
-    .toText()
-    .get()
-
+function parseRating(htmlStr: string): ThreadRatingInfo {
   const result: ThreadRatingInfo = {
     rating: extractRating(htmlStr),
     totalRating: 0,
@@ -207,4 +195,23 @@ export async function requestRating(pid: string, tid: string) {
   })
   result.userCount = result.rating.length
   return result
+}
+
+/**
+ * @param force 跳过本地缓存读取（不做缓存预渲染），仅用网络结果并覆盖缓存
+ * @param onCached 命中本地缓存时的回调，用于先渲染缓存、再由网络结果刷新
+ */
+export async function requestRating(pid: string, tid: string, force = false,
+  onCached?: (rating: ThreadRatingInfo) => void): Promise<ThreadRatingInfo> {
+  const htmlStr = await new request<string>(URL.RATING_GET, URL.WEB_BASE)
+    .param('pid', pid)
+    .param('tid', tid)
+    .toText()
+    .cache((v): void => {
+      if (onCached) {
+        onCached(parseRating(v))
+      }
+    }, force)
+    .get()
+  return parseRating(htmlStr)
 }
