@@ -7,7 +7,7 @@ import { AppThemeColor } from '../../common/theme/basic/basic'
 import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import { common } from '@kit.AbilityKit'
-import { openThreadPost, ThreadPostParam } from './ThreadPostList'
+import { openThreadPost, ThreadOpenMotive, ThreadPostParam } from './ThreadPostList'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { contentTextColor } from '../../common/component/preference/TextColorPref'
 import { PreferenceState } from '../NavProvider/NavigationPage'
@@ -139,7 +139,7 @@ export struct ViewHistory {
                     subject: item.title,
                     replies: item.reply.toString()
                   }
-                  openThreadPost(param, this.pathStack, true)
+                  openThreadPost(param, this.pathStack, ThreadOpenMotive.Content)
                 })
               }
               .width('100%')

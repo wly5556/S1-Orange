@@ -22,7 +22,7 @@ import {
   RecordDraft,
   RemoveDraftIfExist
 } from '../../common/dataStore/DraftData'
-import { openThreadPost, ThreadPostParam } from './ThreadPostList'
+import { openThreadPost, ThreadOpenMotive, ThreadPostParam } from './ThreadPostList'
 import { FontSizeEnum } from '../../common/fontSize/FontSizeEnum'
 import { PreferenceState } from '../NavProvider/NavigationPage'
 import { PropKey, SafeArea } from '../../common/Constants'
@@ -450,7 +450,7 @@ export struct WriteReply {
             tid: this.pageParam.tid,
             subject: this.pageParam.subjectToReply
           }
-          openThreadPost(param, this.pathStack, true, this.pageParam.defaultTransition)
+          openThreadPost(param, this.pathStack, ThreadOpenMotive.Content, this.pageParam.defaultTransition)
         })
     }.width('100%')
   }

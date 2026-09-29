@@ -17,7 +17,7 @@ import { setLongScreenshotThreadInfo } from '../../common/LongScreenshotInfo'
 import { PageNameEnum } from '../PageNameEnum'
 import { AppThemeColor } from '../../common/theme/basic/basic'
 import { ImageViewer, ImageViewerParam, requestImageViewerExit } from '../../common/component/ImageViewer'
-import { openOrJumpTo } from '../SingletonPage'
+import { openOrJumpTo, pushPage } from '../SingletonPage'
 import { PageLoadingSpot, SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
 import { Event } from '../../common/Events'
 import { PageSlider } from '../../common/component/PageSlider'
@@ -103,6 +103,13 @@ export interface LongScreenshotPollForShot {
   pollInfo: PollInfoVM
 }
 
+// 打开帖子内容的动机。仅用于"帖子列表打开帖子内容"这类入口的页面栈去重，
+// 带楼层目标的跳转（引用链接、跨帖链接、@某人、提醒跳楼等）不传动机，永远新开页
+export enum ThreadOpenMotive {
+  Content = 'content',
+  LastPage = 'lastPage'
+}
+
 export interface ThreadPostParam {
   tid: string // 仅tid是打开本页面的必须参数
   fid?: string
@@ -113,6 +120,8 @@ export interface ThreadPostParam {
   replies?: string
   jumpToPid?: string
   jumpToPidWithHighlight?: boolean
+  openMotive?: ThreadOpenMotive
+  pageInstanceId?: number
 }
 
 interface LongScreenshotOptionButtonParam {
@@ -126,12 +135,14 @@ const PostContentVerticalPadding = 12
 const PostContentHorizontalPadding = 16
 export const POST_PER_PAGE = 40
 
+let threadPostPageInstanceSeq = 0
+
 function genThreadPostViewKey(pageParam: ThreadPostParam) {
-  return `${pageParam.tid},${pageParam.jumpToPid},${pageParam.authorid}`
+  return `${pageParam.tid},${pageParam.openMotive}`
 }
 
 function openImgViewerEventName(pageParam: ThreadPostParam) {
-  return Event.OpenImageViewer + genThreadPostViewKey(pageParam)
+  return Event.OpenImageViewer + String(pageParam.pageInstanceId)
 }
 
 function attachmentImageUrl(attach: Attachment): string {
@@ -620,6 +631,7 @@ export struct ThreadPostList {
         }
       }
       this.pageParam = pageParam
+      pageParam.pageInstanceId = ++threadPostPageInstanceSeq
       this.updateEntryUnread()
       Recommend.onThreadPostShown(this.pageParam.tid)
       if (this.pageParam.jumpToPid && this.pageParam.jumpToPid != '0') {
@@ -1942,13 +1954,14 @@ export function RegisterBuilder() {
 }
 
 export function openThreadPost(param: ThreadPostParam, pathStack: NavPathStack,
-  tidAsKey: boolean = false, animated: boolean = true) {
+  motive?: ThreadOpenMotive, animated: boolean = true) {
+  if (motive === undefined) {
+    pushPage(pathStack, PageNameEnum.ThreadPostList, param, animated)
+    return
+  }
+  param.openMotive = motive
   openOrJumpTo(pathStack, PageNameEnum.ThreadPostList, param, animated, (u: object) => {
-    if (tidAsKey) {
-      return (u as ThreadPostParam).tid == param.tid
-    } else {
-      return genThreadPostViewKey(u as ThreadPostParam) == genThreadPostViewKey(param)
-    }
+    return genThreadPostViewKey(u as ThreadPostParam) == genThreadPostViewKey(param)
   })
 }
 

@@ -108,7 +108,7 @@ const data = await new request<RespType>(URL.SOME_PATH)   // 第二参 base，�
 ## 其它注意事项
 
 - **启动时序/初始化**：`EntryAbility.onCreate` 里调用各 `*Init`/`*DbInit`（包括 `PreferenceManager.init`），这些是异步的、`onCreate` 返回时**未必完成**。因此任何依赖存储已就绪的逻辑（如读配置、检查更新）**不要**放在 `EntryAbility` 中，否则会因首选项/数据库未初始化而报错。正确位置是 `NavigationPage.aboutToAppear` 内 `PreferenceManager.readonly` 的回调体——此时各存储已初始化完毕，且该回调保证读到的是已 flush 的配置。需要 UI 的弹窗也在此处可用（`promptAction` 等已就绪）。
-- ArkTS 严格模式：避免 `any`、对象字面量需显式类型、`as` 断言要精确。
+- ArkTS 严格模式：避免 `any`、对象字面量需显式类型、`as` 断言要精确、无返回值函数要标注:void。
 - Windows 环境：路径用 `\`，shell 为 `cmd.exe`；`findstr` 替代 `grep`，无 `head/tail`。
 - 终端编码：仓库中文文档是 UTF-8。PowerShell 直接 `Get-Content` 可能按本地代码页显示成乱码；读取中文文件时显式加 `-Encoding utf8`，例如 `Get-Content -Path AGENTS.md -Encoding utf8`、`Select-String -Path AGENTS.md -Encoding utf8 -Pattern "关键词"`。
 - 终端编码：如果需要在 PowerShell 会话里连续查看中文输出，可先设置 `[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false)`。看到中文乱码时，先怀疑终端显示编码，不要据此改写文件内容。

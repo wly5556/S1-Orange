@@ -47,3 +47,13 @@ export function openOrJumpTo(pathStack: NavPathStack, pageName: PageNameEnum, pa
     pathStack.pushPathByName(pageName, param, callback, animated)
   }
 }
+
+/**
+ * 不做任何同名页匹配，直接新开页面
+ */
+export function pushPage(pathStack: NavPathStack, pageName: PageNameEnum, param?: object, animated = true) {
+  if (AniSpeed.ratio === 0) {
+    animated = false
+  }
+  pathStack.pushPathByName(pageName, param, undefined, animated)
+}

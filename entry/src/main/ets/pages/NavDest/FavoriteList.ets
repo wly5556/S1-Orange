@@ -6,7 +6,7 @@ import { PageNameEnum } from '../PageNameEnum'
 import { openOrJumpTo } from '../SingletonPage'
 import request, { RequestError } from '../../api/request'
 import { common } from '@kit.AbilityKit'
-import { openThreadPost, ThreadPostParam } from './ThreadPostList'
+import { openThreadPost, ThreadOpenMotive, ThreadPostParam } from './ThreadPostList'
 import { PageIndexDataSource, SwipePageLoadingIcon, SwipePageViewer } from '../../common/component/SwipePageViewer'
 import { PageSlider } from '../../common/component/PageSlider'
 import wrapper from '../../api/wrapper'
@@ -179,7 +179,7 @@ struct SingleFavPage {
               subject: item.title,
               replies: item.replies.toString(),
             }
-            openThreadPost(param, this.pathStack, true)
+            openThreadPost(param, this.pathStack, ThreadOpenMotive.Content)
           },
           delete: () => {
             new request<wrapper<Account>>(URL.FAV_REMOVE)

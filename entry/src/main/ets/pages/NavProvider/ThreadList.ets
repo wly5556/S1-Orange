@@ -14,7 +14,7 @@ import {
   HeavyClickEffect,
   OpacityTransition
 } from '../../common/Animation'
-import { openThreadPost, ThreadPostParam } from '../NavDest/ThreadPostList'
+import { openThreadPost, ThreadOpenMotive, ThreadPostParam } from '../NavDest/ThreadPostList'
 import { Event } from '../../common/Events'
 import { unescapeAll } from '../../common/XmlParser'
 import { BottomSafeArea } from '../../common/component/BottomSafeArea'
@@ -614,7 +614,7 @@ struct ThreadListPage {
                   subject: threadInfo.item.subject,
                   replies: threadInfo.item.replies,
                 }
-                openThreadPost(param, this.pathStack, true)
+                openThreadPost(param, this.pathStack, ThreadOpenMotive.LastPage)
               }))
               .onClick(e => {
                 Recommend.onThreadClick(threadInfo.item.tid)
@@ -625,7 +625,7 @@ struct ThreadListPage {
                   subject: threadInfo.item.subject,
                   replies: threadInfo.item.replies,
                 }
-                openThreadPost(param, this.pathStack, true)
+                openThreadPost(param, this.pathStack, ThreadOpenMotive.Content)
               })
             }
             .height('auto')

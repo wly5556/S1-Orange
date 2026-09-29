@@ -63,7 +63,7 @@ export struct ThreadRedirectPage {
       jumpToPidWithHighlight: true
     }
     // 无动画打开实际帖子页，同时把自身移出页面栈，使返回键直接回到来源页
-    openThreadPost(param, this.pathStack, false, false)
+    openThreadPost(param, this.pathStack, undefined, false)
     this.pathStack.removeByName(PageNameEnum.ThreadRedirect)
   }
 
