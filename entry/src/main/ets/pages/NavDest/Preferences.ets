@@ -19,7 +19,7 @@ import { openOrJumpTo } from '../SingletonPage'
 import { PageNameEnum } from '../PageNameEnum'
 import { defaultApplicationConfig, FollowHandDialogDesc, FontSizeIndex } from '../../config/v1/default'
 import { HiddenPostDisplayModeDesc, HiddenPostPref } from '../../common/component/preference/HiddenPostPref'
-import { PostImageWaterfallDesc, PostImageWaterfallPref } from '../../common/component/preference/PostImageWaterfallPref'
+import { PostImageWaterfallPref } from '../../common/component/preference/PostImageWaterfallPref'
 import { FollowHandDialogPref } from '../../common/component/preference/FollowHandDialogPref'
 import { openSplitModeShortcut } from './SplitModeShortcut'
 import { splitDisplayActive } from '../../common/SplitModeHelper'
@@ -92,6 +92,7 @@ export struct PreferencePage {
   @State customLoadingIconScaleTop: number = defaultApplicationConfig.custom_loading_icon_scale_top
   @State customLoadingIconScaleOther: number = defaultApplicationConfig.custom_loading_icon_scale_other
   @State postImageWaterfallMinCount: number = defaultApplicationConfig.post_image_waterfall_min_count
+  @StorageProp(PropKey.windowIsLandscape) isLandscape: boolean = false
 
   aboutToAppear(): void {
     this.imageCacheUsage = ImageKnife.getInstance().getFileCache().currentMemory
@@ -123,7 +124,8 @@ export struct PreferencePage {
       this.appState.textColorLight = conf.text_color_light
       this.appState.textColorDark = conf.text_color_dark
       this.appState.postColorMode = conf.post_color_mode
-      this.appState.postImageWaterfall = conf.post_image_waterfall
+      this.appState.postImageWaterfall = this.isLandscape
+        ? conf.post_image_waterfall_landscape : conf.post_image_waterfall_portrait
       this.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
@@ -516,11 +518,6 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('使用双栏界面')
-                  }.SettingColumn()
-                }.attributeModifier(this.settingRow)
-
-                Row() {
-                  Column({ space: SettingColumnSpace }) {
                     Row() {
                       Row({ space: SettingColumnSpace }) {
                         this.TextPrimary('竖屏时')
@@ -536,6 +533,7 @@ export struct PreferencePage {
                           }
                         })
                       }.layoutWeight(1)
+                      .justifyContent(FlexAlign.Center)
 
                       Row({ space: SettingColumnSpace }) {
                         this.TextPrimary('横屏时')
@@ -551,6 +549,7 @@ export struct PreferencePage {
                           }
                         })
                       }.layoutWeight(1)
+                      .justifyContent(FlexAlign.Center)
                     }.width('100%')
 
                     Text('开启后，窗口宽度足够宽时将使用左右分栏界面，可分别设置竖屏与横屏下的行为。中心分界线可拖动，以调整界面宽度')
@@ -571,21 +570,19 @@ export struct PreferencePage {
 
               FoldMenu({
                 title: '瀑布流看图',
-                subtitle: '帖子内图片以多列瀑布流呈现'
+                subtitle: '帖子内图片以多列的瀑布流呈现'
               }) {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('图片以瀑布流展示')
                     PostImageWaterfallPref()
-                    Text(PostImageWaterfallDesc[this.appState.postImageWaterfall])
-                      .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
 
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('使用瀑布流的最小图片数量')
-                    Text(`小于这个数量的，使用单列模式展示\n当前：${this.postImageWaterfallMinCount} 张`)
+                    Text(`小于这个数量的，不启用瀑布流。当前：${this.postImageWaterfallMinCount} 张`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)

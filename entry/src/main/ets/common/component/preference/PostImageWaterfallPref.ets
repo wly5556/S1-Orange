@@ -1,54 +1,84 @@
-import { SegmentButton, SegmentButtonIconTextItem, SegmentButtonItemTuple, SegmentButtonOptions } from '@kit.ArkUI'
 import { PreferenceManager } from '../../../config/UserConfig'
 import { PostImageWaterfall } from '../../../config/v1/default'
 import { PreferenceState } from '../../../pages/NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../fontSize/FontSizeEnum'
+import { PropKey } from '../../Constants'
 
-const PostImageWaterfallText: string[] = []
-PostImageWaterfallText[PostImageWaterfall.off] = '不使用'
-PostImageWaterfallText[PostImageWaterfall.twoColumns] = '2列'
-PostImageWaterfallText[PostImageWaterfall.threeColumns] = '3列'
-PostImageWaterfallText[PostImageWaterfall.fourColumns] = '4列'
+const WaterfallOptionText: string[] = []
+WaterfallOptionText[PostImageWaterfall.off] = '不使用'
+WaterfallOptionText[PostImageWaterfall.twoColumns] = '2列'
+WaterfallOptionText[PostImageWaterfall.threeColumns] = '3列'
+WaterfallOptionText[PostImageWaterfall.fourColumns] = '4列'
 
-export const PostImageWaterfallDesc: string[] = []
-PostImageWaterfallDesc[PostImageWaterfall.off] = '帖子内的图片保持原样依次纵向排列'
-PostImageWaterfallDesc[PostImageWaterfall.twoColumns] = '帖子详情与长截图中的图片，以 2 列瀑布流错落排列'
-PostImageWaterfallDesc[PostImageWaterfall.threeColumns] = '帖子详情与长截图中的图片，以 3 列瀑布流错落排列'
-PostImageWaterfallDesc[PostImageWaterfall.fourColumns] = '帖子详情与长截图中的图片，以 4 列瀑布流错落排列'
+const WaterfallOptions: SelectOption[] = [
+  { value: WaterfallOptionText[PostImageWaterfall.off] } as SelectOption,
+  { value: WaterfallOptionText[PostImageWaterfall.twoColumns] } as SelectOption,
+  { value: WaterfallOptionText[PostImageWaterfall.threeColumns] } as SelectOption,
+  { value: WaterfallOptionText[PostImageWaterfall.fourColumns] } as SelectOption
+]
 
 @Component
 export struct PostImageWaterfallPref {
-  @Consume @Watch('stateChanged') appState: PreferenceState
-  stateChanged() {
-    this.segmentOption.fontSize = this.segmentOption.selectedFontSize = FontSizeEnum[this.appState.fontSize].vp16
-  }
-  @State segmentOption: SegmentButtonOptions = SegmentButtonOptions.capsule({
-    buttons: PostImageWaterfallText.map(v => ({ text: v } as SegmentButtonIconTextItem)) as SegmentButtonItemTuple,
-    multiply: false,
-    fontSize: FontSizeEnum[this.appState.fontSize].vp16,
-    selectedFontSize: FontSizeEnum[this.appState.fontSize].vp16,
-    backgroundBlurStyle: BlurStyle.BACKGROUND_THICK
-  })
-  @State @Watch('selectedChanged') postImageWaterfallSelected: PostImageWaterfall[] = []
-  selectedChanged() {
-    PreferenceManager.modify(conf => {
-      this.postImageWaterfallSelected.forEach(v => {
-        conf.post_image_waterfall = v
-        this.appState.postImageWaterfall = v
-      })
-    })
-  }
+  @Consume appState: PreferenceState
+  @StorageProp(PropKey.windowIsLandscape) isLandscape: boolean = false
+  @State portraitSelected: number = PostImageWaterfall.off
+  @State landscapeSelected: number = PostImageWaterfall.off
 
   aboutToAppear(): void {
     PreferenceManager.readonly(conf => {
-      this.postImageWaterfallSelected.push(conf.post_image_waterfall)
+      this.portraitSelected = conf.post_image_waterfall_portrait
+      this.landscapeSelected = conf.post_image_waterfall_landscape
     })
   }
 
   build() {
-    SegmentButton({
-      options: this.segmentOption,
-      selectedIndexes: $postImageWaterfallSelected
-    })
+    Row() {
+      Row({ space: 8 }) {
+        Text('竖屏时')
+          .fontColor($r('sys.color.font_primary'))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+        Select(WaterfallOptions)
+          .selected(this.portraitSelected)
+          .value(WaterfallOptionText[this.portraitSelected])
+          .font({ size: FontSizeEnum[this.appState.fontSize].vp16 })
+          .optionFont({ size: FontSizeEnum[this.appState.fontSize].vp16 })
+          .onSelect((index: number) => {
+            const mode = index as PostImageWaterfall
+            PreferenceManager.modify(conf => {
+              conf.post_image_waterfall_portrait = mode
+              this.portraitSelected = mode
+            })
+            if (!this.isLandscape) {
+              this.appState.postImageWaterfall = mode
+            }
+          })
+      }.layoutWeight(1)
+      .justifyContent(FlexAlign.Center)
+
+      Row({ space: 8 }) {
+        Text('横屏时')
+          .fontColor($r('sys.color.font_primary'))
+          .fontWeight(FontWeight.Medium)
+          .fontSize(FontSizeEnum[this.appState.fontSize].vp16)
+        Select(WaterfallOptions)
+          .selected(this.landscapeSelected)
+          .value(WaterfallOptionText[this.landscapeSelected])
+          .font({ size: FontSizeEnum[this.appState.fontSize].vp16 })
+          .optionFont({ size: FontSizeEnum[this.appState.fontSize].vp16 })
+          .onSelect((index: number) => {
+            const mode = index as PostImageWaterfall
+            PreferenceManager.modify(conf => {
+              conf.post_image_waterfall_landscape = mode
+              this.landscapeSelected = mode
+            })
+            if (this.isLandscape) {
+              this.appState.postImageWaterfall = mode
+            }
+          })
+      }.layoutWeight(1)
+      .justifyContent(FlexAlign.Center)
+    }
+    .width('100%')
   }
 }

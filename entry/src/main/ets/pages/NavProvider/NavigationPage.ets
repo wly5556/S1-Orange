@@ -100,7 +100,7 @@ struct NavigationPage {
     textColorLight: defaultApplicationConfig.text_color_light,
     textColorDark: defaultApplicationConfig.text_color_dark,
     postColorMode: defaultApplicationConfig.post_color_mode,
-    postImageWaterfall: defaultApplicationConfig.post_image_waterfall,
+    postImageWaterfall: defaultApplicationConfig.post_image_waterfall_portrait,
     postImageWaterfallMinCount: defaultApplicationConfig.post_image_waterfall_min_count,
     hiddenPostDisplay: defaultApplicationConfig.hidden_post_display,
     splitModePortrait: defaultApplicationConfig.split_mode_portrait,
@@ -116,7 +116,7 @@ struct NavigationPage {
   @Provide @Watch('updateStatesBarColor') appTheme: AppThemeColor = new ThemeColorLight()
   @StorageProp(PropKey.currentColorMode) @Watch('onColorModeChange') currentMode: number =
     ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET
-  @StorageProp(PropKey.windowIsLandscape) windowIsLandscape: boolean = false
+  @StorageProp(PropKey.windowIsLandscape) @Watch('onOrientationChange') windowIsLandscape: boolean = false
   @StorageProp(SafeArea.top) topRectHeight: number = 0
   loginDialog: CustomDialogController = new CustomDialogController({
     autoCancel: false,
@@ -143,10 +143,16 @@ struct NavigationPage {
     }
   }
 
-  /** 当前朝向的双栏开关是否开启（宽度是否达到分栏阈值由 NavigationMode.Auto 负责） */
   splitModeEnabled(): boolean {
     return !this.appState.splitModeTempOff
       && (this.windowIsLandscape ? this.appState.splitModeLandscape : this.appState.splitModePortrait)
+  }
+
+  onOrientationChange() {
+    PreferenceManager.readonly(conf => {
+      this.appState.postImageWaterfall = this.windowIsLandscape
+        ? conf.post_image_waterfall_landscape : conf.post_image_waterfall_portrait
+    })
   }
 
   aboutToAppear(): void {
@@ -162,7 +168,8 @@ struct NavigationPage {
       this.appState.textColorLight = conf.text_color_light
       this.appState.textColorDark = conf.text_color_dark
       this.appState.postColorMode = conf.post_color_mode
-      this.appState.postImageWaterfall = conf.post_image_waterfall
+      this.appState.postImageWaterfall = this.windowIsLandscape
+        ? conf.post_image_waterfall_landscape : conf.post_image_waterfall_portrait
       this.appState.postImageWaterfallMinCount = conf.post_image_waterfall_min_count
       this.appState.hiddenPostDisplay = conf.hidden_post_display
       this.appState.splitModePortrait = conf.split_mode_portrait

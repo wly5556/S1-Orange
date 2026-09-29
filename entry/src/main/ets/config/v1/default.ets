@@ -138,7 +138,8 @@ export class ApplicationConfig {
   text_color_light: string = DEFAULT_TEXT_COLOR_LIGHT
   text_color_dark: string = DEFAULT_TEXT_COLOR_DARK
   post_color_mode: PostColorMode = PostColorMode.showPostColor
-  post_image_waterfall: PostImageWaterfall = PostImageWaterfall.off
+  post_image_waterfall_portrait: PostImageWaterfall = PostImageWaterfall.off
+  post_image_waterfall_landscape: PostImageWaterfall = PostImageWaterfall.off
   post_image_waterfall_min_count: number = 2
   hidden_post_display: HiddenPostDisplay = HiddenPostDisplay.hidden
   image_upload_service: number = 0
