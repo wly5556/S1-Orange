@@ -1,4 +1,4 @@
-import { DownsampleStrategy, ImageKnifeComponent, ImageKnifeRequest } from '@ohos/imageknife'
+import { DownsampleStrategy, ImageKnife, ImageKnifeComponent, ImageKnifeRequest } from '@ohos/imageknife'
 import { DomainRegex } from '../../api/base'
 import { userCookieString } from '../../api/request'
 import { openInBrowser } from '../WantUitl'
@@ -8,7 +8,11 @@ import { FontSizeEnum } from '../fontSize/FontSizeEnum'
 import { markImageViewerTransitionFromClick } from './ImageViewer'
 import { rcp } from '@kit.RemoteCommunicationKit'
 import { BusinessError } from '@kit.BasicServicesKit'
-import { queryImageSize, reportImageSize } from '../dataStore/ImageSizeData'
+import { queryImageHash, queryImageSize, reportImageHash, reportImageSize } from '../dataStore/ImageSizeData'
+import { encodeThumbHashFromFile, getPlaceholderPixelMap } from '../ThumbHash'
+import { encodeThumbHashTask } from '../ThumbHashTask'
+import { taskpool } from '@kit.ArkTS'
+import { image } from '@kit.ImageKit'
 
 export interface RectSize {
   w: number,
@@ -27,6 +31,8 @@ export struct ImageContainer {
   @State loadFailed: boolean = false
   @State retryHint: string = ''
   @State downsampleStrategy: DownsampleStrategy = DownsampleStrategy.DEFAULT
+  @State placeholderPixelMap: image.PixelMap | undefined = undefined
+  hashRequested: boolean = false
   imgSize?: RectSize
   @Prop @Watch('resize') constrainSize: RectSize | undefined = undefined
   @Prop @Watch('resize') fitWidth: number | undefined = undefined
@@ -56,6 +62,9 @@ export struct ImageContainer {
       const cached = queryImageSize(this.src)
       if (cached) {
         this.imgSize = { w: cached.w, h: cached.h }
+      }
+      if (cached?.hash !== undefined) {
+        this.placeholderPixelMap = getPlaceholderPixelMap(this.src, cached.hash)
       }
     }
   }
@@ -112,27 +121,66 @@ export struct ImageContainer {
     return this.fitCellWidth || this.imgSize !== undefined
   }
 
+  // 首次加载完成后用文件缓存里的原图算一次 ThumbHash 并持久化，供二次查看时的占位模糊图使用
+  async computeThumbHash(w: number, h: number): Promise<void> {
+    if (this.hashRequested || queryImageHash(this.src) !== undefined) {
+      return
+    }
+    this.hashRequested = true
+    try {
+      const path = await ImageKnife.getInstance().preLoadCache(encodeURI(this.src))
+      let hash = ''
+      try {
+        hash = (await taskpool.execute(encodeThumbHashTask, path)) as string
+      } catch (e) {
+        // TaskPool 不可用时退回宿主线程
+        hash = await encodeThumbHashFromFile(path)
+      }
+      if (hash.length == 0) {
+        return
+      }
+      reportImageHash(this.src, w, h, hash)
+      const pixelMap = getPlaceholderPixelMap(this.src, hash)
+      if (pixelMap !== undefined) {
+        this.placeholderPixelMap = pixelMap
+      }
+    } catch (e) {
+      // 算不出来不影响图片展示
+    }
+  }
+
   build() {
     Column() {
       if ((!this.loadComplete && !this.usedByImageViewer) || this.loadFailed) {
-        Column({ space: 4 }) {
-          if (this.loadFailed) {
-            Text('图片加载失败').opacity(.6).fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-            Image($r('app.media.face_253_akarin'))
-              .width(FontSizeEnum[this.appState.fontSize].vp40)
-              .height(FontSizeEnum[this.appState.fontSize].vp40)
-          } else if (this.retryHint) {
-            Text(this.retryHint)
-              .opacity(.4)
-              .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
-              .textAlign(TextAlign.Center)
+        Stack() {
+          if (this.placeholderPixelMap !== undefined && !this.loadFailed) {
+            Image(this.placeholderPixelMap)
+              .objectFit(ImageFit.Cover)
+              .width('100%')
+              .height('100%')
+              .borderRadius(5)
           }
+          Column({ space: 4 }) {
+            if (this.loadFailed) {
+              Text('图片加载失败').opacity(.6).fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+              Image($r('app.media.face_253_akarin'))
+                .width(FontSizeEnum[this.appState.fontSize].vp40)
+                .height(FontSizeEnum[this.appState.fontSize].vp40)
+            } else if (this.retryHint) {
+              Text(this.retryHint)
+                .opacity(.4)
+                .fontSize(FontSizeEnum[this.appState.fontSize].vp12)
+                .textAlign(TextAlign.Center)
+            }
+          }
+          .alignItems(HorizontalAlign.Center)
+          .justifyContent(FlexAlign.Center)
+          .width('100%')
+          .height('100%')
         }
         .onClick(e => {
           openInBrowser(getContext(this) as common.UIAbilityContext, this.imageUrl)
         })
-        .alignItems(HorizontalAlign.Center)
-        .justifyContent(FlexAlign.Center)
         .width(this.fillByKnownSize() ? '100%' : 100 * FontSizeEnum[this.appState.fontSize].ratio)
         .height(this.fillByKnownSize() ? '100%' : 90 * FontSizeEnum[this.appState.fontSize].ratio)
         .margin({
@@ -187,6 +235,7 @@ export struct ImageContainer {
                 }
                 if (this.usedByImageViewer === false) {
                   reportImageSize(this.src, imageSize.width, imageSize.height)
+                  this.computeThumbHash(imageSize.width, imageSize.height)
                   if (imageSize.width * imageSize.height >= 4_194_304) {
                     this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
                   }
@@ -208,9 +257,15 @@ export struct ImageContainer {
     .onAreaChange((oldValue, newValue) => {
       this.resizeOnAreaChange(newValue.width as number)
     })
-    .onVisibleAreaChange([0.01, 1], () => {
-      if (this.imageUrl != this.src) {
-        this.imageUrl = this.src
+    .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
+      if (currentRatio > 0) {
+        if (this.imageUrl != this.src) {
+          this.imageUrl = this.src
+        }
+      } else if (this.lazyLoad && !this.usedByImageViewer && this.imageUrl.length > 0) {
+        // 出视野，销毁图片组件，释放显存
+        this.imageUrl = ''
+        this.loadComplete = false
       }
     })
   }
