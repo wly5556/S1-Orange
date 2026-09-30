@@ -16,8 +16,10 @@ import { LengthUnit } from '@kit.ArkUI'
 import { PreferenceManager } from '../../config/UserConfig'
 
 class HistoryDataSource extends DbPageDataSource<ViewHistoryItem> {
+  keyword: string = ''
+
   override queryDatabase(offset: number, size: number): Promise<ViewHistoryItem[]> {
-    return QueryViewHistory(offset, size)
+    return QueryViewHistory(offset, size, this.keyword)
   }
 }
 
@@ -47,6 +49,7 @@ export struct ViewHistory {
   context = getContext(this) as common.UIAbilityContext
   @StorageProp(PropKey.userId) @Watch('onAccountUpdate') uid?: string = undefined
   @State showDateDivider: boolean = false
+  @State keyword: string = ''
 
   onAccountUpdate() {
     this.dataSource.reload()
@@ -95,6 +98,21 @@ export struct ViewHistory {
           clickLeftButton: () => {
             this.popBack()
           }
+        })
+        Row() {
+          Search({ value: $$this.keyword, placeholder: '搜索历史记录' })
+            .layoutWeight(1)
+            .onChange((value: string) => {
+              this.dataSource.keyword = value
+              this.dataSource.reload()
+            })
+        }
+        .width('100%')
+        .padding({
+          left: 12,
+          right: 12,
+          top: 8,
+          bottom: 8
         })
         List() {
           LazyForEach(this.dataSource, (item: ViewHistoryItem, index: number) => {
@@ -164,6 +182,7 @@ export struct ViewHistory {
         })
       }
     }.hideTitleBar(true)
+    .backgroundColor(this.appTheme.backgroundSecondary)
     .onReady((context: NavDestinationContext) => {
       this.pathStack = context.pathStack
       this.dataSource.reload()

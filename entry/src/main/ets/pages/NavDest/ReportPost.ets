@@ -134,6 +134,7 @@ export struct ReportPost {
         }.padding(24)
       }
     }.hideTitleBar(true)
+    .backgroundColor(this.appTheme.backgroundSecondary)
     .onReady(async (context: NavDestinationContext) => {
       this.pathStack = context.pathStack
       this.pageParam = context.pathInfo.param as ReportPostParam

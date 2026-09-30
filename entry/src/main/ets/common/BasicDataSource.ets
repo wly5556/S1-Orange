@@ -122,6 +122,7 @@ export abstract class DbPageDataSource<T> extends BasicDataSource<T> {
     const data = await this.queryDatabase(0, this.pageSize)
     if (data) {
       this.data = data
+      this.hasMore = data.length >= this.pageSize
       this.notifyDataReload()
     }
     return this.data.length

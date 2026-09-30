@@ -612,6 +612,7 @@ export struct ThreadPostList {
       }
     }
     .hideTitleBar(true)
+    .backgroundColor(this.appTheme.backgroundTertiary)
     .onReady(async (context: NavDestinationContext) => {
       this.pathStack = context.pathStack
       await PreferenceManager.readonly(conf => {

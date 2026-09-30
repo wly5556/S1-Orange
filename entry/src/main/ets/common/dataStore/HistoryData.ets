@@ -148,14 +148,17 @@ export async function QuerySingleViewHistory(thread_id: string) {
   return undefined
 }
 
-export async function QueryViewHistory(offset = 0, limit = 100) {
+export async function QueryViewHistory(offset = 0, limit = 100, keyword = '') {
   await dbInitPromise
   try {
     await dbEngine!.executeSql(`
     DELETE FROM ${tableNameForUser()} WHERE ${COLUMN.thread_id} NOT IN (
     SELECT ${COLUMN.thread_id} FROM ${tableNameForUser()} ORDER BY ${COLUMN.date} DESC LIMIT ${MAX_HISTORY_ITEM});`)
     const predicates = new relationalStore.RdbPredicates(tableNameForUser())
-      .orderByDesc(COLUMN.date)
+    if (keyword.length > 0) {
+      predicates.like(COLUMN.title, `%${keyword}%`)
+    }
+    predicates.orderByDesc(COLUMN.date)
       .offsetAs(offset)
       .limitAs(limit)
     const resultSet =
