@@ -30,7 +30,6 @@ export struct ImageContainer {
   @State loadingProgress: number = 0
   @State loadFailed: boolean = false
   @State retryHint: string = ''
-  @State downsampleStrategy: DownsampleStrategy = DownsampleStrategy.DEFAULT
   @State placeholderPixelMap: image.PixelMap | undefined = undefined
   hashRequested: boolean = false
   imgSize?: RectSize
@@ -40,6 +39,8 @@ export struct ImageContainer {
   src: string = ''
   retry: number = 0
   usedByImageViewer: boolean = false
+  // 仅查看器：入场转场动画结束后才按原图（不降采样）解码，动画期间与普通预览一样按显示区域尺寸降采样
+  @Prop fullResolution: boolean = false
   @Prop imgHeight: number | string = 100 * FontSizeEnum[this.appState.fontSize].ratio
   @Prop imgWidth: number | string = '100%'
   lazyLoad: boolean = true
@@ -66,6 +67,10 @@ export struct ImageContainer {
       if (cached?.hash !== undefined) {
         this.placeholderPixelMap = getPlaceholderPixelMap(this.src, cached.hash)
       }
+    }
+    // 瀑布流列宽已知时先按列宽定好尺寸，使首次请求即按真实比例降采样，同时避免按占位框比例解码过小
+    if (this.imgSize !== undefined && this.fitWidth !== undefined && this.fitWidth > 0) {
+      this.resize(vp2px(this.fitWidth))
     }
   }
 
@@ -108,8 +113,8 @@ export struct ImageContainer {
         resizeTo = resizeImgFitHeight(this.imgSize, this.constrainSize.h)
       }
       this.afterResize(resizeTo)
-    } else { // 其他情况占满横边适应
-      resizeTo = resizeImgFitWidth(this.imgSize, Math.min(vp2px(this.imgSize.w), componentWidth))
+    } else { // 其他情况占满横边适应：只依赖图片比例，解码尺寸变化不会引起布局跳变
+      resizeTo = resizeImgFitWidth(this.imgSize, componentWidth)
       this.afterResize(resizeTo)
     }
     this.imgHeight = px2vp(resizeTo.h)
@@ -222,7 +227,10 @@ export struct ImageContainer {
                 }
               }
             },
-            downsampleOf: this.downsampleStrategy,
+            // 预览只解码到显示区域大小；查看器在转场动画结束后才切到原图
+            downsampleOf: this.usedByImageViewer && this.fullResolution
+              ? DownsampleStrategy.NONE
+              : DownsampleStrategy.FIT_CENTER_QUALITY,
             onComplete: (imageSize) => {
               // 给ImageKnifeComponent用auto height在显示动图的时候，会按height 100%来处理，而不是自适应图片高度
               // 暂时二次设置图片高度
@@ -236,9 +244,6 @@ export struct ImageContainer {
                 if (this.usedByImageViewer === false) {
                   reportImageSize(this.src, imageSize.width, imageSize.height)
                   this.computeThumbHash(imageSize.width, imageSize.height)
-                  if (imageSize.width * imageSize.height >= 4_194_304) {
-                    this.downsampleStrategy = DownsampleStrategy.FIT_CENTER_QUALITY
-                  }
                 }
                 this.resize(imageSize.componentWidth)
               }

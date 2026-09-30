@@ -354,6 +354,7 @@ export struct ImageViewer {
   @State exiting: boolean = false // 退场进行中：防重入并屏蔽手势
   @State imgLoaded: boolean[] = []
   @State imgLoadFailed: boolean[] = []
+  @State imgFullRes: boolean[] = [] // 转场/切换动画结束后才按原图解码
   @State showButton: boolean = true
   @State imgContainerSizeState: RectSize = imgContainerSize // 用于旋屏后刷新图片大小
   @State bgOpacity: number = 1
@@ -384,6 +385,7 @@ export struct ImageViewer {
     for (let i = 0; i < this.param.urls.length; i++) {
       this.imgTransform[i] = new matrixHelper()
       this.imgMatrix[i] = matrix4.identity()
+      this.imgFullRes[i] = false
     }
     this.imgCount = this.param.urls.length
     SetStatusBarColor(this.context, themeColorDark)
@@ -391,6 +393,9 @@ export struct ImageViewer {
     // 入场飞入：仅在点击ImageContainer打开（锚点数据有效）时进行
     this.enterPending = consumeImageViewerTransitionValid() &&
       ImageViewerTransitionToSize.w > 0 && ImageViewerTransitionToSize.h > 0
+    if (!this.enterPending) {
+      this.imgFullRes[this.param.startAt] = true
+    }
   }
 
   aboutToDisappear(): void {
@@ -562,6 +567,7 @@ export struct ImageViewer {
             ImageContainer({
               src: this.param.urls[compIndex],
               usedByImageViewer: true,
+              fullResolution: this.imgFullRes[compIndex],
               lazyLoad: false,
               constrainSize: this.imgContainerSizeState,
               imgWidth: '100%',
@@ -669,8 +675,12 @@ export struct ImageViewer {
       .cachedCount(ImageViewerCacheCount)
       .index($$this.swiperIndex)
       .onAnimationStart((index: number, targetIndex: number) => {
+        this.imgFullRes[index] = false
         this.targetSwiperIndex = targetIndex
         this.updateButtonVisibility()
+      })
+      .onAnimationEnd((index: number) => {
+        this.imgFullRes[index] = true
       })
       .onSizeChange((old, newVal) => {
         imgContainerSize.w = vp2px(parseFloat(newVal.width?.toString() || '0'))
@@ -856,7 +866,13 @@ export struct ImageViewer {
     helper.setExitTarget(targetScale, centerX, centerY)
     this.updateImageTransformMatrix()
     this.getUIContext()
-      .animateTo(SpringCurve, () => {
+      .animateTo({
+        curve: SpringCurve.curve,
+        onFinish: () => {
+          // 入场转场动画结束，随后按原图解码
+          this.imgFullRes[this.param.startAt] = true
+        }
+      }, () => {
         helper.reset()
         this.updateImageTransformMatrix()
       })
