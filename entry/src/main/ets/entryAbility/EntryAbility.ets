@@ -3,7 +3,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { isLandscapeOrientation } from '../common/SplitModeHelper';
 import { HistoryDbInit } from '../common/dataStore/HistoryData';
-import { saveAvatarCacheState } from '../common/component/Avatar';
+import { saveAvatarCacheState } from '../common/component/Avatar'
+import { imageBackgroundGuard } from '../common/component/ImageContainer';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { PreferenceManager } from '../config/UserConfig';
 import { dailySign, initAccountManager } from '../common/account/AccountManager';
@@ -98,6 +99,8 @@ export default class EntryAbility extends UIAbility {
   }
 
   onBackground(): void {
+    // 需早于可见区域归零事件：登记此刻还处于激活态的图片容器，使其不因切后台而销毁
+    imageBackgroundGuard.onAppBackground()
     saveAvatarCacheState()
     flushAllPersistMaps()
   }

@@ -22,6 +22,50 @@ export interface RectSize {
 const MAX_RETRY = 2
 const NO_PROXY_FROM_RETRY = 2
 
+/**
+ * 切后台时组件的可见比例会归零，若照此释放图片组件，回前台需要重建才能恢复，
+ * 而窗口尚不可见时重建的组件，其加载完成回调并不可靠（偶发残留占位图）
+ * 故切后台时先记录活跃的图片，由于后台事件早于可见区域归零事件，
+ * 可以使其紧接着的那次可见比例归零不生效，避免图片被意外释放
+ */
+class ImageBackgroundGuard {
+  // id 到「该容器是否处于图片已加载/加载中激活态」的查询
+  private activeChecks: Map<number, () => boolean> = new Map()
+  private heldIds: Set<number> = new Set()
+  private nextId: number = 1
+
+  register(isActive: () => boolean): number {
+    const id = this.nextId
+    this.nextId += 1
+    this.activeChecks.set(id, isActive)
+    return id
+  }
+
+  unregister(id: number): void {
+    this.activeChecks.delete(id)
+    this.heldIds.delete(id)
+  }
+
+  isHeld(id: number): boolean {
+    return this.heldIds.has(id)
+  }
+
+  release(id: number): void {
+    this.heldIds.delete(id)
+  }
+
+  onAppBackground(): void {
+    this.heldIds.clear()
+    this.activeChecks.forEach((isActive: () => boolean, id: number) => {
+      if (isActive()) {
+        this.heldIds.add(id)
+      }
+    })
+  }
+}
+
+export const imageBackgroundGuard = new ImageBackgroundGuard()
+
 @Component
 export struct ImageContainer {
   @Consume appState: PreferenceState
@@ -31,6 +75,7 @@ export struct ImageContainer {
   @State loadFailed: boolean = false
   @State retryHint: string = ''
   @State placeholderPixelMap: image.PixelMap | undefined = undefined
+  guardId: number = -1
   hashRequested: boolean = false
   imgSize?: RectSize
   @Prop @Watch('resize') constrainSize: RectSize | undefined = undefined
@@ -72,6 +117,11 @@ export struct ImageContainer {
     if (this.imgSize !== undefined && this.fitWidth !== undefined && this.fitWidth > 0) {
       this.resize(vp2px(this.fitWidth))
     }
+    this.guardId = imageBackgroundGuard.register((): boolean => this.imageUrl.length > 0)
+  }
+
+  aboutToDisappear(): void {
+    imageBackgroundGuard.unregister(this.guardId)
   }
 
   // 非瀑布流/非查看器：首次测量到父级可用宽度时就按缓存尺寸定好占位大小，避免加载后宽高跳变
@@ -264,10 +314,12 @@ export struct ImageContainer {
     })
     .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
       if (currentRatio > 0) {
+        imageBackgroundGuard.release(this.guardId)
         if (this.imageUrl != this.src) {
           this.imageUrl = this.src
         }
-      } else if (this.lazyLoad && !this.usedByImageViewer && this.imageUrl.length > 0) {
+      } else if (this.lazyLoad && !this.usedByImageViewer && this.imageUrl.length > 0 &&
+        !imageBackgroundGuard.isHeld(this.guardId)) {
         // 出视野，销毁图片组件，释放显存
         this.imageUrl = ''
         this.loadComplete = false
