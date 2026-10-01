@@ -570,11 +570,11 @@ export struct PreferencePage {
 
               FoldMenu({
                 title: '瀑布流看图',
-                subtitle: '帖子内图片以多列的瀑布流呈现'
+                subtitle: '帖子内的图片以瀑布流样式排列查看'
               }) {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
-                    this.TextPrimary('图片以瀑布流展示')
+                    this.TextPrimary('何时使用瀑布流')
                     PostImageWaterfallPref()
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)
@@ -582,7 +582,7 @@ export struct PreferencePage {
                 Row() {
                   Column({ space: SettingColumnSpace }) {
                     this.TextPrimary('使用瀑布流的最小图片数量')
-                    Text(`小于这个数量的，不启用瀑布流。当前：${this.postImageWaterfallMinCount} 张`)
+                    Text(`例如为 2 张时，则帖子内的单独一张图片，就会像以前一样占满帖子宽度。设为 1 张，则总是用瀑布流看图。\n当前：${this.postImageWaterfallMinCount} 张`)
                       .attributeModifier(this.textSecondary)
                   }.SettingColumn()
                 }.attributeModifier(this.settingRow)

@@ -155,6 +155,7 @@ struct FavoriteSearchPanel {
   @State favoriteItems: FavoriteItem[] = []
   @State lastFetchAt: number = 0
   @State cacheLoaded: boolean = false
+  @State hintExpanded: boolean = true
   @State syncing: boolean = false
   @State fetchedPages: number = 0
   @State totalPages: number = 0
@@ -180,6 +181,7 @@ struct FavoriteSearchPanel {
     this.favoriteItems = cache?.items ?? []
     this.lastFetchAt = cache?.fetchAt ?? 0
     this.cacheLoaded = true
+    this.hintExpanded = this.lastFetchAt == 0
     if (this.searchFocused && this.lastFetchAt == 0) {
       this.syncFavoriteCache()
     }
@@ -267,13 +269,22 @@ struct FavoriteSearchPanel {
         Row() {
           Row() {
             Column({ space: 4 }) {
-              Text('为搜索功能更新数据')
-                .fontSize(FontSizeEnum[this.appState.fontSize].vp15)
-                .fontColor($r('sys.color.font_primary'))
-                .fontWeight(FontWeight.Medium)
-              Text('新增收藏帖子后，无需主动更新记录，即可照常搜索。如果较久以前收藏下来的帖子被取消收藏，则需要进行数据更新')
-                .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
-                .fontColor($r('sys.color.font_secondary'))
+              Row({ space: 4 }) {
+                Text('为搜索功能更新数据')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp15)
+                  .fontColor($r('sys.color.font_primary'))
+                  .fontWeight(FontWeight.Medium)
+                Image($r('app.media.questionmark_circle'))
+                  .width(FontSizeEnum[this.appState.fontSize].vp16)
+                  .height(FontSizeEnum[this.appState.fontSize].vp16)
+                  .fillColor($r('sys.color.font_secondary'))
+              }
+
+              if (this.hintExpanded) {
+                Text('新收藏帖子之后，不需要手动更新，即可搜索。最新两页收藏的数据会自动被同步到本地待搜索数据。如果取消收藏了更早前收藏下来的帖子，则需要点一下更新，以免仍会搜索出旧的数据')
+                  .fontSize(FontSizeEnum[this.appState.fontSize].vp13)
+                  .fontColor($r('sys.color.font_secondary'))
+              }
               if (this.syncing) {
                 Text(this.totalPages > 0 ? `已拉取 ${this.fetchedPages}/${this.totalPages} 页` : '正在获取分页信息')
                   .fontSize(FontSizeEnum[this.appState.fontSize].vp14)
@@ -293,6 +304,7 @@ struct FavoriteSearchPanel {
           .padding({ left: 18, right: 18, top: 12, bottom: 12 })
           .borderRadius(20)
           .backgroundColor(this.appTheme.backgroundTertiary)
+          .onClick(() => this.hintExpanded = !this.hintExpanded)
         }
         .width('100%')
         .padding({ left: 12, right: 12, bottom: 12 })
