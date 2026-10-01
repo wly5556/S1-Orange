@@ -13,6 +13,7 @@ import { encodeThumbHashFromFile, getPlaceholderPixelMap } from '../ThumbHash'
 import { encodeThumbHashTask } from '../ThumbHashTask'
 import { taskpool } from '@kit.ArkTS'
 import { image } from '@kit.ImageKit'
+import { AniSpeed } from '../Animation'
 
 export interface RectSize {
   w: number,
@@ -76,6 +77,9 @@ export struct ImageContainer {
   @State retryHint: string = ''
   @State placeholderPixelMap: image.PixelMap | undefined = undefined
   guardId: number = -1
+  @State teardownFading: boolean = false
+  @State imageFadeOpacity: number = 1
+  teardownFadeKey: number = 0
   hashRequested: boolean = false
   imgSize?: RectSize
   @Prop @Watch('resize') constrainSize: RectSize | undefined = undefined
@@ -121,6 +125,7 @@ export struct ImageContainer {
   }
 
   aboutToDisappear(): void {
+    this.teardownFadeKey += 1
     imageBackgroundGuard.unregister(this.guardId)
   }
 
@@ -205,8 +210,8 @@ export struct ImageContainer {
   }
 
   build() {
-    Column() {
-      if ((!this.loadComplete && !this.usedByImageViewer) || this.loadFailed) {
+    Stack() {
+      if ((!this.loadComplete && !this.usedByImageViewer) || this.loadFailed || this.teardownFading) {
         Stack() {
           if (this.placeholderPixelMap !== undefined && !this.loadFailed) {
             Image(this.placeholderPixelMap)
@@ -244,7 +249,6 @@ export struct ImageContainer {
         })
         .backgroundColor(this.loadFailed ? (this.usedByImageViewer ? '#ffdbdbdb' : '#5F808080') : '#7F808080')
         .borderRadius(5)
-        .alignSelf(ItemAlign.Start)
       }
       if (this.imageUrl && !this.loadFailed) {
         ImageKnifeComponent({
@@ -306,8 +310,10 @@ export struct ImageContainer {
           this.onImgClick && this.onImgClick()
         } : undefined)
           .hitTestBehavior(this.onImgClick ? undefined : HitTestMode.None)
+          .opacity(this.imageFadeOpacity)
       }
-    }.height(this.imgHeight)
+    }.alignContent(Alignment.TopStart)
+    .height(this.imgHeight)
     .width(this.loadFailed ? (this.usedByImageViewer ? 'auto' : '100%') : this.imgWidth)
     .onAreaChange((oldValue, newValue) => {
       this.resizeOnAreaChange(newValue.width as number)
@@ -315,14 +321,32 @@ export struct ImageContainer {
     .onVisibleAreaChange([0, 1], (isVisible: boolean, currentRatio: number) => {
       if (currentRatio > 0) {
         imageBackgroundGuard.release(this.guardId)
+        this.teardownFadeKey += 1
+        this.teardownFading = false
+        this.imageFadeOpacity = 1
         if (this.imageUrl != this.src) {
           this.imageUrl = this.src
         }
       } else if (this.lazyLoad && !this.usedByImageViewer && this.imageUrl.length > 0 &&
-        !imageBackgroundGuard.isHeld(this.guardId)) {
-        // 出视野，销毁图片组件，释放显存
-        this.imageUrl = ''
-        this.loadComplete = false
+        !imageBackgroundGuard.isHeld(this.guardId) && !this.teardownFading) {
+        this.teardownFading = true
+        this.teardownFadeKey += 1
+        const token = this.teardownFadeKey
+        animateTo({
+          duration: AniSpeed.ms300,
+          curve: Curve.EaseIn,
+          onFinish: () => {
+            if (token !== this.teardownFadeKey) {
+              return
+            }
+            this.imageFadeOpacity = 1
+            this.imageUrl = ''
+            this.loadComplete = false
+            this.teardownFading = false
+          }
+        }, () => {
+          this.imageFadeOpacity = 0
+        })
       }
     })
   }
