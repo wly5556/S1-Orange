@@ -593,22 +593,24 @@ class AttachmentUploader extends Uploader {
         return false
       } else {
         new request<string>(URL.ATTACHMENT_DELETE, URL.WEB_BASE)
-          .param('aids[]', id)
-          .param('pid', this.pageInfo!.pid || '')
-          .param('tid', this.pageInfo!.tid || '')
           .formHash()
           .toText()
-          .get()
+          .post({
+            'aids[]': id,
+            'pid': this.pageInfo!.pid || '',
+            'tid': this.pageInfo!.tid || ''
+          })
         removeText(`[attachimg]${id}[/attachimg]`)
         this.pageInfo!.usingImage.delete(id)
         return true
       }
     } else {
       new request<string>(URL.ATTACHMENT_DELETE, URL.WEB_BASE)
-        .param('aids[]', id)
         .formHash()
         .toText()
-        .get()
+        .post({
+          'aids[]': id
+        })
       removeText(`[attachimg]${id}[/attachimg]`)
       return true
     }

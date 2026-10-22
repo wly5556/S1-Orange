@@ -122,7 +122,6 @@ export struct SearchPage {
                   const searchType = this.searchTypeInput
                   new request<string>(URL.SEARCH_WEB, URL.WEB_BASE)
                     .redirectLocation()
-                    .formHash()
                     .toText()
                     .post({
                       'mod': SearchTypeParam[searchType],

@@ -65,7 +65,6 @@ export async function SyncBlockUserListWithWeb() {
       while (page <= totalPage) {
         const remoteBlockList = extractBlockListFromWeb(await new request<string>(URL.BLOCKLIST_WEB, URL.WEB_BASE)
           .param('page', String(page))
-          .formHash()
           .toText()
           .get())
         remoteList = remoteList?.concat(remoteBlockList.list)

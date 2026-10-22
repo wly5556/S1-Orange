@@ -186,6 +186,7 @@ async function fetchPost(tid: string, page: number, pid: string): Promise<Fetche
   let cachedPost: FetchedPost | undefined = undefined
   const cacheReady = new Promise<void>(resolve => {
     new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .cache((v): void => {
         const postlist = v.data.list
@@ -221,6 +222,7 @@ async function fetchPost(tid: string, page: number, pid: string): Promise<Fetche
 
   try {
     const v = await new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .cache((data): void => {
       })
@@ -340,6 +342,7 @@ async function fetchPostPage(tid: string, page: number): Promise<PostListApp[] |
   let cachedList: PostListApp[] | undefined = undefined
   const cacheReady = new Promise<void>(resolve => {
     new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .cache((v): void => {
         cachedList = v.data.list
@@ -360,6 +363,7 @@ async function fetchPostPage(tid: string, page: number): Promise<PostListApp[] |
   }
   try {
     const v = await new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .cache((data): void => {
       })
@@ -423,6 +427,7 @@ export async function fetchLatestPost(tid: string, latestFloor: number): Promise
   const page = Math.ceil(latestFloor / POST_PER_PAGE)
   try {
     const v = await new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .post({
         tid: tid,

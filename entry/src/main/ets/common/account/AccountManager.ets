@@ -19,12 +19,12 @@ import { LoginResultApp } from '../../api/model/app/login'
 import { BlockListSetUser, clearBlockList } from '../dataStore/BlockUser'
 import { promptAction } from '@kit.ArkUI'
 import { clearDraft, DraftDbSetUser } from '../dataStore/DraftData'
-import { waitFor } from '../AwaitUtil'
+// import { waitFor } from '../AwaitUtil'
 import { Event } from '../Events'
 import { PropKey } from '../Constants'
 import { ApiCacheSetUser, clearApiCache } from '../dataStore/ApiCacheData'
 import { Recommend } from '../recommend/RecommendManager'
-import json from '@ohos.util.json'
+// import json from '@ohos.util.json'
 
 export enum LoginResult {
   SUCCEED,
@@ -81,6 +81,7 @@ export async function login(username: string, password: string, questionid?: num
     return webLoginResult
   }
   const appLoginResult = await new request<wrapperApp<LoginResultApp>>(URL.LOGIN_APP, URL.APP_BASE)
+    .ensureJSON()
     .post(loginData)
     .then(handleAppLoginResponse)
   if (appLoginResult == LoginResult.SUCCEED) {
@@ -276,6 +277,7 @@ export function initAccountManager() {
 }
 
 export async function dailySign() {
+  /*
   // 如果走app接口签到，还能同时更新sid，一举两得
   // 可惜app签到在sid格式改了之后就不能用了
   const now = new Date()
@@ -293,9 +295,10 @@ export async function dailySign() {
             req.overrideCookie(json.parse(cookie[0]))
           }
           try {
-            const sign = await req.param('formhash', formhash[0])
-              .toText()
-              .get()
+            const sign = await req.toText()
+              .post({
+                'formhash': formhash[0]
+              })
             const signResult = extractSucceedMsg(sign)
             if (signResult || sign.includes('已签到')) {
               if (signResult) {
@@ -315,8 +318,10 @@ export async function dailySign() {
       }
     }
   })
+  */
 }
 
+/*
 function extractSucceedMsg(input: string): string | null {
   const pattern = /succeedhandle_\w*?\('[^']*', '([^']*)',/
   const match = input.match(pattern)
@@ -326,3 +331,4 @@ function extractSucceedMsg(input: string): string | null {
     return null
   }
 }
+*/

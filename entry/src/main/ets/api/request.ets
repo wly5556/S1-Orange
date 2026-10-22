@@ -254,10 +254,11 @@ export default class request<T> {
               putCache(this.cacheKey, text as Object)
             }
             fulfill(text as T)
-          } else if (resp.headers['content-type']?.includes('application/json') || this.respToJSON) {
+          } else if (resp.headers['content-type']?.includes('application/json') || this.respToJSON ||
+            this.processDirtyJson) {
             let data: T
             if (this.processDirtyJson) {
-              const jsonRegex = /\{.*?\}/s
+              const jsonRegex = /\{.*\}/s
               const respString = resp.toString()
               if (respString === null) {
                 const err: reqError = {
@@ -368,9 +369,6 @@ export default class request<T> {
   get(): Promise<T> {
     if (this.sessionConfig.headers && this.sessionConfig.headers['content-type'] == undefined) {
       this.sessionConfig.headers['content-type'] = 'application/json'
-    }
-    if (this.withFormHash) {
-      this.param('formhash', userFormHash)
     }
     const path = this.addParams(this.path)
     if (this.cacheCallback) {

@@ -394,6 +394,7 @@ struct ThreadListPage {
   }
 
   async processThreadList(v: wrapper<ThreadList>) {
+    const forumFid = v.Variables.forum.fid
     if (this.forumInfo && v.Variables.forum.threadcount != this.forumInfo?.threadcount) {
       this.forumInfo.threadcount = v.Variables.forum.threadcount
     }
@@ -425,7 +426,7 @@ struct ThreadListPage {
         subject: unescapeAll(v.subject),
         replies: v.replies,
         typeName: threadTypeNameMap[v.typeid] || '',
-        fid: v.fid,
+        fid: v.fid || forumFid,
         typeid: v.typeid,
         tid: v.tid,
         uid: v.authorid,
@@ -477,7 +478,7 @@ struct ThreadListPage {
           readperm = isNaN(readperm) ? 0 : readperm
           const item: RecommendExposureItem = {
             tid: v.tid,
-            fid: v.fid,
+            fid: v.fid || forumFid,
             typeid: v.typeid,
             subject: unescapeAll(v.subject),
             message: v.message ? unescapeAll(v.message) : '',

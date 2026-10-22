@@ -1219,6 +1219,7 @@ struct SinglePostPage {
     session.join(
       (): Promise<wrapperApp<ThreadDataApp>> =>
       new request<wrapperApp<ThreadDataApp>>(URL.THREAD_POST_APP, URL.APP_BASE)
+        .ensureJSON()
         .appToken()
         .cache((v): void => {
           this.processThreadDataApp(v)

@@ -109,6 +109,7 @@ export struct PollDetail {
 
   loadPollConfig() {
     new request<wrapperApp<PollDesc>>(URL.VOTE_INFO_APP, URL.APP_BASE)
+      .ensureJSON()
       .appToken()
       .post({
         'tid': this.pageParam.tid
