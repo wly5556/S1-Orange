@@ -1786,7 +1786,15 @@ struct SinglePostPage {
             pollList: this.pollList,
             pollInfo: this.pollInfo,
             tid: this.pageParam.tid,
-            compTransitionId: 'Vote' + this.generateUniquePageKey()
+            compTransitionId: 'Vote' + this.generateUniquePageKey(),
+            onPollRefreshed: (pollInfo: PollInfoVM, pollList: PollOptionVM[]) => {
+              this.pollInfo = pollInfo
+              this.pollList = pollList
+              this.pollForShot = {
+                pollInfo: pollInfo,
+                pollList: pollList
+              }
+            }
           })
         }
 

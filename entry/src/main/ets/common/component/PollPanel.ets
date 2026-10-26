@@ -47,6 +47,16 @@ export struct PollPanel {
   compTransitionId = 'PollPanel'
   requestReload: () => void = () => {
   }
+  onPollRefreshed: (pollInfo: PollInfoVM, pollList: PollOptionVM[]) => void = () => {
+  }
+
+  applyPollData(pollInfo: PollInfoVM, pollList: PollOptionVM[]) {
+    animateTo(SpringCurve, () => {
+      this.pollInfo = pollInfo
+      this.pollList = pollList
+    })
+    this.onPollRefreshed(pollInfo, pollList)
+  }
 
   goPoll(pollList: PollOptionVM[], e: ClickEvent) {
     const param: PollDetailParam = {
@@ -57,20 +67,27 @@ export struct PollPanel {
       scrollTo: parseFloat(e.target.area.position.y?.toString() || '0')
     }
     openPollDetail(this.pathStack, param, (info) => {
-      if ((info.result as PollPopData).pollAdded) {
-        new request<wrapper<PostList>>(URL.THREAD_POST_LIST)
-          .param('tid', this.tid)
-          .param('page', '1')
-          .get()
-          .then(v => {
-            const pollData = v.Variables.special_poll
-            if (pollData == undefined) {
-              return
-            }
-            this.pollInfo = getPollInfo(pollData)
-            this.pollList = getPollList(pollData)
-          })
+      const result = info.result as PollPopData
+      if (!result.pollAdded) {
+        return
       }
+      const pollInfo = result.pollInfo
+      const pollList = result.pollList
+      if (pollInfo !== undefined && pollList !== undefined) {
+        this.applyPollData(pollInfo, pollList)
+        return
+      }
+      new request<wrapper<PostList>>(URL.THREAD_POST_LIST)
+        .param('tid', this.tid)
+        .param('page', '1')
+        .get()
+        .then(v => {
+          const latestPoll = v.Variables.special_poll
+          if (latestPoll == undefined) {
+            return
+          }
+          this.applyPollData(getPollInfo(latestPoll), getPollList(latestPoll))
+        })
     })
   }
 
@@ -174,7 +191,8 @@ export function PollPanelComp(data: PollPanelCompData) {
       .onClick((e) => {
         data.onSelected && data.onSelected(index, e)
       })
-    }, (item: PollOptionVM) => item.selected + item.polloptionid + item.votedUser?.length)
+    }, (item: PollOptionVM) => item.selected + item.polloptionid + item.votes + item.percent +
+      (item.votedUser?.length ?? 0))
   }.margin({ top: 20 })
   .geometryTransition(data.transitionIndex, { follow: true })
   .zIndex(80)

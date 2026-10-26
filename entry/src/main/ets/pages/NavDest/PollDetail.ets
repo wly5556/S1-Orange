@@ -21,6 +21,8 @@ import { formatRelativeTime } from '../../common/TimeFormat'
 
 export interface PollPopData {
   pollAdded: boolean
+  pollInfo?: PollInfoVM
+  pollList?: PollOptionVM[]
 }
 
 export interface PollDetailParam {
@@ -98,11 +100,16 @@ export struct PollDetail {
         if (pollData == undefined) {
           return
         }
+        const pollInfo = getPollInfo(pollData)
+        const pollList = getPollList(pollData)
         animateTo(SpringCurve, () => {
-          this.pageParam.pollInfo = getPollInfo(pollData)
-          this.pageParam.pollList = getPollList(pollData)
+          this.pageParam.pollInfo = pollInfo
+          this.pageParam.pollList = pollList
           this.popData.pollAdded = true
         })
+        // 供返回时复用，避免主界面再次请求同一份数据
+        this.popData.pollInfo = pollInfo
+        this.popData.pollList = getPollList(pollData)
         this.loadPollConfig()
       })
   }
