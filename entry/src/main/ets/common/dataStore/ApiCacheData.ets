@@ -134,6 +134,21 @@ export async function getCache(key: string): Promise<Object> {
   return data
 }
 
+export async function removeCache(key: string) {
+  await cacheDbInitPromise
+  if (!cacheDb) {
+    return
+  }
+  try {
+    const predicates = key === FORUM_GROUP_CACHE_KEY
+      ? new relationalStore.RdbPredicates(GLOBAL_TABLE_NAME).equalTo(COLUMN.key, key)
+      : new relationalStore.RdbPredicates(userTableName()).equalTo(COLUMN.key, key)
+    await cacheDb.delete(predicates)
+  } catch (err) {
+    console.error(`Remove cache failed. Code:${err.code}, message:${err.message}`)
+  }
+}
+
 export async function clearApiCache(uid?: string) {
   await cacheDbInitPromise
   try {

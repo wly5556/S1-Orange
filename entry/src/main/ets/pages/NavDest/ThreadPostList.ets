@@ -1,6 +1,13 @@
 import { DomainRegex, URL } from '../../api/base'
 import request, { RequestError } from '../../api/request'
-import { Attachment, Post, PostListV4, SpecialPollAllowVote, SpecialPollResultVisible } from '../../api/model/postList'
+import {
+  Attachment,
+  Post,
+  PostList,
+  PostListV4,
+  SpecialPollAllowVote,
+  SpecialPollResultVisible
+} from '../../api/model/postList'
 import wrapper, { wrapperApp } from '../../api/wrapper'
 import { OuterScroller } from '../../common/component/OuterScroller'
 import { PullToRefreshStage } from '../../common/component/PullToRefresh'
@@ -778,6 +785,7 @@ struct SinglePostPage {
   scroller: Scroller = new Scroller()
   @Consume refreshStage: PullToRefreshStage
   @State postFloorNumber: Map<number, string> = new Map // 列表组件索引 | 置顶楼层索引(PinnedPostFloorIndex) -> 显示的楼层号，用于楼层号角标
+  floorNumberByPid: Map<string, string> = new Map // pid -> 楼层号，用于跨接口按 pid 对齐楼层号
   @State indexerFloorNum: string[] = [] // 列表组件索引 -> pid，用于indexer显示
   pidMap: string[] = [] // 列表组件索引 -> pid，用于记录浏览历史
   indexerFloorCompIndex: number[] = [] // indexer的索引 -> 列表组件索引， 用于快速跳转
@@ -1011,6 +1019,7 @@ struct SinglePostPage {
 
       this.indexerFloorNum = []
       this.postFloorNumber.clear()
+      this.floorNumberByPid.clear()
 
       rawPostList.forEach((p, i) => {
         if (p.attachments) {
@@ -1024,6 +1033,7 @@ struct SinglePostPage {
         }
 
         this.postFloorNumber.set(i, p.number || '')
+        this.floorNumberByPid.set(p.pid, p.number || '')
         const floorNum = parseInt(p.number || '')
         if (!isNaN(floorNum)) {
           if (floorNum < pageFloorStart + 10 || floorNum % 2 == 0) {
@@ -1106,6 +1116,7 @@ struct SinglePostPage {
     this.mdRendered.clear()
     this.mdRenderShow.clear()
     parseXML(rawPostList).forEach((root, index) => {
+      this.pidMap[index] = rawPostList[index].pid.toString()
       const post = PostContentParser(root, this.imgUrl)
       const vm: PostViewModel = {
         node: post.node,
@@ -1145,7 +1156,6 @@ struct SinglePostPage {
     this.updatePostDatetime()
     for (let i = 0; i < rawPostList.length; i++) {
       const p = rawPostList[i]
-      this.pidMap[i] = p.pid.toString()
       if (this.jumpToPost == p.pid.toString()) {
         if (this.pageParam.jumpToPidWithHighlight) {
           setTimeout(() => {
@@ -1193,6 +1203,44 @@ struct SinglePostPage {
     }
   }
 
+  // v4 接口遇到被删除或审核中的楼层时会返回 503，用 v1 接口补齐楼层号
+  requestFloorFallback(): Promise<void> {
+    return new request<wrapper<PostList>>(URL.THREAD_POST_LIST)
+      .param('tid', this.pageParam.tid)
+      .param('page', this.pageToLoad.toString())
+      .param('authorid', this.pageParam.authorid || '')
+      .get()
+      .then((v): void => this.processFloorFallback(v))
+      .catch((): void => {
+      })
+  }
+
+  processFloorFallback(v: wrapper<PostList>) {
+    const rawPostList = v.Variables.postlist
+    if (rawPostList.length == 0) {
+      return
+    }
+    const pageFloorStart = POST_PER_PAGE * (this.pageToLoad - 1)
+    if (pageFloorStart >= 10000) {
+      this.indexerFontSize = 8
+    } else if (pageFloorStart >= 1000) {
+      this.indexerFontSize = 9
+    }
+    this.indexerFloorNum = []
+    rawPostList.forEach((p, i) => {
+      const floor = p.number || ''
+      this.postFloorNumber.set(i, floor)
+      this.floorNumberByPid.set(p.pid, floor)
+      const floorNum = parseInt(floor)
+      if (!isNaN(floorNum)) {
+        if (floorNum < pageFloorStart + 10 || floorNum % 2 == 0) {
+          this.indexerFloorCompIndex[this.indexerFloorNum.length] = i
+          this.indexerFloorNum.push(floorNum.toString())
+        }
+      }
+    })
+  }
+
   requestPostData() {
     const session = this.loadGuard.begin(this.generateDataFetchKey())
     if (session === undefined) {
@@ -1207,13 +1255,17 @@ struct SinglePostPage {
         .param('page', this.pageToLoad.toString())
         .param('authorid', this.pageParam.authorid || '')
         .cache((v): void => this.processPostListV4(v), this.postDataSource.totalCount() > 0)
+        .clearCacheOn503()
         .get())
       .then((v): void => this.processPostListV4(v))
-      .catch((res: RequestError) => {
+      .catch(async (res: RequestError): Promise<void> => {
         if (res.type == 'Response') {
           if (res.data.statusCode == 404) {
             this.threadNotExist = true
           }
+        }
+        if (!this.threadNotExist) {
+          await this.requestFloorFallback()
         }
       })
     session.join(
@@ -1354,6 +1406,13 @@ struct SinglePostPage {
   }
 
   getFloorNumber(compIndex: number) {
+    const pid = this.pidMap[compIndex]
+    if (pid) {
+      const floor = this.floorNumberByPid.get(pid)
+      if (floor) {
+        return floor
+      }
+    }
     return this.postFloorNumber.get(compIndex) ?? ''
   }
 
