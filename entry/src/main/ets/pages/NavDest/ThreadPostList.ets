@@ -743,6 +743,7 @@ struct SinglePostPage {
   @StorageProp(SafeArea.bottom) @Watch('bottomRectHeightChanged') bottomRectHeight: number = 0
   @StorageProp(BLOCK_USER_LIST_STATE) blockList: Set<string> = new Set
   pageToLoad: number = 1
+  transitionInstanceId: number = ++threadPostPageInstanceSeq
   imgUrl: string[] = []
   @State inlineAttachmentAid: Set<string> = new Set // 已插入正文的图片附件，帖尾不再重复渲染
 
@@ -898,7 +899,7 @@ struct SinglePostPage {
   }
 
   generateUniquePageKey() {
-    return `${this.pageToLoad},${this.dataControlCounter},${this.pageParam.jumpToPid},${this.pageParam.authorid}`
+    return `${this.transitionInstanceId},${this.pageToLoad},${this.dataControlCounter},${this.pageParam.jumpToPid},${this.pageParam.authorid}`
   }
 
   generateAvatarTransKey(compIndex: number) {

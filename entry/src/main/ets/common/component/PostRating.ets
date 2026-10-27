@@ -81,8 +81,13 @@ export interface PostRatingPanelData {
   seeMoreButton?: boolean,
   seeMore?: () => void,
   transitionIndex: string,
+  avatarTransitionPrefix?: string,
   context: UIContext,
   pathStack: NavPathStack
+}
+
+function ratingAvatarTransitionKey(index: number, data: PostRatingPanelData): string {
+  return 'avatar' + index + (data.avatarTransitionPrefix ?? data.transitionIndex)
 }
 
 @Builder
@@ -114,7 +119,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
             Avatar({
               uid: item.uid,
               avatarSize: FontSizeEnum[data.appState.fontSize].vp22,
-              transitionIndex: 'avatar' + index + data.transitionIndex
+              transitionIndex: ratingAvatarTransitionKey(index, data)
             })
             Text(item.username).width('25%').ratingText(FontSizeEnum[data.appState.fontSize].vp13).maxLines(1)
             Text(item.count).width('10%').ratingText(FontSizeEnum[data.appState.fontSize].vp13).maxLines(1)
@@ -122,7 +127,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
             const userSpaceParam: UserSpaceParam = {
               uid: item.uid,
               username: item.username,
-              avatarTransitionIndex: 'avatar' + index + data.transitionIndex
+              avatarTransitionIndex: ratingAvatarTransitionKey(index, data)
             }
             openUserSpace(userSpaceParam, data.pathStack)
           }).constraintSize({

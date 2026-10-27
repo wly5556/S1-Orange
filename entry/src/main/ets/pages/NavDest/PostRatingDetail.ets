@@ -253,6 +253,7 @@ export struct PostRatingDetail {
               totalRating: this.pageParam.totalRating,
               rating: this.displayRating,
               transitionIndex: this.pageParam.transitionId || '',
+              avatarTransitionPrefix: this.pageParam.transitionId ? this.pageParam.transitionId + 'detail' : '',
               context: this.getUIContext(),
               pathStack: this.pathStack
             })
