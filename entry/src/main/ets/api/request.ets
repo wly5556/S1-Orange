@@ -137,12 +137,14 @@ export default class request<T> {
     return this
   }
 
+  private cookieOverride = false
+  private ignoreResponseCookie = false
+
   withoutCookie() {
     this.sessionConfig.cookies = undefined
+    this.ignoreResponseCookie = true
     return this
   }
-
-  private cookieOverride = false
 
   overrideCookie(cookie: Object | null) {
     this.sessionConfig.cookies = cookie as rcp.RequestCookies
@@ -151,7 +153,7 @@ export default class request<T> {
   }
 
   private updateCookie() {
-    if (this.responseCookie && !this.cookieOverride) {
+    if (this.responseCookie && !this.cookieOverride && !this.ignoreResponseCookie) {
       this.responseCookie.forEach(c => c.value && (userCookies[c.name] = c.value))
       setUserCookieString(userCookies)
     }
