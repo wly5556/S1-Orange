@@ -1203,8 +1203,26 @@ struct SinglePostPage {
     }
   }
 
-  // v4 接口遇到被删除或审核中的楼层时会返回 503，用 v1 接口补齐楼层号
-  requestFloorFallback(): Promise<void> {
+  // v4 接口遇到被删除或审核中的楼层时会返回 503（仅登录态触发），游客态不受影响，因此先用游客态重试 v4，
+  // 可一并拿到楼层号、评分列表、附件等信息；游客态也失败（如需要登录才能浏览的版块）时再用 v1 补齐楼层号
+  requestFallback(): Promise<void> {
+    return new request<wrapper<PostListV4>>(URL.THREAD_POST_LIST_V4)
+      .param('tid', this.pageParam.tid)
+      .param('page', this.pageToLoad.toString())
+      .param('authorid', this.pageParam.authorid || '')
+      .withoutCookie()
+      .get()
+      .then(async (v): Promise<void> => {
+        if ((v.Variables.postlist ?? []).length == 0) {
+          await this.requestFallbackV1()
+        } else {
+          this.processPostListV4(v)
+        }
+      })
+      .catch((): Promise<void> => this.requestFallbackV1())
+  }
+
+  requestFallbackV1(): Promise<void> {
     return new request<wrapper<PostList>>(URL.THREAD_POST_LIST)
       .param('tid', this.pageParam.tid)
       .param('page', this.pageToLoad.toString())
@@ -1215,7 +1233,19 @@ struct SinglePostPage {
       })
   }
 
+  // app 接口可能已先行渲染完成，而列表的 LazyForEach 以正文内容为 key，不会因楼层号、评分等补充数据而重建
+  refreshRenderedPosts() {
+    const renderedCount = this.postDataSource.totalCount()
+    for (let i = 0; i < renderedCount; i++) {
+      this.postDataSource.notifyDataChange(i)
+    }
+  }
+
   processFloorFallback(v: wrapper<PostList>) {
+    const latestTitle = unescapeAll(v.Variables.thread.subject)
+    if (this.pageParam.subject != latestTitle) {
+      this.pageParam.subject = latestTitle
+    }
     const rawPostList = v.Variables.postlist
     if (rawPostList.length == 0) {
       return
@@ -1265,7 +1295,10 @@ struct SinglePostPage {
           }
         }
         if (!this.threadNotExist) {
-          await this.requestFloorFallback()
+          await this.requestFallback()
+          if (this.floorNumberByPid.size > 0) {
+            this.refreshRenderedPosts()
+          }
         }
       })
     session.join(
