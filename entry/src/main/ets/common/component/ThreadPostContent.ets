@@ -521,10 +521,11 @@ export function PostContentParser(root: XMLParsed, imgUrl: string[]): PostConten
       }
       post!.push(rowNode)
     } else if (node.name == UINodeName.Td) {
-      const cellWidth = node.attributes ? node.attributes['width'] : ''
+      const cellWidth = node.attributes && node.attributes['width'] ? node.attributes['width'] : ''
+      const colspanAttr = node.attributes && node.attributes['colspan'] ? node.attributes['colspan'] : ''
       const cell: UINodeFactory = post.inherit()
       node.elements?.forEach((n): void => ContentParser(n, cell))
-      const cellNode = new GeneralNode(UINodeName.Td, cellWidth)
+      const cellNode = new GeneralNode(UINodeName.Td, cellWidth, colspanAttr)
       cellNode.nestedRootNode = cell.finish()
       post!.push(cellNode)
     }
@@ -935,7 +936,8 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
         ForEach(param.uiRoot.block,
           (node: GeneralNode, index: number) => {
             if (node.name == UINodeName.Tr && node.nestedGeneralNode) {
-              TableRowBuilder(node.nestedGeneralNode, param)
+              TableRowBuilder(node.nestedGeneralNode, param,
+                tableColumnWidths(param.uiRoot.block, param.fontSize))
             }
           }, (node: GeneralNode, index: number) => index.toString())
       }.constraintSize({
@@ -955,15 +957,15 @@ export function ThreadPostUINodeRender(param: ThreadPostUINodeRenderParam) {
 }
 
 @Builder
-function TableRowBuilder(block: GeneralNode[], param: ThreadPostUINodeRenderParam) {
+function TableRowBuilder(block: GeneralNode[], param: ThreadPostUINodeRenderParam, widths: number[]) {
   RowSplit() {
     ForEach(block, (node: GeneralNode, index: number) => {
       if (node.name === UINodeName.Td) {
         Column() {
           NestedNodesBuilder(node, param)
         }
-        .width((parseInt(node.content) || 150) * 16 / 14 * FontSizeEnum[param.fontSize].ratio)
-        .padding(4)
+        .width(tableCellSpanWidth(block, index, widths))
+        .padding(TABLE_CELL_PADDING)
       }
     }, (node: GeneralNode, index: number) => index.toString())
   }.border({
@@ -971,6 +973,226 @@ function TableRowBuilder(block: GeneralNode[], param: ThreadPostUINodeRenderPara
     width: 1
   }).resizeable(false)
   .hitTestBehavior(HitTestMode.None)
+}
+
+const TABLE_CELL_PADDING = 4
+const TABLE_MIN_COLUMN_EM = 1.5
+
+class TableTextMeasure {
+  longestLine: number = 0
+  currentLine: number = 0
+
+  endLine(): void {
+    if (this.currentLine > this.longestLine) {
+      this.longestLine = this.currentLine
+    }
+    this.currentLine = 0
+  }
+}
+
+function tableCharWidthEm(code: number): number {
+  if (code == 0xA0) {
+    return 0.5
+  }
+  if (code == 0x20 || code == 0x09) {
+    return 0.35
+  }
+  if ((code >= 0x1100 && code <= 0x115F) || (code >= 0x2E80 && code <= 0xA4CF) ||
+    (code >= 0xAC00 && code <= 0xD7A3) || (code >= 0xF900 && code <= 0xFAFF) ||
+    (code >= 0xFE30 && code <= 0xFE6F) || (code >= 0xFF00 && code <= 0xFF60) ||
+    (code >= 0xFFE0 && code <= 0xFFE6)) {
+    return 1
+  }
+  return 0.55
+}
+
+function measureInlineEm(nodes: GeneralNode[], measure: TableTextMeasure): void {
+  for (const node of nodes) {
+    if (node.name == UINodeName.Text || node.name == UINodeName.A || node.name == UINodeName.IEdit) {
+      for (let i = 0; i < node.content.length; i++) {
+        const code = node.content.charCodeAt(i)
+        if (code == 0x0A) {
+          measure.endLine()
+        } else {
+          measure.currentLine += tableCharWidthEm(code)
+        }
+      }
+    } else if (node.name == UINodeName.Br) {
+      measure.endLine()
+    } else if (node.name == UINodeName.Img) {
+      measure.currentLine += 3
+    } else if (node.name == UINodeName.ImgSmily) {
+      measure.currentLine += 1.2
+    } else if (node.name == UINodeName.Attach) {
+      measure.currentLine += node.content.length
+    }
+  }
+}
+
+function measureRootsEm(roots: UIRootNode[], measure: TableTextMeasure): void {
+  for (const root of roots) {
+    if (root.type == UINodeName.Text || root.type == UINodeName.Code) {
+      measureInlineEm(root.block, measure)
+      measure.endLine()
+    } else if (root.type == UINodeName.Quote || root.type == UINodeName.Div) {
+      for (const node of root.block) {
+        if (node.nestedRootNode) {
+          measureRootsEm(node.nestedRootNode, measure)
+        } else {
+          const single: GeneralNode[] = [node]
+          measureInlineEm(single, measure)
+        }
+      }
+      measure.endLine()
+    } else if (root.type == UINodeName.Table) {
+      measure.currentLine += 10
+      measure.endLine()
+    }
+  }
+}
+
+/** 估算单元格内容所需宽度（以正文字号为单位），取最宽的一行 */
+function tableCellContentEm(node: GeneralNode): number {
+  if (!node.nestedRootNode) {
+    return 0
+  }
+  const measure = new TableTextMeasure()
+  measureRootsEm(node.nestedRootNode, measure)
+  measure.endLine()
+  return measure.longestLine
+}
+
+function tableExplicitCellWidth(node: GeneralNode, fontSize: FontSizeIndex): number {
+  if (node.content.length == 0 || node.content.includes('%')) {
+    return -1
+  }
+  const width = parseFloat(node.content)
+  if (isNaN(width) || width <= 0) {
+    return -1
+  }
+  return width * 16 / 14 * FontSizeEnum[fontSize].ratio
+}
+
+/** td 的 colspan 解析结果，记录在 GeneralNode.attribute 上 */
+function tableCellColspan(node: GeneralNode): number {
+  if (node.attribute.length == 0) {
+    return 1
+  }
+  const colspan = parseInt(node.attribute)
+  return isNaN(colspan) || colspan < 1 ? 1 : colspan
+}
+
+/** 计算整张表格的列宽：列宽跨行一致，colspan 跨列，首列保持内容宽度、剩余空间留给内容较长的列 */
+function tableColumnWidths(rows: GeneralNode[], fontSize: FontSizeIndex): number[] {
+  let columnCount = 0
+  for (const row of rows) {
+    if (row.name != UINodeName.Tr) {
+      continue
+    }
+    const rowCells = row.nestedGeneralNode
+    if (!rowCells) {
+      continue
+    }
+    let count = 0
+    for (const cell of rowCells) {
+      if (cell.name == UINodeName.Td) {
+        count += tableCellColspan(cell)
+      }
+    }
+    if (count > columnCount) {
+      columnCount = count
+    }
+  }
+  if (columnCount == 0) {
+    return []
+  }
+  const emVp = FontSizeEnum[fontSize].vp16
+  const explicit: number[] = []
+  const natural: number[] = []
+  for (let i = 0; i < columnCount; i++) {
+    explicit.push(-1)
+    natural.push(TABLE_MIN_COLUMN_EM)
+  }
+  for (const row of rows) {
+    if (row.name != UINodeName.Tr) {
+      continue
+    }
+    const rowCells = row.nestedGeneralNode
+    if (!rowCells) {
+      continue
+    }
+    let column = 0
+    for (const cell of rowCells) {
+      if (cell.name != UINodeName.Td) {
+        continue
+      }
+      if (tableCellColspan(cell) == 1 && column < columnCount) {
+        const explicitWidth = tableExplicitCellWidth(cell, fontSize)
+        if (explicitWidth > 0) {
+          if (explicitWidth > explicit[column]) {
+            explicit[column] = explicitWidth
+          }
+        } else {
+          const contentEm = tableCellContentEm(cell)
+          if (contentEm > natural[column]) {
+            natural[column] = contentEm
+          }
+        }
+      }
+      column += tableCellColspan(cell)
+    }
+  }
+  const widths: number[] = []
+  for (let i = 0; i < columnCount; i++) {
+    widths.push(explicit[i] >= 0 ? explicit[i] : natural[i] * emVp + TABLE_CELL_PADDING * 2)
+  }
+  for (const row of rows) {
+    if (row.name != UINodeName.Tr) {
+      continue
+    }
+    const rowCells = row.nestedGeneralNode
+    if (!rowCells) {
+      continue
+    }
+    let column = 0
+    for (const cell of rowCells) {
+      if (cell.name != UINodeName.Td) {
+        continue
+      }
+      const span = tableCellColspan(cell)
+      if (span > 1) {
+        let required = tableCellContentEm(cell) * emVp + TABLE_CELL_PADDING * 2
+        const explicitWidth = tableExplicitCellWidth(cell, fontSize)
+        if (explicitWidth > required) {
+          required = explicitWidth
+        }
+        let current = 0
+        for (let i = column; i < column + span && i < columnCount; i++) {
+          current += widths[i]
+        }
+        const lastColumn = Math.min(column + span, columnCount) - 1
+        if (required > current && lastColumn >= 0) {
+          widths[lastColumn] += required - current
+        }
+      }
+      column += span
+    }
+  }
+  return widths
+}
+
+function tableCellSpanWidth(cells: GeneralNode[], index: number, widths: number[]): number {
+  let column = 0
+  for (let i = 0; i < index && i < cells.length; i++) {
+    column += tableCellColspan(cells[i])
+  }
+  const cell = cells[index]
+  const span = tableCellColspan(cell)
+  let total = 0
+  for (let i = column; i < column + span && i < widths.length; i++) {
+    total += widths[i]
+  }
+  return total
 }
 
 @Builder
