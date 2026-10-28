@@ -9,7 +9,7 @@ const CACHE_STORE_CONFIG: relationalStore.StoreConfig = {
 
 const GLOBAL_TABLE_NAME = 'ApiCacheGlobal'
 const FORUM_GROUP_CACHE_KEY = URL.BASE + URL.FORUM_GROUP
-export const CLEAN_UP_CACHE_THRESHOLD = 1000
+export const CLEAN_UP_CACHE_THRESHOLD = 4000
 
 enum COLUMN {
   key = 'key',
