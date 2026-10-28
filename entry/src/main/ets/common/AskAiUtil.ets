@@ -268,20 +268,14 @@ function formatQuoteDate(dateline: number): string {
 async function flattenPostContentAsync(nodes: UIRootNode[], author: string, dateline: number,
   visitedPids: Set<string>, isMain: boolean, ownPid: string, ownFloor: number): Promise<AskAiSection[]> {
   const ownRoots: UIRootNode[] = []
-  const quoteRoots: UIRootNode[] = []
-
-  for (const root of nodes) {
-    if (isQuoteRoot(root)) {
-      quoteRoots.push(root)
-    } else {
-      ownRoots.push(root)
-    }
-  }
-
   const sections: AskAiSection[] = []
 
-  for (const quoteRoot of quoteRoots) {
-    const href = extractRedirectHrefFromQuote(quoteRoot)
+  for (const root of nodes) {
+    if (!isQuoteRoot(root)) {
+      ownRoots.push(root)
+      continue
+    }
+    const href = extractRedirectHrefFromQuote(root)
     let resolved = false
     if (href.length > 0) {
       const info = await resolveRedirectLink(href)
@@ -303,15 +297,8 @@ async function flattenPostContentAsync(nodes: UIRootNode[], author: string, date
       }
     }
     if (!resolved) {
-      for (const node of quoteRoot.block) {
-        if (node.nestedRootNode) {
-          const nestedSections = await flattenPostContentAsync(node.nestedRootNode, '', 0,
-            visitedPids, false, '', 0)
-          for (const s of nestedSections) {
-            sections.push(s)
-          }
-        }
-      }
+      // 无法定位到被引用楼层时，引用块内容仍属于当前楼层正文（序列化为 markdown 引用），不能丢弃
+      ownRoots.push(root)
     }
   }
 
