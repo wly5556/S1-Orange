@@ -18,6 +18,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 function intervalMs(interval: UpdateCheckInterval): number {
   switch (interval) {
+    case UpdateCheckInterval.everyStart:
+      return 0
     case UpdateCheckInterval.weekly:
       return 7 * DAY_MS
     case UpdateCheckInterval.monthly:

@@ -4,13 +4,22 @@ import { UpdateCheckInterval } from '../../../config/v1/default'
 import { PreferenceState } from '../../../pages/NavProvider/NavigationPage'
 import { FontSizeEnum } from '../../fontSize/FontSizeEnum'
 
+const UpdateCheckIntervalOrder: UpdateCheckInterval[] = [
+  UpdateCheckInterval.everyStart,
+  UpdateCheckInterval.weekly,
+  UpdateCheckInterval.monthly,
+  UpdateCheckInterval.never
+]
+
 const UpdateCheckIntervalText: string[] = []
+UpdateCheckIntervalText[UpdateCheckInterval.everyStart] = '每次启动'
 UpdateCheckIntervalText[UpdateCheckInterval.monthly] = '每月'
 UpdateCheckIntervalText[UpdateCheckInterval.weekly] = '每7天'
 UpdateCheckIntervalText[UpdateCheckInterval.never] = '不检查'
 
 export const UpdateCheckIntervalDesc: string[] = []
 
+UpdateCheckIntervalDesc[UpdateCheckInterval.everyStart] = '每次启动应用时检查新版本'
 UpdateCheckIntervalDesc[UpdateCheckInterval.monthly] = '间隔30天检查新版本'
 UpdateCheckIntervalDesc[UpdateCheckInterval.weekly] = '间隔7天检查新版本'
 UpdateCheckIntervalDesc[UpdateCheckInterval.never] = '不自动检查应用更新'
@@ -24,26 +33,27 @@ export struct UpdateCheckPref {
   }
 
   @State segmentOption: SegmentButtonOptions = SegmentButtonOptions.capsule({
-    buttons: UpdateCheckIntervalText.map(v => ({ text: v } as SegmentButtonIconTextItem)) as SegmentButtonItemTuple,
+    buttons: UpdateCheckIntervalOrder.map(v => ({ text: UpdateCheckIntervalText[v] } as SegmentButtonIconTextItem)) as SegmentButtonItemTuple,
     multiply: false,
     fontSize: FontSizeEnum[this.appState.fontSize].vp16,
     selectedFontSize: FontSizeEnum[this.appState.fontSize].vp16,
     backgroundBlurStyle: BlurStyle.BACKGROUND_THICK
   })
-  @State @Watch('selectedChanged') updateCheckSelected: UpdateCheckInterval[] = []
+  @State @Watch('selectedChanged') updateCheckSelected: number[] = []
 
   selectedChanged() {
     PreferenceManager.modify(conf => {
-      this.updateCheckSelected.forEach(v => {
-        conf.update_check_interval = v
-        this.appState.updateCheckInterval = v
+      this.updateCheckSelected.forEach(i => {
+        const interval = UpdateCheckIntervalOrder[i]
+        conf.update_check_interval = interval
+        this.appState.updateCheckInterval = interval
       })
     })
   }
 
   aboutToAppear(): void {
     PreferenceManager.readonly(conf => {
-      this.updateCheckSelected.push(conf.update_check_interval)
+      this.updateCheckSelected.push(UpdateCheckIntervalOrder.indexOf(conf.update_check_interval))
     })
   }
 

@@ -57,7 +57,8 @@ export enum ForumSortMode {
 export enum UpdateCheckInterval {
   monthly = 0,
   weekly = 1,
-  never = 2
+  never = 2,
+  everyStart = 3
 }
 
 /**
