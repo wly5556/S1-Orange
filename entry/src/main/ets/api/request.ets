@@ -259,7 +259,13 @@ export default class request<T> {
   }
 
   private dedupKey(pathAndPayload: string): string {
-    return `${this.base}${pathAndPayload}|${userCookieString}|${userAppToken ?? ''}`
+    const identity = this.sessionConfig.cookies === undefined ? 'guest' : userCookieString
+    return `${this.base}${pathAndPayload}|${identity}|${userAppToken ?? ''}`
+  }
+
+  private cacheKeyFor(pathAndPayload: string): string {
+    const guestSuffix = this.sessionConfig.cookies === undefined ? '|guest' : ''
+    return this.base + pathAndPayload + guestSuffix
   }
 
   private wrapper(request: (session: rcp.Session) => Promise<rcp.Response>) {
@@ -396,7 +402,7 @@ export default class request<T> {
     }
     const path = this.addParams(this.path)
     if (this.cacheCallback) {
-      this.cacheKey = this.base + path
+      this.cacheKey = this.cacheKeyFor(path)
       if (!this.putCacheOnly) {
         getCache(this.cacheKey).then(cached => this.cacheCallback && cached && this.cacheCallback(cached as T))
       }
@@ -452,7 +458,7 @@ export default class request<T> {
       payloadString = new url.URLParams(content as Record<string, string>).toString()
     }
     if (this.cacheCallback) {
-      this.cacheKey = this.base + reqPath + payloadString
+      this.cacheKey = this.cacheKeyFor(reqPath + payloadString)
       if (!this.putCacheOnly) {
         getCache(this.cacheKey).then(cached => this.cacheCallback && cached && this.cacheCallback(cached as T))
       }
