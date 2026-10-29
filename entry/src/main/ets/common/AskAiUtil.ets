@@ -24,7 +24,8 @@ function trimInlineImages(md: string): string {
   return md.replace(INLINE_IMAGE_PATTERN, (match: string): string => {
     const open = match.lastIndexOf('(')
     const url = open >= 0 ? match.slice(open + 1, match.length - 1) : ''
-    return smilyBbCode(url)
+    const code = smilyBbCode(url)
+    return code.length > 0 ? code : match
   })
 }
 
