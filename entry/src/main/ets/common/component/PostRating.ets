@@ -93,15 +93,27 @@ function ratingAvatarTransitionKey(index: number, data: PostRatingPanelData): st
 @Builder
 export function PostRatingPanel(data: PostRatingPanelData) {
   Column({ space: 8 }) {
-    Row() {
-      Text('评分')
-        .fontWeight(FontWeight.Bold)
-        .fontSize(FontSizeEnum[data.appState.fontSize].vp22)
-        .fontColor(data.appTheme.themeColorDarken)
-      Text(`参与人数 ${data.userCount}`).opacity(0.6).fontSize(FontSizeEnum[data.appState.fontSize].vp16)
-      Text(`战斗力 ${data.totalRating >= 0 ? '+' : ''}${data.totalRating}`)
-        .opacity(0.6)
-        .fontSize(FontSizeEnum[data.appState.fontSize].vp16)
+    Row({ space: 12 }) {
+      Image($r('app.media.message_on_message'))
+        .width(FontSizeEnum[data.appState.fontSize].vp24)
+        .height(FontSizeEnum[data.appState.fontSize].vp24)
+        .fillColor(data.appTheme.themeColorDarken)
+      Blank()
+      Row({ space: 4 }) {
+        Image($r('app.media.person_2'))
+          .width(FontSizeEnum[data.appState.fontSize].vp16)
+          .height(FontSizeEnum[data.appState.fontSize].vp16)
+          .fillColor(data.appTheme.fontPrimary)
+        Text(`${data.userCount}`).fontSize(FontSizeEnum[data.appState.fontSize].vp16)
+      }.opacity(0.6).margin({ left: 8, right: 8 })
+      Row({ space: 4 }) {
+        Image($r('app.media.goose'))
+          .width(FontSizeEnum[data.appState.fontSize].vp16)
+          .height(FontSizeEnum[data.appState.fontSize].vp16)
+          .fillColor(data.appTheme.fontPrimary)
+        Text(`${data.totalRating >= 0 ? '+' : ''}${data.totalRating}`)
+          .fontSize(FontSizeEnum[data.appState.fontSize].vp16)
+      }.opacity(0.6).margin({ left: 8, right: 8 })
       if (data.seeMoreButton) {
         Text('查看全部')
           .opacity(0.7)
@@ -109,8 +121,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
           .onClick(data.seeMore)
           .fontSize(FontSizeEnum[data.appState.fontSize].vp16)
       }
-    }.justifyContent(FlexAlign.SpaceBetween)
-    .width('100%')
+    }.width('100%')
 
     ForEach(data.rating, (item: Rating, index: number) => {
       if (!data.maxItem || index < data.maxItem) {
@@ -143,7 +154,7 @@ export function PostRatingPanel(data: PostRatingPanelData) {
         }.width('100%').alignItems(VerticalAlign.Top)
       }
     }, (item: Rating) => item.uid)
-  }.margin({ top: 20 })
+  }.margin({ top: 12 })
   .geometryTransition(data.transitionIndex, { follow: true })
   .alignSelf(ItemAlign.End)
   .transition(TransitionEffect.OPACITY.animation({ duration: AniSpeed.ms120 }))
